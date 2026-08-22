@@ -91,14 +91,14 @@ func Check(opts CheckOptions) (CheckReport, error) {
 		return CheckReport{}, err
 	}
 
-	impls, err := scanPackages(opts.Packages, opts.Dir)
+	keys, err := scanPackages(opts.Packages, opts.Dir)
 	if err != nil {
 		return CheckReport{}, err
 	}
 
 	implCount := make(map[string]int)
-	for _, im := range impls {
-		implCount[im.Key]++
+	for _, k := range keys {
+		implCount[k]++
 	}
 
 	var report CheckReport
@@ -141,42 +141,39 @@ func Check(opts CheckOptions) (CheckReport, error) {
 	return report, nil
 }
 
-type implementation struct {
-	Key  string
-	File string
-	Line int
-}
-
 var inventoryComment = regexp.MustCompile(`^//\s*inventory:\s*(.+?)\s*$`)
 
-func scanPackages(pkgs []string, dir string) ([]implementation, error) {
-	dirs, err := packageDirs(pkgs, dir)
+// scanPackages returns the key named by every `// inventory: <key>` comment
+// found in pkgs, one entry per occurrence (a key appearing twice yields two
+// entries, which is how Check detects double-covered keys).
+func scanPackages(pkgs []string, dir string) ([]string, error) {
+	pkgDirs, err := packageDirs(pkgs, dir)
 	if err != nil {
 		return nil, err
 	}
 
-	var impls []implementation
-	for _, dir := range dirs {
-		if filepath.Base(dir) == "testdata" {
+	var keys []string
+	for _, pkgDir := range pkgDirs {
+		if filepath.Base(pkgDir) == "testdata" {
 			continue
 		}
-		des, err := os.ReadDir(dir)
+		des, err := os.ReadDir(pkgDir)
 		if err != nil {
-			return nil, fmt.Errorf("inventory: reading dir %s: %w", dir, err)
+			return nil, fmt.Errorf("inventory: reading dir %s: %w", pkgDir, err)
 		}
 		for _, de := range des {
 			name := de.Name()
 			if de.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
 				continue
 			}
-			found, err := scanFile(filepath.Join(dir, name))
+			found, err := scanFile(filepath.Join(pkgDir, name))
 			if err != nil {
 				return nil, err
 			}
-			impls = append(impls, found...)
+			keys = append(keys, found...)
 		}
 	}
-	return impls, nil
+	return keys, nil
 }
 
 // packageDirs resolves Go package patterns to their source directories via
@@ -203,25 +200,22 @@ func packageDirs(pkgs []string, dir string) ([]string, error) {
 	return dirs, nil
 }
 
-func scanFile(path string) ([]implementation, error) {
+func scanFile(path string) ([]string, error) {
 	fset := token.NewFileSet()
 	file, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
 	if err != nil {
 		return nil, fmt.Errorf("inventory: parsing %s: %w", path, err)
 	}
 
-	var out []implementation
+	var keys []string
 	for _, cg := range file.Comments {
 		for _, c := range cg.List {
-			m := inventoryComment.FindStringSubmatch(c.Text)
-			if m == nil {
-				continue
+			if m := inventoryComment.FindStringSubmatch(c.Text); m != nil {
+				keys = append(keys, m[1])
 			}
-			pos := fset.Position(c.Pos())
-			out = append(out, implementation{Key: m[1], File: path, Line: pos.Line})
 		}
 	}
-	return out, nil
+	return keys, nil
 }
 
 type ignoreList struct {
@@ -229,10 +223,7 @@ type ignoreList struct {
 	Todo   map[string]string
 }
 
-var (
-	ignoreDirective = regexp.MustCompile(`^//go:inventory-ignore\s+(.+)$`)
-	todoDirective   = regexp.MustCompile(`^//go:inventory-todo\s+(.+)$`)
-)
+var directive = regexp.MustCompile(`^//go:inventory-(ignore|todo)\s+(.+)$`)
 
 const keyReasonSep = " -- "
 
@@ -258,27 +249,21 @@ func loadIgnoreList(path string) (*ignoreList, error) {
 			continue
 		}
 
-		if m := ignoreDirective.FindStringSubmatch(line); m != nil {
-			key, reason, err := splitKeyReason(m[1])
-			if err != nil {
-				return nil, fmt.Errorf("%s:%d: %w", path, lineNo, err)
-			}
-			if err := addUnique(list.Ignore, list.Todo, key, reason, path, lineNo); err != nil {
-				return nil, err
-			}
-			continue
+		m := directive.FindStringSubmatch(line)
+		if m == nil {
+			return nil, fmt.Errorf("%s:%d: unrecognized directive: %q", path, lineNo, line)
 		}
-		if m := todoDirective.FindStringSubmatch(line); m != nil {
-			key, phase, err := splitKeyReason(m[1])
-			if err != nil {
-				return nil, fmt.Errorf("%s:%d: %w", path, lineNo, err)
-			}
-			if err := addUnique(list.Todo, list.Ignore, key, phase, path, lineNo); err != nil {
-				return nil, err
-			}
-			continue
+		key, reason, err := splitKeyReason(m[2])
+		if err != nil {
+			return nil, fmt.Errorf("%s:%d: %w", path, lineNo, err)
 		}
-		return nil, fmt.Errorf("%s:%d: unrecognized directive: %q", path, lineNo, line)
+		into, other := list.Ignore, list.Todo
+		if m[1] == "todo" {
+			into, other = list.Todo, list.Ignore
+		}
+		if err := addUnique(into, other, key, reason, path, lineNo); err != nil {
+			return nil, err
+		}
 	}
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("inventory: scanning %s: %w", path, err)

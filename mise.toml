@@ -1,5 +1,5 @@
 [tools]
-go = "1.26.5"
+go = "1.26.6"
 golangci-lint = "2.13.1"
 goreleaser = "2.17.1"
 actionlint = "1.7.12"
@@ -24,6 +24,14 @@ run = "scripts/check.sh test"
 [tasks.cover]
 description = "Enforce the 90% coverage floor for one or more modules (default: all)"
 run = "scripts/check.sh cover"
+
+[tasks.vuln]
+description = "Run govulncheck for one or more modules (default: all)"
+run = "scripts/check.sh vuln"
+
+[tasks.actionlint]
+description = "Lint .github/workflows/*.yml"
+run = "actionlint .github/workflows/*.yml"
 
 [tasks.inventory-check]
 description = "Run the inventory parity check against freshbooks source"

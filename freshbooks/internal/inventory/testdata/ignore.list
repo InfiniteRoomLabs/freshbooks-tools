@@ -1,10 +1,12 @@
 # Generated for Phase 0 from testdata/inventory.json.
-# internal-family entries (my.freshbooks.com) are permanently ignored;
-# everything else is todo for the phase that implements it.
-# Regenerate additions by hand as phases land; never delete an ignore entry.
-//go:inventory-ignore Accounting/Journal Entries/Add Journal Entry -- internal my.freshbooks.com endpoint
-//go:inventory-ignore Projects/Delete Project -- internal my.freshbooks.com endpoint
-//go:inventory-ignore Settings/Businesses/Delete Business - Subscription -- internal my.freshbooks.com endpoint
+# `ignore` is reserved for entries confirmed dead or a hard-coded-ID
+# duplicate of another request, with evidence in the reason. The three
+# my.freshbooks.com-hosted entries below are NOT confirmed dead -- they
+# are the only create-journal-entry, delete-project, and
+# delete-subscription operations in the collection, so they are todo
+# until Phase 2 verifies the public host live and either implements
+# them or demotes them to ignore with evidence.
+# Never delete an ignore or todo entry; only move it between the two.
 //go:inventory-todo Accounting/Accounts/Create Account -- phase-2
 //go:inventory-todo Accounting/Accounts/List Account types -- phase-2
 //go:inventory-todo Accounting/Accounts/List Accounts -- phase-2
@@ -13,6 +15,7 @@
 //go:inventory-todo Accounting/Accounts/Single Sub type -- phase-2
 //go:inventory-todo Accounting/Accounts/Update Account -- phase-2
 //go:inventory-todo Accounting/Journal Entries/Accounts -- phase-2
+//go:inventory-todo Accounting/Journal Entries/Add Journal Entry -- phase-2 (collection lists my.freshbooks.com; verify public host live)
 //go:inventory-todo Accounting/Journal Entries/Journal Entry Details -- phase-2
 //go:inventory-todo Accounting/Other Income/Create Single Other Income -- phase-2
 //go:inventory-todo Accounting/Other Income/Delete Single Other Income -- phase-2
@@ -68,7 +71,7 @@
 //go:inventory-todo Expenses/Single Expense -- phase-2
 //go:inventory-todo Expenses/Single Expense Category -- phase-2
 //go:inventory-todo Expenses/Single Tax (DELETE) -- phase-2
-//go:inventory-todo Expenses/Single Tax -- phase-2
+//go:inventory-todo Expenses/Single Tax (GET) -- phase-2
 //go:inventory-todo Expenses/Update Expense -- phase-2
 //go:inventory-todo Expenses/Update Expense with Receipt -- phase-2
 //go:inventory-todo Expenses/Update Tax -- phase-2
@@ -137,6 +140,7 @@
 //go:inventory-todo Projects/Add Comment to Project Discussion Message -- phase-2
 //go:inventory-todo Projects/Create New Message in Project Discussion -- phase-2
 //go:inventory-todo Projects/Create Single Project -- phase-2
+//go:inventory-todo Projects/Delete Project -- phase-2 (collection lists my.freshbooks.com; verify public host live)
 //go:inventory-todo Projects/Invitation Rates -- phase-2
 //go:inventory-todo Projects/Invite Team Member to Project(s) -- phase-2
 //go:inventory-todo Projects/List All Messages in Project Discussion -- phase-2
@@ -169,6 +173,7 @@
 //go:inventory-todo Reports/Trial Balance -- phase-2
 //go:inventory-todo Settings/Abilities/Abilities -- phase-2
 //go:inventory-todo Settings/Businesses/Add Business -- phase-2
+//go:inventory-todo Settings/Businesses/Delete Business - Subscription -- phase-2 (collection lists my.freshbooks.com; verify public host live)
 //go:inventory-todo Settings/Businesses/Delete Business -- phase-2
 //go:inventory-todo Settings/Businesses/Gateway Details -- phase-2
 //go:inventory-todo Settings/Businesses/Provision FreshBooks Payments -- phase-2
@@ -190,7 +195,7 @@
 //go:inventory-todo Settings/Items and Services/Single Item -- phase-2
 //go:inventory-todo Settings/Items and Services/Single Service -- phase-2
 //go:inventory-todo Settings/Items and Services/Single Tax (DELETE) -- phase-2
-//go:inventory-todo Settings/Items and Services/Single Tax -- phase-2
+//go:inventory-todo Settings/Items and Services/Single Tax (GET) -- phase-2
 //go:inventory-todo Settings/Items and Services/Update Item -- phase-2
 //go:inventory-todo Settings/Items and Services/Update Tax -- phase-2
 //go:inventory-todo Settings/Systems/Get System -- phase-2

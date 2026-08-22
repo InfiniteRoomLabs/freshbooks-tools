@@ -6,6 +6,7 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/spf13/cobra"
 )
@@ -21,9 +22,25 @@ func NewRootCmd(version string) *cobra.Command {
 	}
 
 	root.AddCommand(newVersionCmd(version))
-	root.CompletionOptions.DisableDefaultCmd = false
 
 	return root
+}
+
+// Run builds the root command, executes it against args, and returns the
+// process exit code main should pass to os.Exit. It is the seam main.go's
+// single os.Exit(cmd.Run(...)) statement calls into, kept separate so it is
+// testable without exercising os.Exit itself.
+func Run(args []string, stdout, stderr io.Writer, version string) int {
+	root := NewRootCmd(version)
+	root.SetArgs(args)
+	root.SetOut(stdout)
+	root.SetErr(stderr)
+
+	if err := root.Execute(); err != nil {
+		fmt.Fprintln(stderr, err) //nolint:errcheck // best-effort error report; nothing more we can do if this write also fails
+		return 1
+	}
+	return 0
 }
 
 func newVersionCmd(version string) *cobra.Command {

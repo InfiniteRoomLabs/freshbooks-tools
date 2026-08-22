@@ -8,12 +8,13 @@ import (
 	"testing"
 )
 
-func readFile(path string) (string, error) {
+func mustReadFile(t *testing.T, path string) string {
+	t.Helper()
 	data, err := os.ReadFile(path) // #nosec G304 -- test-only helper reading fixed testdata paths
 	if err != nil {
-		return "", err
+		t.Fatalf("reading %s: %v", path, err)
 	}
-	return string(data), nil
+	return string(data)
 }
 
 func mustLoad(t *testing.T, path string) *Collection {
@@ -32,6 +33,37 @@ func mustNormalize(t *testing.T, c *Collection) []Entry {
 		t.Fatalf("Normalize() error = %v", err)
 	}
 	return entries
+}
+
+// oneRequest builds a collection holding a single request nested under
+// trail[0]/.../trail[n-1] (the top-level folder plus any subfolders), named
+// name.
+func oneRequest(req *Request, name string, trail ...string) *Collection {
+	if len(trail) == 0 {
+		panic("oneRequest: at least one trail segment (a top-level folder) is required")
+	}
+	item := Item{Name: name, Request: req}
+	for i := len(trail) - 1; i >= 0; i-- {
+		item = Item{Name: trail[i], Item: []Item{item}}
+	}
+	return &Collection{Item: []Item{item}}
+}
+
+// clientsList is the shared do-nothing fixture used by tests that just need
+// some valid, minimal collection and don't care about its shape.
+func clientsList() *Collection {
+	return oneRequest(
+		&Request{Method: "GET", URL: URL{Raw: "https://api.freshbooks.com/accounting/account/{{accountId}}/users/clients"}},
+		"List Clients", "Clients",
+	)
+}
+
+func keysOf(entries []Entry) []string {
+	out := make([]string, len(entries))
+	for i, e := range entries {
+		out[i] = e.Key
+	}
+	return out
 }
 
 func TestNormalizePathSegments(t *testing.T) {
@@ -93,7 +125,8 @@ func TestClassifyFamily(t *testing.T) {
 		want string
 	}{
 		{"[happy] accounting", "/accounting/account/{accountId}/invoices/invoices", FamilyAccounting},
-		{"[happy] ledger", "/accounting/businesses/{businessUuid}/ledger_accounts/accounts", FamilyLedger},
+		{"[happy] ledger via businesses", "/accounting/businesses/{businessUuid}/ledger_accounts/accounts", FamilyLedger},
+		{"[happy] ledger via ledger_accounts type taxonomy", "/accounting/ledger_accounts/types", FamilyLedger},
 		{"[happy] business via projects", "/projects/business/{businessId}/projects", FamilyBusiness},
 		{"[happy] business via timetracking", "/timetracking/business/{businessId}/time_entries", FamilyBusiness},
 		{"[happy] business via comments", "/comments/business/{businessId}/project/{id}", FamilyBusiness},
@@ -115,63 +148,53 @@ func TestClassifyFamily(t *testing.T) {
 }
 
 func TestNormalizeStringURL(t *testing.T) {
-	c := &Collection{Item: []Item{
-		{Name: "Folder", Item: []Item{
-			{Name: "Req", Request: &Request{
-				Method: "get",
-				URL:    URL{Raw: "https://api.freshbooks.com/accounting/account/{{accountId}}/invoices/invoices?include[]=lines"},
-			}},
-		}},
-	}}
-	entries := mustNormalize(t, c)
-	if len(entries) != 1 {
-		t.Fatalf("len(entries) = %d, want 1", len(entries))
+	tests := []struct {
+		name string
+		raw  string
+	}{
+		{"[happy] with scheme", "https://api.freshbooks.com/accounting/account/{{accountId}}/invoices/invoices?include[]=lines"},
+		{"[corner] scheme-less raw URL (two real collection entries have no scheme)", "api.freshbooks.com/accounting/account/{{accountId}}/invoices/invoices?include[]=lines"},
 	}
-	e := entries[0]
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := oneRequest(&Request{Method: "get", URL: URL{Raw: tt.raw}}, "Req", "Folder")
+			entries := mustNormalize(t, c)
+			if len(entries) != 1 {
+				t.Fatalf("len(entries) = %d, want 1", len(entries))
+			}
+			e := entries[0]
 
-	t.Run("[happy] method uppercased", func(t *testing.T) {
-		if e.Method != "GET" {
-			t.Errorf("Method = %q, want GET", e.Method)
-		}
-	})
-	t.Run("[happy] host preserved", func(t *testing.T) {
-		if e.Host != "api.freshbooks.com" {
-			t.Errorf("Host = %q", e.Host)
-		}
-	})
-	t.Run("[happy] path template normalized", func(t *testing.T) {
-		want := "/accounting/account/{accountId}/invoices/invoices"
-		if e.PathTemplate != want {
-			t.Errorf("PathTemplate = %q, want %q", e.PathTemplate, want)
-		}
-	})
-	t.Run("[happy] query parsed from raw string", func(t *testing.T) {
-		if len(e.Query) != 1 || e.Query[0].Name != "include[]" || e.Query[0].Value != "lines" {
-			t.Errorf("Query = %+v", e.Query)
-		}
-	})
-	t.Run("[happy] family accounting", func(t *testing.T) {
-		if e.Family != FamilyAccounting {
-			t.Errorf("Family = %q", e.Family)
-		}
-	})
+			if e.Method != "GET" {
+				t.Errorf("Method = %q, want GET", e.Method)
+			}
+			if e.Host != "api.freshbooks.com" {
+				t.Errorf("Host = %q, want api.freshbooks.com", e.Host)
+			}
+			wantPath := "/accounting/account/{accountId}/invoices/invoices"
+			if e.PathTemplate != wantPath {
+				t.Errorf("PathTemplate = %q, want %q", e.PathTemplate, wantPath)
+			}
+			if len(e.Query) != 1 || e.Query[0].Name != "include[]" || e.Query[0].Value != "lines" {
+				t.Errorf("Query = %+v", e.Query)
+			}
+			if e.Family != FamilyAccounting {
+				t.Errorf("Family = %q, want %q", e.Family, FamilyAccounting)
+			}
+		})
+	}
 }
 
 func TestNormalizeObjectURL(t *testing.T) {
-	c := &Collection{Item: []Item{
-		{Name: "Folder", Item: []Item{
-			{Name: "Req", Request: &Request{
-				Method: "GET",
-				URL: URL{
-					Raw:        "https://api.freshbooks.com/accounting/account/{{accountId}}/items/items?search[sku]={{sku}}",
-					FromObject: true,
-					Query: []QueryParam{
-						{Key: "search[sku]", Value: "{{sku}}", Description: "the SKU to search for"},
-					},
-				},
-			}},
-		}},
-	}}
+	c := oneRequest(&Request{
+		Method: "GET",
+		URL: URL{
+			Raw:        "https://api.freshbooks.com/accounting/account/{{accountId}}/items/items?search[sku]={{sku}}",
+			FromObject: true,
+			Query: []QueryParam{
+				{Key: "search[sku]", Value: "{{sku}}", Description: "the SKU to search for"},
+			},
+		},
+	}, "Req", "Folder")
 	entries := mustNormalize(t, c)
 	if len(entries) != 1 {
 		t.Fatalf("len(entries) = %d, want 1", len(entries))
@@ -185,17 +208,29 @@ func TestNormalizeObjectURL(t *testing.T) {
 	}
 }
 
+func TestNormalizeQueryUnescapeFallback(t *testing.T) {
+	// "%zz" is not a valid percent-escape; QueryUnescape errors on it, and
+	// the raw segment must survive rather than silently becoming an empty
+	// name/value.
+	c := oneRequest(&Request{
+		Method: "GET",
+		URL:    URL{Raw: "https://api.freshbooks.com/accounting/account/{{accountId}}/items/items?%zzbad=%zzalsobad"},
+	}, "Req", "Folder")
+	entries := mustNormalize(t, c)
+	q := entries[0].Query
+	if len(q) != 1 {
+		t.Fatalf("len(Query) = %d, want 1", len(q))
+	}
+	if q[0].Name != "%zzbad" || q[0].Value != "%zzalsobad" {
+		t.Errorf("Query[0] = %+v, want the raw segment preserved", q[0])
+	}
+}
+
 func TestNormalizeWhitespaceStripping(t *testing.T) {
-	c := &Collection{Item: []Item{
-		{Name: "Projects", Item: []Item{
-			{Name: "Tasks", Item: []Item{
-				{Name: "List Tasks", Request: &Request{
-					Method: "GET",
-					URL:    URL{Raw: "https://api.freshbooks.com/accounting/account/{{accountId}}/projects/tasks\n"},
-				}},
-			}},
-		}},
-	}}
+	c := oneRequest(&Request{
+		Method: "GET",
+		URL:    URL{Raw: "https://api.freshbooks.com/accounting/account/{{accountId}}/projects/tasks\n"},
+	}, "List Tasks", "Projects", "Tasks")
 	entries := mustNormalize(t, c)
 	want := "/accounting/account/{accountId}/projects/tasks"
 	if entries[0].PathTemplate != want {
@@ -204,16 +239,10 @@ func TestNormalizeWhitespaceStripping(t *testing.T) {
 }
 
 func TestNormalizeInternalHostRewrite(t *testing.T) {
-	c := &Collection{Item: []Item{
-		{Name: "Accounting", Item: []Item{
-			{Name: "Journal Entries", Item: []Item{
-				{Name: "Add Journal Entry", Request: &Request{
-					Method: "POST",
-					URL:    URL{Raw: "https://my.freshbooks.com/service/api/accounting/account/{{accountId}}/journal_entries/journal_entries"},
-				}},
-			}},
-		}},
-	}}
+	c := oneRequest(&Request{
+		Method: "POST",
+		URL:    URL{Raw: "https://my.freshbooks.com/service/api/accounting/account/{{accountId}}/journal_entries/journal_entries"},
+	}, "Add Journal Entry", "Accounting", "Journal Entries")
 	entries := mustNormalize(t, c)
 	e := entries[0]
 
@@ -236,11 +265,10 @@ func TestNormalizeInternalHostRewrite(t *testing.T) {
 }
 
 func TestNormalizeFolderAndPathTrimming(t *testing.T) {
-	c := &Collection{Item: []Item{
-		{Name: "My Team ", Item: []Item{
-			{Name: " List Team Members ", Request: &Request{Method: "GET", URL: URL{Raw: "https://api.freshbooks.com/auth/api/v1/businesses/{{businessId}}/staffs"}}},
-		}},
-	}}
+	c := oneRequest(
+		&Request{Method: "GET", URL: URL{Raw: "https://api.freshbooks.com/auth/api/v1/businesses/{{businessId}}/staffs"}},
+		" List Team Members ", "My Team ",
+	)
 	entries := mustNormalize(t, c)
 	e := entries[0]
 
@@ -256,13 +284,10 @@ func TestNormalizeFolderAndPathTrimming(t *testing.T) {
 }
 
 func TestNormalizeNestedSubfolders(t *testing.T) {
-	c := &Collection{Item: []Item{
-		{Name: "Clients", Item: []Item{
-			{Name: "Credits", Item: []Item{
-				{Name: "List Credits", Request: &Request{Method: "GET", URL: URL{Raw: "https://api.freshbooks.com/accounting/account/{{accountId}}/credits/credits"}}},
-			}},
-		}},
-	}}
+	c := oneRequest(
+		&Request{Method: "GET", URL: URL{Raw: "https://api.freshbooks.com/accounting/account/{{accountId}}/credits/credits"}},
+		"List Credits", "Clients", "Credits",
+	)
 	entries := mustNormalize(t, c)
 	e := entries[0]
 
@@ -293,11 +318,11 @@ func TestNormalizeExactDuplicatesCollapse(t *testing.T) {
 		t.Errorf("Duplicates = %d, want 2", entries[0].Duplicates)
 	}
 	if entries[0].Key != "Expenses/Single Tax" {
-		t.Errorf("Key = %q, want unchanged base key", entries[0].Key)
+		t.Errorf("Key = %q, want unchanged base key (unique base keys never get suffixed)", entries[0].Key)
 	}
 }
 
-func TestNormalizeConflictingDuplicatesDisambiguate(t *testing.T) {
+func TestNormalizeConflictingDuplicatesDisambiguateBothSides(t *testing.T) {
 	c := &Collection{Item: []Item{
 		{Name: "Expenses", Item: []Item{
 			{Name: "Single Tax", Request: &Request{Method: "GET", URL: URL{Raw: "https://api.freshbooks.com/accounting/account/{{accountId}}/taxes/taxes/{{taxId}}"}}},
@@ -313,36 +338,30 @@ func TestNormalizeConflictingDuplicatesDisambiguate(t *testing.T) {
 	for _, e := range entries {
 		byKey[e.Key] = e
 	}
-	get, ok := byKey["Expenses/Single Tax"]
+
+	if _, ok := byKey["Expenses/Single Tax"]; ok {
+		t.Errorf("plain base key %q must not survive a collision; got keys %v", "Expenses/Single Tax", keysOf(entries))
+	}
+	get, ok := byKey["Expenses/Single Tax (GET)"]
 	if !ok {
-		t.Fatalf("missing base key entry; got keys %v", keysOf(entries))
+		t.Fatalf("missing GET-suffixed key entry; got keys %v", keysOf(entries))
 	}
 	if get.Method != "GET" {
-		t.Errorf("base key entry Method = %q, want GET", get.Method)
+		t.Errorf("GET-suffixed entry Method = %q, want GET", get.Method)
 	}
 	del, ok := byKey["Expenses/Single Tax (DELETE)"]
 	if !ok {
-		t.Fatalf("missing disambiguated key entry; got keys %v", keysOf(entries))
+		t.Fatalf("missing DELETE-suffixed key entry; got keys %v", keysOf(entries))
 	}
 	if del.Method != "DELETE" {
-		t.Errorf("disambiguated entry Method = %q, want DELETE", del.Method)
+		t.Errorf("DELETE-suffixed entry Method = %q, want DELETE", del.Method)
 	}
-}
-
-func keysOf(entries []Entry) []string {
-	out := make([]string, len(entries))
-	for i, e := range entries {
-		out[i] = e.Key
-	}
-	return out
 }
 
 func TestNormalizeConflictingDuplicatesFailWhenDisambiguationCollides(t *testing.T) {
-	// Three "Single Tax" entries: the first keeps the base key, the second
-	// (GET, different path) takes the "(GET)" disambiguated key, and a
-	// third (also GET, yet another path) collides with that same
-	// disambiguated key -- method-suffix disambiguation can't tell them
-	// apart, so Normalize must fail loudly instead of picking one.
+	// Three "Single Tax" entries, all GET but with three different paths:
+	// no method-suffix scheme can tell them apart, so Normalize must fail
+	// loudly instead of picking one.
 	c := &Collection{Item: []Item{
 		{Name: "Expenses", Item: []Item{
 			{Name: "Single Tax", Request: &Request{Method: "GET", URL: URL{Raw: "https://api.freshbooks.com/accounting/account/{{accountId}}/taxes/taxes/{{taxId}}"}}},
@@ -372,11 +391,7 @@ func TestURLUnmarshalJSONInvalid(t *testing.T) {
 }
 
 func TestNormalizeBadURL(t *testing.T) {
-	c := &Collection{Item: []Item{
-		{Name: "Folder", Item: []Item{
-			{Name: "Req", Request: &Request{Method: "GET", URL: URL{Raw: "://not a url"}}},
-		}},
-	}}
+	c := oneRequest(&Request{Method: "GET", URL: URL{Raw: "://not a url"}}, "Req", "Folder")
 	if _, err := Normalize(c); err == nil {
 		t.Fatal("Normalize() error = nil, want an error for an unparseable URL")
 	}
@@ -411,24 +426,14 @@ func TestNormalizeBodyAndResponses(t *testing.T) {
 }
 
 func TestNormalizeNoBodyIsNil(t *testing.T) {
-	c := &Collection{Item: []Item{
-		{Name: "Clients", Item: []Item{
-			{Name: "List Clients", Request: &Request{Method: "GET", URL: URL{Raw: "https://api.freshbooks.com/accounting/account/{{accountId}}/users/clients"}}},
-		}},
-	}}
-	entries := mustNormalize(t, c)
+	entries := mustNormalize(t, clientsList())
 	if entries[0].Body != nil {
 		t.Errorf("Body = %v, want nil", entries[0].Body)
 	}
 }
 
 func TestEntryJSONHasNoNullSlices(t *testing.T) {
-	c := &Collection{Item: []Item{
-		{Name: "Clients", Item: []Item{
-			{Name: "List Clients", Request: &Request{Method: "GET", URL: URL{Raw: "https://api.freshbooks.com/accounting/account/{{accountId}}/users/clients"}}},
-		}},
-	}}
-	entries := mustNormalize(t, c)
+	entries := mustNormalize(t, clientsList())
 	data, err := json.Marshal(entries[0])
 	if err != nil {
 		t.Fatalf("Marshal() error = %v", err)
@@ -441,12 +446,7 @@ func TestEntryJSONHasNoNullSlices(t *testing.T) {
 }
 
 func TestWriteAndReadJSONRoundTrip(t *testing.T) {
-	c := &Collection{Item: []Item{
-		{Name: "Clients", Item: []Item{
-			{Name: "List Clients", Request: &Request{Method: "GET", URL: URL{Raw: "https://api.freshbooks.com/accounting/account/{{accountId}}/users/clients"}}},
-		}},
-	}}
-	entries := mustNormalize(t, c)
+	entries := mustNormalize(t, clientsList())
 
 	path := filepath.Join(t.TempDir(), "inventory.json")
 	if err := WriteJSON(path, entries); err != nil {
@@ -492,17 +492,17 @@ func TestWriteJSONIsSortedAndStable(t *testing.T) {
 		t.Fatalf("entries not sorted by key: %v", keysOf(got))
 	}
 
-	b1, err := readFile(p1)
-	if err != nil {
-		t.Fatal(err)
-	}
-	b2, err := readFile(p2)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if b1 != b2 {
+	if mustReadFile(t, p1) != mustReadFile(t, p2) {
 		t.Error("re-emitting the same collection did not produce byte-identical output")
 	}
+}
+
+// validFamilies are the only values classifyFamily/normalizeURL may ever
+// assign to Entry.Family.
+var validFamilies = map[string]bool{
+	FamilyAccounting: true, FamilyBusiness: true, FamilyAuth: true,
+	FamilyEvents: true, FamilyUploads: true, FamilyPayments: true,
+	FamilyLedger: true, FamilyInternal: true, FamilyUnknown: true,
 }
 
 func TestLoadRealCollectionGolden(t *testing.T) {
@@ -537,20 +537,50 @@ func TestLoadRealCollectionGolden(t *testing.T) {
 		}
 	})
 
-	t.Run("[corner] Single Tax name collisions disambiguated by method", func(t *testing.T) {
+	t.Run("[corner] Single Tax name collisions disambiguate both sides", func(t *testing.T) {
 		for _, base := range []string{"Expenses/Single Tax", "Settings/Items and Services/Single Tax"} {
-			var sawGet, sawDelete bool
+			var sawGet, sawDelete, sawPlain bool
 			for _, e := range entries {
-				if e.Key == base && e.Method == "GET" {
-					sawGet = true
+				switch e.Key {
+				case base:
+					sawPlain = true
+				case base + " (GET)":
+					sawGet = e.Method == "GET"
+				case base + " (DELETE)":
+					sawDelete = e.Method == "DELETE"
 				}
-				if e.Key == base+" (DELETE)" && e.Method == "DELETE" {
-					sawDelete = true
-				}
+			}
+			if sawPlain {
+				t.Errorf("%s: plain base key must not survive a collision", base)
 			}
 			if !sawGet || !sawDelete {
 				t.Errorf("%s: sawGet=%v sawDelete=%v", base, sawGet, sawDelete)
 			}
+		}
+	})
+
+	t.Run("[happy] every entry is well-formed", func(t *testing.T) {
+		seenKeys := make(map[string]bool, len(entries))
+		for _, e := range entries {
+			if !strings.HasPrefix(e.PathTemplate, "/") {
+				t.Errorf("%s: PathTemplate %q does not start with /", e.Key, e.PathTemplate)
+			}
+			if e.Host == "" {
+				t.Errorf("%s: Host is empty", e.Key)
+			}
+			if strings.Contains(e.PathTemplate, "freshbooks.com") {
+				t.Errorf("%s: PathTemplate %q still contains a host", e.Key, e.PathTemplate)
+			}
+			if strings.Contains(e.PathTemplate, "{{") {
+				t.Errorf("%s: PathTemplate %q still contains an unrewritten {{var}}", e.Key, e.PathTemplate)
+			}
+			if !validFamilies[e.Family] {
+				t.Errorf("%s: Family %q is not one of the known constants", e.Key, e.Family)
+			}
+			if seenKeys[e.Key] {
+				t.Errorf("duplicate Key %q in the final entry list", e.Key)
+			}
+			seenKeys[e.Key] = true
 		}
 	})
 
@@ -560,14 +590,8 @@ func TestLoadRealCollectionGolden(t *testing.T) {
 		if err := WriteJSON(out, entries); err != nil {
 			t.Fatalf("WriteJSON() error = %v", err)
 		}
-		got, err := readFile(out)
-		if err != nil {
-			t.Fatal(err)
-		}
-		want, err := readFile(filepath.Join("testdata", "inventory.json"))
-		if err != nil {
-			t.Fatal(err)
-		}
+		got := mustReadFile(t, out)
+		want := mustReadFile(t, filepath.Join("testdata", "inventory.json"))
 		if got != want {
 			t.Error("re-emitted inventory.json does not match the committed testdata/inventory.json byte-for-byte")
 		}

@@ -1,5 +1,5 @@
 #!/usr/bin/env -S usage bash
-#USAGE arg "<subcommand>" help="fmt-check|vet|lint|test|cover|inventory-check|build|docs|all"
+#USAGE arg "<subcommand>" help="fmt-check|vet|lint|test|cover|vuln|inventory-check|actionlint|build|docs|all"
 #USAGE arg "[modules]" var=#true help="Modules to check (default: freshbooks mcp cli)"
 
 set -euo pipefail
@@ -52,6 +52,12 @@ run_cover() {
   "$repo_root/scripts/coverage-gate.sh" 90 "$repo_root/$module/coverage.out"
 }
 
+run_vuln() {
+  local module="$1"
+  echo "== vuln: $module =="
+  (cd "$repo_root/$module" && go run golang.org/x/vuln/cmd/govulncheck@v1.7.0 ./...)
+}
+
 run_inventory_check() {
   local module="$1"
   if [ "$module" != "freshbooks" ]; then
@@ -62,9 +68,22 @@ run_inventory_check() {
   (cd "$repo_root/freshbooks" && go run ./internal/inventory -check ./...)
 }
 
+run_actionlint() {
+  echo "== actionlint =="
+  actionlint "$repo_root"/.github/workflows/*.yml
+}
+
 run_build() {
   echo "== build =="
-  "$repo_root/scripts/build.sh"
+  local buildable=()
+  for m in "${modules[@]}"; do
+    case "$m" in mcp | cli) buildable+=("$m") ;; esac
+  done
+  if [ "${#buildable[@]}" -eq 0 ]; then
+    echo "build: no buildable modules in the filter (${modules[*]}) -- skipping"
+    return 0
+  fi
+  "$repo_root/scripts/build.sh" "${buildable[@]}"
 }
 
 run_docs() {
@@ -80,6 +99,7 @@ run_step() {
   lint) run_lint "$module" ;;
   test) run_test "$module" ;;
   cover) run_cover "$module" ;;
+  vuln) run_vuln "$module" ;;
   inventory-check) run_inventory_check "$module" ;;
   *)
     echo "check.sh: unknown subcommand: $step" >&2
@@ -88,21 +108,25 @@ run_step() {
   esac
 }
 
+# The ordered step list for a single module's pass through the "all" gate.
+# Single source of truth so the all-path and the single-step dispatcher
+# above can never silently drift apart.
+steps=(fmt-check vet lint test cover vuln inventory-check)
+
 case "$usage_subcommand" in
+actionlint) run_actionlint ;;
 build) run_build ;;
 docs) run_docs ;;
 all)
   for module in "${modules[@]}"; do
-    run_fmt_check "$module"
-    run_vet "$module"
-    run_lint "$module"
-    run_test "$module"
-    run_cover "$module"
-    run_inventory_check "$module"
+    for step in "${steps[@]}"; do
+      run_step "$step" "$module"
+    done
   done
+  run_actionlint
   run_build
   ;;
-fmt-check | vet | lint | test | cover | inventory-check)
+fmt-check | vet | lint | test | cover | vuln | inventory-check)
   for module in "${modules[@]}"; do
     run_step "$usage_subcommand" "$module"
   done

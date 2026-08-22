@@ -9,7 +9,7 @@ gh api \
   --method PUT \
   -H "Accept: application/vnd.github+json" \
   "repos/${usage_repo}/branches/main/protection" \
-  -f "required_status_checks[strict]=true" \
+  -F "required_status_checks[strict]=true" \
   -f "required_status_checks[contexts][]=lib" \
   -f "required_status_checks[contexts][]=mcp" \
   -f "required_status_checks[contexts][]=cli" \

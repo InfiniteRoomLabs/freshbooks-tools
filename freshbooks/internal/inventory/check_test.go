@@ -60,6 +60,17 @@ func writeIgnoreFixture(t *testing.T, lines ...string) string {
 	return path
 }
 
+// mustCheck runs Check with the given fixture paths and fails the test
+// immediately on error, returning the report for the caller to assert on.
+func mustCheck(t *testing.T, dir, inv, ignore string) CheckReport {
+	t.Helper()
+	report, err := Check(CheckOptions{Packages: []string{"./..."}, InventoryPath: inv, IgnorePath: ignore, Dir: dir})
+	if err != nil {
+		t.Fatalf("Check() error = %v", err)
+	}
+	return report
+}
+
 func TestCheckImplementedPass(t *testing.T) {
 	dir := newFixtureModule(t, map[string]string{
 		"impl.go": "package fixture\n\n// inventory: Clients/List Clients\nfunc ListClients() {}\n",
@@ -67,10 +78,7 @@ func TestCheckImplementedPass(t *testing.T) {
 	inv := writeInventoryFixture(t, "Clients/List Clients")
 	ignore := writeIgnoreFixture(t)
 
-	report, err := Check(CheckOptions{Packages: []string{"./..."}, InventoryPath: inv, IgnorePath: ignore, Dir: dir})
-	if err != nil {
-		t.Fatalf("Check() error = %v", err)
-	}
+	report := mustCheck(t, dir, inv, ignore)
 	if !report.OK() {
 		t.Errorf("report.OK() = false, report = %+v", report)
 	}
@@ -86,10 +94,7 @@ func TestCheckIgnoredPass(t *testing.T) {
 	inv := writeInventoryFixture(t, "Uploader/Internal Thing")
 	ignore := writeIgnoreFixture(t, "//go:inventory-ignore Uploader/Internal Thing -- internal my.freshbooks.com endpoint")
 
-	report, err := Check(CheckOptions{Packages: []string{"./..."}, InventoryPath: inv, IgnorePath: ignore, Dir: dir})
-	if err != nil {
-		t.Fatalf("Check() error = %v", err)
-	}
+	report := mustCheck(t, dir, inv, ignore)
 	if !report.OK() || report.Ignored != 1 {
 		t.Errorf("report = %+v, want OK with Ignored=1", report)
 	}
@@ -102,10 +107,7 @@ func TestCheckTodoPass(t *testing.T) {
 	inv := writeInventoryFixture(t, "Invoices/Send Invoice by Email")
 	ignore := writeIgnoreFixture(t, "//go:inventory-todo Invoices/Send Invoice by Email -- phase-2")
 
-	report, err := Check(CheckOptions{Packages: []string{"./..."}, InventoryPath: inv, IgnorePath: ignore, Dir: dir})
-	if err != nil {
-		t.Fatalf("Check() error = %v", err)
-	}
+	report := mustCheck(t, dir, inv, ignore)
 	if !report.OK() || report.Todo != 1 {
 		t.Errorf("report = %+v, want OK with Todo=1", report)
 	}
@@ -116,10 +118,7 @@ func TestCheckUncoveredFails(t *testing.T) {
 	inv := writeInventoryFixture(t, "Clients/List Clients")
 	ignore := writeIgnoreFixture(t)
 
-	report, err := Check(CheckOptions{Packages: []string{"./..."}, InventoryPath: inv, IgnorePath: ignore, Dir: dir})
-	if err != nil {
-		t.Fatalf("Check() error = %v", err)
-	}
+	report := mustCheck(t, dir, inv, ignore)
 	if report.OK() {
 		t.Fatal("report.OK() = true, want false for an uncovered key")
 	}
@@ -136,10 +135,7 @@ func TestCheckDoubleCoveredFails(t *testing.T) {
 	inv := writeInventoryFixture(t, "Clients/List Clients")
 	ignore := writeIgnoreFixture(t)
 
-	report, err := Check(CheckOptions{Packages: []string{"./..."}, InventoryPath: inv, IgnorePath: ignore, Dir: dir})
-	if err != nil {
-		t.Fatalf("Check() error = %v", err)
-	}
+	report := mustCheck(t, dir, inv, ignore)
 	if report.OK() {
 		t.Fatal("report.OK() = true, want false for a double-covered key")
 	}
@@ -155,10 +151,7 @@ func TestCheckStaleFails(t *testing.T) {
 	inv := writeInventoryFixture(t, "Clients/List Clients")
 	ignore := writeIgnoreFixture(t, "//go:inventory-todo Clients/List Clients -- phase-2")
 
-	report, err := Check(CheckOptions{Packages: []string{"./..."}, InventoryPath: inv, IgnorePath: ignore, Dir: dir})
-	if err != nil {
-		t.Fatalf("Check() error = %v", err)
-	}
+	report := mustCheck(t, dir, inv, ignore)
 	if report.OK() {
 		t.Fatal("report.OK() = true, want false for a stale todo entry")
 	}
@@ -174,10 +167,7 @@ func TestCheckUnknownCommentFails(t *testing.T) {
 	inv := writeInventoryFixture(t, "Clients/List Clients")
 	ignore := writeIgnoreFixture(t, "//go:inventory-todo Clients/List Clients -- phase-2")
 
-	report, err := Check(CheckOptions{Packages: []string{"./..."}, InventoryPath: inv, IgnorePath: ignore, Dir: dir})
-	if err != nil {
-		t.Fatalf("Check() error = %v", err)
-	}
+	report := mustCheck(t, dir, inv, ignore)
 	if report.OK() {
 		t.Fatal("report.OK() = true, want false for an unknown comment key")
 	}
@@ -195,10 +185,7 @@ func TestCheckIgnoresTestFilesAndTestdata(t *testing.T) {
 	inv := writeInventoryFixture(t, "Clients/List Clients")
 	ignore := writeIgnoreFixture(t)
 
-	report, err := Check(CheckOptions{Packages: []string{"./..."}, InventoryPath: inv, IgnorePath: ignore, Dir: dir})
-	if err != nil {
-		t.Fatalf("Check() error = %v", err)
-	}
+	report := mustCheck(t, dir, inv, ignore)
 	// Both candidate comments live in excluded locations (_test.go and
 	// testdata/), so the key must still read as uncovered.
 	if report.OK() {
@@ -209,49 +196,32 @@ func TestCheckIgnoresTestFilesAndTestdata(t *testing.T) {
 	}
 }
 
-func TestLoadIgnoreListMalformedLine(t *testing.T) {
+func TestLoadIgnoreListErrors(t *testing.T) {
 	dir := newFixtureModule(t, map[string]string{"impl.go": "package fixture\n"})
 	inv := writeInventoryFixture(t, "Clients/List Clients")
-	ignore := writeIgnoreFixture(t, "//go:inventory-ignore Clients/List Clients no separator here")
 
-	if _, err := Check(CheckOptions{Packages: []string{"./..."}, InventoryPath: inv, IgnorePath: ignore, Dir: dir}); err == nil {
-		t.Fatal("Check() error = nil, want an error for a malformed ignore-list line")
+	tests := []struct {
+		name  string
+		lines []string
+	}{
+		{"[sad] no ' -- ' separator", []string{"//go:inventory-ignore Clients/List Clients no separator here"}},
+		{"[sad] key listed twice", []string{
+			"//go:inventory-ignore Clients/List Clients -- first reason",
+			"//go:inventory-ignore Clients/List Clients -- second reason",
+		}},
+		{"[sad] key listed as both ignore and todo", []string{
+			"//go:inventory-ignore Clients/List Clients -- reason",
+			"//go:inventory-todo Clients/List Clients -- phase-2",
+		}},
+		{"[sad] key absent from the inventory", []string{"//go:inventory-ignore Nonexistent/Key -- reason"}},
 	}
-}
-
-func TestLoadIgnoreListDuplicateKey(t *testing.T) {
-	dir := newFixtureModule(t, map[string]string{"impl.go": "package fixture\n"})
-	inv := writeInventoryFixture(t, "Clients/List Clients")
-	ignore := writeIgnoreFixture(t,
-		"//go:inventory-ignore Clients/List Clients -- first reason",
-		"//go:inventory-ignore Clients/List Clients -- second reason",
-	)
-
-	if _, err := Check(CheckOptions{Packages: []string{"./..."}, InventoryPath: inv, IgnorePath: ignore, Dir: dir}); err == nil {
-		t.Fatal("Check() error = nil, want an error for a key listed twice")
-	}
-}
-
-func TestLoadIgnoreListKeyInBothListsFails(t *testing.T) {
-	dir := newFixtureModule(t, map[string]string{"impl.go": "package fixture\n"})
-	inv := writeInventoryFixture(t, "Clients/List Clients")
-	ignore := writeIgnoreFixture(t,
-		"//go:inventory-ignore Clients/List Clients -- reason",
-		"//go:inventory-todo Clients/List Clients -- phase-2",
-	)
-
-	if _, err := Check(CheckOptions{Packages: []string{"./..."}, InventoryPath: inv, IgnorePath: ignore, Dir: dir}); err == nil {
-		t.Fatal("Check() error = nil, want an error for a key listed as both ignore and todo")
-	}
-}
-
-func TestLoadIgnoreListUnknownKeyFails(t *testing.T) {
-	dir := newFixtureModule(t, map[string]string{"impl.go": "package fixture\n"})
-	inv := writeInventoryFixture(t, "Clients/List Clients")
-	ignore := writeIgnoreFixture(t, "//go:inventory-ignore Nonexistent/Key -- reason")
-
-	if _, err := Check(CheckOptions{Packages: []string{"./..."}, InventoryPath: inv, IgnorePath: ignore, Dir: dir}); err == nil {
-		t.Fatal("Check() error = nil, want an error for an ignore-list key absent from the inventory")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ignore := writeIgnoreFixture(t, tt.lines...)
+			if _, err := Check(CheckOptions{Packages: []string{"./..."}, InventoryPath: inv, IgnorePath: ignore, Dir: dir}); err == nil {
+				t.Fatal("Check() error = nil, want an error")
+			}
+		})
 	}
 }
 
@@ -261,15 +231,7 @@ func TestLoadIgnoreListMissingFileIsEmpty(t *testing.T) {
 	})
 	inv := writeInventoryFixture(t, "Clients/List Clients")
 
-	report, err := Check(CheckOptions{
-		Packages:      []string{"./..."},
-		InventoryPath: inv,
-		IgnorePath:    filepath.Join(t.TempDir(), "does-not-exist.list"),
-		Dir:           dir,
-	})
-	if err != nil {
-		t.Fatalf("Check() error = %v", err)
-	}
+	report := mustCheck(t, dir, inv, filepath.Join(t.TempDir(), "does-not-exist.list"))
 	if !report.OK() {
 		t.Errorf("report = %+v, want OK (missing ignore file treated as empty)", report)
 	}
@@ -284,10 +246,7 @@ func TestLoadIgnoreListCommentsAndBlankLines(t *testing.T) {
 		"//go:inventory-todo Clients/List Clients -- phase-2",
 	)
 
-	report, err := Check(CheckOptions{Packages: []string{"./..."}, InventoryPath: inv, IgnorePath: ignore, Dir: dir})
-	if err != nil {
-		t.Fatalf("Check() error = %v", err)
-	}
+	report := mustCheck(t, dir, inv, ignore)
 	if !report.OK() || report.Todo != 1 {
 		t.Errorf("report = %+v, want OK with Todo=1", report)
 	}

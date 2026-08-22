@@ -83,8 +83,9 @@ func Load(path string) (*Collection, error) {
 // with the same key but a different method or pathTemplate are a genuine
 // name collision (the FreshBooks Postman collection reuses "Single Tax" for
 // both its GET and DELETE requests in two folders); Normalize disambiguates
-// by suffixing later collisions with " (METHOD)" rather than silently
-// dropping data, and only fails if that suffix itself collides.
+// by suffixing every side of the collision with " (METHOD)" rather than
+// silently dropping data or letting collection order decide which request
+// keeps the plain key, and only fails if a suffix itself collides.
 func Normalize(c *Collection) ([]Entry, error) {
 	var raw []Entry
 	if err := walk(c.Item, nil, &raw); err != nil {
@@ -181,6 +182,9 @@ func extractResponses(rs []Response) []RespEntry {
 // classifies the request's API family.
 func normalizeURL(u URL) (host, pathTemplate string, query []QueryEntry, family string, err error) {
 	raw := stripWhitespace(u.Raw)
+	if !strings.Contains(raw, "://") {
+		raw = "https://" + raw
+	}
 	parsed, perr := url.Parse(raw)
 	if perr != nil {
 		return "", "", nil, "", fmt.Errorf("parsing url %q: %w", u.Raw, perr)
@@ -244,10 +248,17 @@ func normalizeQueryString(rawQuery string) []QueryEntry {
 			continue
 		}
 		kv := strings.SplitN(part, "=", 2)
-		name, _ := url.QueryUnescape(kv[0])
+		name, nerr := url.QueryUnescape(kv[0])
+		if nerr != nil {
+			name = kv[0]
+		}
 		value := ""
 		if len(kv) > 1 {
-			value, _ = url.QueryUnescape(kv[1])
+			var verr error
+			value, verr = url.QueryUnescape(kv[1])
+			if verr != nil {
+				value = kv[1]
+			}
 		}
 		out = append(out, QueryEntry{
 			Name:  name,
@@ -306,7 +317,8 @@ func classifyFamily(path string) string {
 	switch {
 	case strings.HasPrefix(path, "/accounting/account/"):
 		return FamilyAccounting
-	case strings.HasPrefix(path, "/accounting/businesses/"):
+	case strings.HasPrefix(path, "/accounting/businesses/"),
+		strings.HasPrefix(path, "/accounting/ledger_accounts/"):
 		return FamilyLedger
 	case strings.HasPrefix(path, "/projects/business/"),
 		strings.HasPrefix(path, "/timetracking/business/"),
@@ -389,40 +401,69 @@ func titleCaseWord(w string) string {
 }
 
 // dedupe collapses exact duplicates (same key, method, and pathTemplate)
-// into one Entry with Duplicates incremented, disambiguates genuine name
-// collisions (same key, different method or pathTemplate) by suffixing the
-// later entry's key with " (METHOD)", and sorts the result by Key so
-// re-emitting the same collection is byte-stable.
+// into one Entry with Duplicates incremented, and disambiguates genuine
+// name collisions (same key, different method or pathTemplate -- the
+// FreshBooks Postman collection reuses "Single Tax" for both its GET and
+// DELETE requests in two folders) by suffixing every side of the collision
+// with " (METHOD)". The plain, unsuffixed key survives only when the base
+// key is unique; a base key with more than one distinct method/pathTemplate
+// never keeps a bare winner, so which request "owns" the plain key never
+// depends on collection order. It fails loudly if the suffix itself would
+// collide (two entries sharing both a base key and a method but not a
+// path). The result is sorted by Key so re-emitting the same collection is
+// byte-stable.
 func dedupe(entries []Entry) ([]Entry, error) {
-	result := make([]Entry, 0, len(entries))
-	sigIndex := make(map[string]int, len(entries))
-	baseKeyCount := make(map[string]int, len(entries))
+	type group struct {
+		order []string // signature keys, in first-seen order
+		bySig map[string]*Entry
+	}
+
+	groups := make(map[string]*group, len(entries))
+	baseOrder := make([]string, 0, len(entries))
 
 	for _, e := range entries {
-		baseKey := e.Key
-		sigKey := baseKey + "\x00" + e.Method + "\x00" + e.PathTemplate
-		if idx, ok := sigIndex[sigKey]; ok {
-			result[idx].Duplicates++
+		g, ok := groups[e.Key]
+		if !ok {
+			g = &group{bySig: make(map[string]*Entry)}
+			groups[e.Key] = g
+			baseOrder = append(baseOrder, e.Key)
+		}
+
+		sigKey := e.Method + "\x00" + e.PathTemplate
+		if existing, ok := g.bySig[sigKey]; ok {
+			existing.Duplicates++
+			continue
+		}
+		entryCopy := e
+		g.bySig[sigKey] = &entryCopy
+		g.order = append(g.order, sigKey)
+	}
+
+	result := make([]Entry, 0, len(entries))
+	for _, baseKey := range baseOrder {
+		g := groups[baseKey]
+
+		if len(g.order) == 1 {
+			e := *g.bySig[g.order[0]]
+			e.Key = baseKey
+			result = append(result, e)
 			continue
 		}
 
-		finalKey := baseKey
-		if baseKeyCount[baseKey] > 0 {
-			finalKey = fmt.Sprintf("%s (%s)", baseKey, e.Method)
-		}
-		for _, existing := range result {
-			if existing.Key == finalKey {
+		seen := make(map[string]bool, len(g.order))
+		for _, sigKey := range g.order {
+			e := *g.bySig[sigKey]
+			finalKey := fmt.Sprintf("%s (%s)", baseKey, e.Method)
+			if seen[finalKey] {
 				return nil, fmt.Errorf(
 					"inventory: %q and an earlier entry both resolve to key %q with conflicting method/path; disambiguation collided",
 					e.Name, finalKey,
 				)
 			}
+			seen[finalKey] = true
+			e.Key = finalKey
+			result = append(result, e)
 		}
-
-		e.Key = finalKey
-		result = append(result, e)
-		sigIndex[sigKey] = len(result) - 1
-		baseKeyCount[baseKey]++
 	}
 
 	sort.Slice(result, func(i, j int) bool { return result[i].Key < result[j].Key })

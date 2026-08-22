@@ -20,18 +20,28 @@ fi
 
 mapfile -t terms <<<"$terms_raw"
 
+# Short terms (< 8 chars) are ordinary-English-word collision risks (e.g. a
+# configured term "Delete" matching the API-vocabulary sentence "List, All,
+# Get, Create, Update, Delete"); require word boundaries for those. Longer
+# terms are specific enough that a fixed-string substring match is fine and
+# catches more (e.g. a leak embedded mid-identifier).
+short_term_threshold=8
+
 found=0
 while IFS= read -r file; do
   [ -z "$file" ] && continue
-  if ! git cat-file -e ":$file" 2>/dev/null; then
-    continue # deleted in this commit; nothing staged to scan
-  fi
-  content=$(git show ":$file" 2>/dev/null || true)
+  content=$(git show ":$file" 2>/dev/null) || continue # deleted in this commit; nothing staged to scan
   for i in "${!terms[@]}"; do
     term="${terms[$i]}"
     search="${term%%==>*}"
     [ -z "$search" ] && continue
-    if printf '%s' "$content" | grep -qiF -- "$search"; then
+    if [ "${#search}" -lt "$short_term_threshold" ]; then
+      escaped=$(printf '%s' "$search" | sed 's/[][\.^$*+?(){}|\\]/\\&/g')
+      hit=$(printf '%s' "$content" | grep -qiE "\\b${escaped}\\b" && echo 1 || true)
+    else
+      hit=$(printf '%s' "$content" | grep -qiF -- "$search" && echo 1 || true)
+    fi
+    if [ -n "$hit" ]; then
       echo "redaction-check: possible leak in $file (term #$i)" >&2
       found=1
     fi

@@ -39,7 +39,7 @@
     "query": [],
     "body": null,
     "responses": [],
-    "family": "unknown",
+    "family": "ledger",
     "duplicates": 1
   },
   {
@@ -77,7 +77,7 @@
     "query": [],
     "body": null,
     "responses": [],
-    "family": "unknown",
+    "family": "ledger",
     "duplicates": 1
   },
   {
@@ -115,7 +115,7 @@
     "query": [],
     "body": null,
     "responses": [],
-    "family": "unknown",
+    "family": "ledger",
     "duplicates": 1
   },
   {
@@ -717,8 +717,8 @@
     "path": [],
     "name": "Accept Estimate",
     "method": "PUT",
-    "pathTemplate": "api.freshbooks.com/accounting/account/{accountId}/estimates/estimates/{estimateId}",
-    "host": "",
+    "pathTemplate": "/accounting/account/{accountId}/estimates/estimates/{estimateId}",
+    "host": "api.freshbooks.com",
     "query": [],
     "body": "{\n  \"estimate\": {\n     \"action_accept\": true\n  }\n}",
     "responses": [
@@ -728,7 +728,7 @@
         "body": "{\n    \"response\": {\n        \"result\": {\n            \"estimate\": {\n                \"accepted\": false,\n                \"accounting_systemid\": \"wkMd2g\",\n                \"address\": \"\",\n                \"amount\": {\n                    \"amount\": \"17628.00\",\n                    \"code\": \"USD\"\n                },\n                \"city\": \"\",\n                \"code\": \"\",\n                \"country\": \"Canada\",\n                \"create_date\": \"2019-04-18\",\n                \"created_at\": \"2019-04-18 09:42:52\",\n                \"currency_code\": \"USD\",\n                \"current_organization\": \"first company\",\n                \"customerid\": 31006,\n                \"description\": \"it's a computer hardware version 1\",\n                \"discount_total\": {\n                    \"amount\": \"0.00\",\n                    \"code\": \"USD\"\n                },\n                \"discount_value\": \"0\",\n                \"display_status\": \"draft\",\n                \"estimate_number\": \"0000001\",\n                \"estimateid\": 1706,\n                \"ext_archive\": 0,\n                \"fname\": \"Client\",\n                \"id\": 1706,\n                \"invoiced\": false,\n                \"language\": \"en\",\n                \"lname\": \"one\",\n                \"notes\": \"This is an estimate for the computer\",\n                \"organization\": \"first company\",\n                \"ownerid\": 1,\n                \"po_number\": null,\n                \"province\": \"\",\n                \"reply_status\": null,\n                \"require_client_signature\": false,\n                \"rich_proposal\": false,\n                \"sentid\": 1,\n                \"status\": 1,\n                \"street\": \"\",\n                \"street2\": \"\",\n                \"template\": \"clean-grouped\",\n                \"terms\": \"50% deposit upon acceptance, 50% on delivery of the computers.\",\n                \"ui_status\": \"draft\",\n                \"updated\": \"2019-04-18 09:42:52\",\n                \"vat_name\": null,\n                \"vat_number\": \"\",\n                \"vis_state\": 0\n            }\n        }\n    }\n}"
       }
     ],
-    "family": "unknown",
+    "family": "accounting",
     "duplicates": 1
   },
   {
@@ -845,8 +845,8 @@
     "path": [],
     "name": "Update Estimate",
     "method": "PUT",
-    "pathTemplate": "api.freshbooks.com/accounting/account/{accountId}/estimates/estimates/{estimateId}",
-    "host": "",
+    "pathTemplate": "/accounting/account/{accountId}/estimates/estimates/{estimateId}",
+    "host": "api.freshbooks.com",
     "query": [],
     "body": "{\n  \"estimate\": {\n     \"customerid\": {{customerId}},\n     \"create_date\": \"2019-04-20\"\n  }\n}",
     "responses": [
@@ -856,7 +856,7 @@
         "body": "{\n    \"response\": {\n        \"result\": {\n            \"estimate\": {\n                \"accepted\": false,\n                \"accounting_systemid\": \"wkMd2g\",\n                \"address\": \"\",\n                \"amount\": {\n                    \"amount\": \"17628.00\",\n                    \"code\": \"USD\"\n                },\n                \"city\": \"\",\n                \"code\": \"\",\n                \"country\": \"Canada\",\n                \"create_date\": \"2019-04-18\",\n                \"created_at\": \"2019-04-18 09:42:52\",\n                \"currency_code\": \"USD\",\n                \"current_organization\": \"first company\",\n                \"customerid\": 31006,\n                \"description\": \"it's a computer hardware version 1\",\n                \"discount_total\": {\n                    \"amount\": \"0.00\",\n                    \"code\": \"USD\"\n                },\n                \"discount_value\": \"0\",\n                \"display_status\": \"draft\",\n                \"estimate_number\": \"0000001\",\n                \"estimateid\": 1706,\n                \"ext_archive\": 0,\n                \"fname\": \"Client\",\n                \"id\": 1706,\n                \"invoiced\": false,\n                \"language\": \"en\",\n                \"lname\": \"one\",\n                \"notes\": \"This is an estimate for the computer\",\n                \"organization\": \"first company\",\n                \"ownerid\": 1,\n                \"po_number\": null,\n                \"province\": \"\",\n                \"reply_status\": null,\n                \"require_client_signature\": false,\n                \"rich_proposal\": false,\n                \"sentid\": 1,\n                \"status\": 1,\n                \"street\": \"\",\n                \"street2\": \"\",\n                \"template\": \"clean-grouped\",\n                \"terms\": \"50% deposit upon acceptance, 50% on delivery of the computers.\",\n                \"ui_status\": \"draft\",\n                \"updated\": \"2019-04-18 09:42:52\",\n                \"vat_name\": null,\n                \"vat_number\": \"\",\n                \"vis_state\": 0\n            }\n        }\n    }\n}"
       }
     ],
-    "family": "unknown",
+    "family": "accounting",
     "duplicates": 1
   },
   {
@@ -1280,11 +1280,11 @@
     "duplicates": 1
   },
   {
-    "key": "Expenses/Single Tax",
+    "key": "Expenses/Single Tax (DELETE)",
     "folder": "Expenses",
     "path": [],
     "name": "Single Tax",
-    "method": "GET",
+    "method": "DELETE",
     "pathTemplate": "/accounting/account/{accountId}/taxes/taxes/{taxId}",
     "host": "api.freshbooks.com",
     "query": [],
@@ -1294,11 +1294,11 @@
     "duplicates": 1
   },
   {
-    "key": "Expenses/Single Tax (DELETE)",
+    "key": "Expenses/Single Tax (GET)",
     "folder": "Expenses",
     "path": [],
     "name": "Single Tax",
-    "method": "DELETE",
+    "method": "GET",
     "pathTemplate": "/accounting/account/{accountId}/taxes/taxes/{taxId}",
     "host": "api.freshbooks.com",
     "query": [],
@@ -3987,13 +3987,13 @@
     "duplicates": 1
   },
   {
-    "key": "Settings/Items and Services/Single Tax",
+    "key": "Settings/Items and Services/Single Tax (DELETE)",
     "folder": "Settings",
     "path": [
       "Items and Services"
     ],
     "name": "Single Tax",
-    "method": "GET",
+    "method": "DELETE",
     "pathTemplate": "/accounting/account/{accountId}/taxes/taxes/{taxId}",
     "host": "api.freshbooks.com",
     "query": [],
@@ -4003,13 +4003,13 @@
     "duplicates": 1
   },
   {
-    "key": "Settings/Items and Services/Single Tax (DELETE)",
+    "key": "Settings/Items and Services/Single Tax (GET)",
     "folder": "Settings",
     "path": [
       "Items and Services"
     ],
     "name": "Single Tax",
-    "method": "DELETE",
+    "method": "GET",
     "pathTemplate": "/accounting/account/{accountId}/taxes/taxes/{taxId}",
     "host": "api.freshbooks.com",
     "query": [],

@@ -1,11 +1,19 @@
-#!/usr/bin/env bash
-# Cross-compiles freshbooks-mcp and the freshbooks CLI for
+#!/usr/bin/env -S usage bash
+#USAGE arg "[modules]" var=#true help="Modules to build binaries for (default: mcp cli)"
+
+# Cross-compiles freshbooks-mcp and/or the freshbooks CLI for
 # {linux,darwin,windows} x {amd64,arm64} into dist/ (gitignored).
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 dist="$repo_root/dist"
 mkdir -p "$dist"
+
+if [ -z "${usage_modules:-}" ]; then
+  want=(mcp cli)
+else
+  read -ra want <<<"$usage_modules"
+fi
 
 targets=(
   "linux amd64"
@@ -21,9 +29,20 @@ binaries=(
   "cli freshbooks ./cmd/freshbooks"
 )
 
+version=$(git -C "$repo_root" describe --tags --always --dirty 2>/dev/null || echo "0.0.0-dev")
+
+built_any=false
 for binary in "${binaries[@]}"; do
   read -r module name pkg <<<"$binary"
-  version=$(cd "$repo_root/$module" && git -C "$repo_root" describe --tags --always --dirty 2>/dev/null || echo "0.0.0-dev")
+
+  wanted=false
+  for w in "${want[@]}"; do
+    [ "$w" = "$module" ] && wanted=true
+  done
+  if [ "$wanted" = false ]; then
+    continue
+  fi
+  built_any=true
 
   for target in "${targets[@]}"; do
     read -r goos goarch <<<"$target"
@@ -39,5 +58,10 @@ for binary in "${binaries[@]}"; do
     )
   done
 done
+
+if [ "$built_any" = false ]; then
+  echo "build: no buildable modules in the requested set (${want[*]}) -- nothing to do"
+  exit 0
+fi
 
 echo "build: done, artifacts in $dist"

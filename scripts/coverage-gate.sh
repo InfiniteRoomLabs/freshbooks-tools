@@ -9,24 +9,24 @@ if [ ! -f "$usage_coverprofile" ]; then
   exit 1
 fi
 
-# main.go entry points are thin flag-parsing + os.Exit wiring that cannot
-# be exercised by a test process (os.Exit would kill the test binary); the
-# substantive logic they call into is required to live in a tested
-# run()-style function instead (see CLAUDE.md). Excluding main.go files
-# (by filename, not by directory -- internal/cmd/ is a real, tested
-# package and must stay counted) from the gated total avoids penalizing
-# that untestable-by-design sliver without hiding it from a human reading
-# the full coverage.out.
+# cmd/<binary>/main.go entry points are thin flag-parsing + os.Exit wiring
+# that cannot be exercised by a test process (os.Exit would kill the test
+# binary); the substantive logic they call into is required to live in a
+# tested run()-style function instead (see docs/building.md). The filter is
+# scoped to cmd/*/main.go specifically -- not any file named main.go, and
+# not by directory -- so internal/cmd/ (a real, tested package) and
+# freshbooks/internal/inventory/main.go (60+ statements of tested flag
+# parsing and report rendering, not thin wiring) both stay counted. A
+# profile with no measurable statements left after filtering is a hard
+# FAIL: a module that is supposed to have code and doesn't measure any is a
+# red gate, not a vacuous green one.
 filtered=$(mktemp)
 trap 'rm -f "$filtered"' EXIT
-{
-  head -n 1 "$usage_coverprofile"
-  tail -n +2 "$usage_coverprofile" | grep -v '/main\.go:' || true
-} >"$filtered"
+grep -v '/cmd/[^/]*/main\.go:' "$usage_coverprofile" >"$filtered" || true
 
 if [ "$(wc -l <"$filtered")" -le 1 ]; then
-  echo "coverage-gate: $usage_coverprofile has no measurable statements outside main.go -- nothing to cover, PASS"
-  exit 0
+  echo "coverage-gate: $usage_coverprofile has no measurable statements outside cmd/*/main.go" >&2
+  exit 1
 fi
 
 total_line=$(go tool cover -func="$filtered" | tail -1)

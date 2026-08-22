@@ -5,7 +5,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/InfiniteRoomLabs/freshbooks-tools/cli/internal/cmd"
@@ -16,9 +15,5 @@ import (
 var version = "0.0.0-dev"
 
 func main() {
-	root := cmd.NewRootCmd(version)
-	if err := root.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
+	os.Exit(cmd.Run(os.Args[1:], os.Stdout, os.Stderr, version))
 }

@@ -21,6 +21,15 @@ API reference for the library: [pkg.go.dev/github.com/InfiniteRoomLabs/freshbook
 Prebuilt binaries land on the [Releases page](https://github.com/InfiniteRoomLabs/freshbooks-tools/releases) once the first tags ship (see `docs/progress.md` for status). Until then, build from source:
 
 ```sh
+git clone https://github.com/InfiniteRoomLabs/freshbooks-tools.git
+cd freshbooks-tools
+mise install
+mise run build   # binaries land in dist/
+```
+
+Once tagged releases exist, `go install` also works directly from the module proxy:
+
+```sh
 go install github.com/InfiniteRoomLabs/freshbooks-tools/mcp/cmd/freshbooks-mcp@latest
 go install github.com/InfiniteRoomLabs/freshbooks-tools/cli/cmd/freshbooks@latest
 ```
