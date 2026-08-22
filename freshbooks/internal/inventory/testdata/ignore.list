@@ -1,0 +1,217 @@
+# Generated for Phase 0 from testdata/inventory.json.
+# internal-family entries (my.freshbooks.com) are permanently ignored;
+# everything else is todo for the phase that implements it.
+# Regenerate additions by hand as phases land; never delete an ignore entry.
+//go:inventory-ignore Accounting/Journal Entries/Add Journal Entry -- internal my.freshbooks.com endpoint
+//go:inventory-ignore Projects/Delete Project -- internal my.freshbooks.com endpoint
+//go:inventory-ignore Settings/Businesses/Delete Business - Subscription -- internal my.freshbooks.com endpoint
+//go:inventory-todo Accounting/Accounts/Create Account -- phase-2
+//go:inventory-todo Accounting/Accounts/List Account types -- phase-2
+//go:inventory-todo Accounting/Accounts/List Accounts -- phase-2
+//go:inventory-todo Accounting/Accounts/List Sub types -- phase-2
+//go:inventory-todo Accounting/Accounts/Single Account -- phase-2
+//go:inventory-todo Accounting/Accounts/Single Sub type -- phase-2
+//go:inventory-todo Accounting/Accounts/Update Account -- phase-2
+//go:inventory-todo Accounting/Journal Entries/Accounts -- phase-2
+//go:inventory-todo Accounting/Journal Entries/Journal Entry Details -- phase-2
+//go:inventory-todo Accounting/Other Income/Create Single Other Income -- phase-2
+//go:inventory-todo Accounting/Other Income/Delete Single Other Income -- phase-2
+//go:inventory-todo Accounting/Other Income/List Other Income -- phase-2
+//go:inventory-todo Accounting/Other Income/Update Single Other Income -- phase-2
+//go:inventory-todo Accounting/Taxes/Create Single Tax -- phase-2
+//go:inventory-todo Accounting/Taxes/Delete Single Tax -- phase-2
+//go:inventory-todo Accounting/Taxes/Get Single Tax -- phase-2
+//go:inventory-todo Accounting/Taxes/List Taxes -- phase-2
+//go:inventory-todo Accounting/Taxes/Update Single Tax -- phase-2
+//go:inventory-todo Authorization/Identity Info Call -- phase-1
+//go:inventory-todo Authorization/List User -- phase-1
+//go:inventory-todo Authorization/Register as a new user -- phase-1
+//go:inventory-todo Authorization/Revoke Refresh Token -- phase-1
+//go:inventory-todo Clients/Credits/Create Credit Note -- phase-2
+//go:inventory-todo Clients/Credits/Create Prepayment Credit -- phase-2
+//go:inventory-todo Clients/Credits/Delete Credit -- phase-2
+//go:inventory-todo Clients/Credits/List Credits -- phase-2
+//go:inventory-todo Clients/Credits/Update Credit Note -- phase-2
+//go:inventory-todo Clients/Credits/Update Prepayment Credit -- phase-2
+//go:inventory-todo Clients/Delete Secondary  Contact ID -- phase-2
+//go:inventory-todo Clients/Edit Secondary Contact ID -- phase-2
+//go:inventory-todo Clients/List Clients -- phase-2
+//go:inventory-todo Clients/New Client -- phase-2
+//go:inventory-todo Clients/Remove All Secondary Contacts -- phase-2
+//go:inventory-todo Clients/Single Client -- phase-2
+//go:inventory-todo Clients/Update Client -- phase-2
+//go:inventory-todo Estimates/Accept Estimate -- phase-2
+//go:inventory-todo Estimates/Create Single Proposal w/ Sections, Logos, and E-signature -- phase-2
+//go:inventory-todo Estimates/Delete Estimate -- phase-2
+//go:inventory-todo Estimates/List Estimates -- phase-2
+//go:inventory-todo Estimates/Send Estimate by Email -- phase-2
+//go:inventory-todo Estimates/Single Estimate -- phase-2
+//go:inventory-todo Estimates/Single Estimate With Estimate Lines -- phase-2
+//go:inventory-todo Estimates/Update Estimate -- phase-2
+//go:inventory-todo Expenses/Bills (Beta)/Add Bill from Vendor -- phase-2
+//go:inventory-todo Expenses/Bills (Beta)/Add Payment to Bill -- phase-2
+//go:inventory-todo Expenses/Bills (Beta)/Archive Bill -- phase-2
+//go:inventory-todo Expenses/Bills (Beta)/Delete Bill -- phase-2
+//go:inventory-todo Expenses/Bills (Beta)/Edit Payment to Bill -- phase-2
+//go:inventory-todo Expenses/Bills (Beta)/Get Bills -- phase-2
+//go:inventory-todo Expenses/Create Custom Expense Category -- phase-2
+//go:inventory-todo Expenses/Create Expense -- phase-2
+//go:inventory-todo Expenses/Create Expense with Receipt -- phase-2
+//go:inventory-todo Expenses/Create Recurring Expense -- phase-2
+//go:inventory-todo Expenses/Create Single Tax -- phase-2
+//go:inventory-todo Expenses/Delete Expense -- phase-2
+//go:inventory-todo Expenses/Expense Summaries -- phase-2
+//go:inventory-todo Expenses/Expense Vendors -- phase-2
+//go:inventory-todo Expenses/List Expense Categories -- phase-2
+//go:inventory-todo Expenses/List Expenses -- phase-2
+//go:inventory-todo Expenses/List Taxes -- phase-2
+//go:inventory-todo Expenses/Single Expense -- phase-2
+//go:inventory-todo Expenses/Single Expense Category -- phase-2
+//go:inventory-todo Expenses/Single Tax (DELETE) -- phase-2
+//go:inventory-todo Expenses/Single Tax -- phase-2
+//go:inventory-todo Expenses/Update Expense -- phase-2
+//go:inventory-todo Expenses/Update Expense with Receipt -- phase-2
+//go:inventory-todo Expenses/Update Tax -- phase-2
+//go:inventory-todo Expenses/Upload Expense Receipt Image/Upload Receipt Image -- phase-2
+//go:inventory-todo Expenses/Vendors (Beta)/Add Vendor -- phase-2
+//go:inventory-todo Expenses/Vendors (Beta)/Delete Vendor -- phase-2
+//go:inventory-todo Expenses/Vendors (Beta)/Edit Vendor Details -- phase-2
+//go:inventory-todo Expenses/Vendors (Beta)/Get Vendors -- phase-2
+//go:inventory-todo Invoices/Create Invoice with Expense -- phase-2
+//go:inventory-todo Invoices/Delete  Invoice -- phase-2
+//go:inventory-todo Invoices/Enable Payment Options On Invoice -- phase-2
+//go:inventory-todo Invoices/Get default invoice presentation styles -- phase-2
+//go:inventory-todo Invoices/Invoice Links/Downloads/Download Invoice PDF -- phase-2
+//go:inventory-todo Invoices/Invoice Links/Downloads/Share Link -- phase-2
+//go:inventory-todo Invoices/Invoice Links/Downloads/Share PDF -- phase-2
+//go:inventory-todo Invoices/Invoice Recurring Template/Create Single Invoice Profile -- phase-2
+//go:inventory-todo Invoices/Invoice Recurring Template/Create Single Invoice Profile w/ Time Entry Holder -- phase-2
+//go:inventory-todo Invoices/Invoice Recurring Template/Delete  Invoice Profile -- phase-2
+//go:inventory-todo Invoices/Invoice Recurring Template/Enable Payment Options On Invoice Profile -- phase-2
+//go:inventory-todo Invoices/Invoice Recurring Template/Get Single Invoice Profile -- phase-2
+//go:inventory-todo Invoices/Invoice Recurring Template/List Invoice Profiles -- phase-2
+//go:inventory-todo Invoices/Invoice Recurring Template/Update Invoice Profile -- phase-2
+//go:inventory-todo Invoices/Items and Services/Create Item -- phase-2
+//go:inventory-todo Invoices/Items and Services/Delete Item -- phase-2
+//go:inventory-todo Invoices/Items and Services/List Items -- phase-2
+//go:inventory-todo Invoices/Items and Services/List Items Filtered by SKU -- phase-2
+//go:inventory-todo Invoices/Items and Services/Single Item -- phase-2
+//go:inventory-todo Invoices/Items and Services/Update Item -- phase-2
+//go:inventory-todo Invoices/List Invoices -- phase-2
+//go:inventory-todo Invoices/Other Income/Create Single Other Income -- phase-2
+//go:inventory-todo Invoices/Other Income/Delete Single Other Income -- phase-2
+//go:inventory-todo Invoices/Other Income/List Other Income -- phase-2
+//go:inventory-todo Invoices/Other Income/Update Single Other Income -- phase-2
+//go:inventory-todo Invoices/Payments/Delete Checkout Link -- phase-2
+//go:inventory-todo Invoices/Payments/Delete Payment -- phase-2
+//go:inventory-todo Invoices/Payments/List Payments -- phase-2
+//go:inventory-todo Invoices/Payments/Make Payment -- phase-2
+//go:inventory-todo Invoices/Payments/Single Checkout Link -- phase-2
+//go:inventory-todo Invoices/Payments/Single Payment -- phase-2
+//go:inventory-todo Invoices/Payments/Update Checkout Link -- phase-2
+//go:inventory-todo Invoices/Payments/Update Checkout Link Payment Gateway -- phase-2
+//go:inventory-todo Invoices/Payments/Update Payment -- phase-2
+//go:inventory-todo Invoices/Retainers/Create Retainer -- phase-2
+//go:inventory-todo Invoices/Retainers/Delete Retainer -- phase-2
+//go:inventory-todo Invoices/Retainers/Get all retainers -- phase-2
+//go:inventory-todo Invoices/Retainers/Single Retainer -- phase-2
+//go:inventory-todo Invoices/Retainers/Undelete Retainer -- phase-2
+//go:inventory-todo Invoices/Retainers/Update Retainer -- phase-2
+//go:inventory-todo Invoices/Send Invoice by Email -- phase-2
+//go:inventory-todo Invoices/Single Invoice -- phase-2
+//go:inventory-todo Invoices/Single Invoice w/ Line Items -- phase-2
+//go:inventory-todo Invoices/Single Invoice w/ Logo -- phase-2
+//go:inventory-todo Invoices/Single Invoice w/ Logo and styles -- phase-2
+//go:inventory-todo Invoices/Single Invoice w/ Payment Gateway -- phase-2
+//go:inventory-todo Invoices/Toggle Online Payments on Invoice -- phase-2
+//go:inventory-todo Invoices/Update Invoice -- phase-2
+//go:inventory-todo Invoices/Update Invoice w/ Expense -- phase-2
+//go:inventory-todo Invoices/Upload Logo/Upload Logo -- phase-2
+//go:inventory-todo My Team/Delete Staff -- phase-2
+//go:inventory-todo My Team/List Staff -- phase-2
+//go:inventory-todo My Team/List Team Members -- phase-2
+//go:inventory-todo My Team/Single Staff -- phase-2
+//go:inventory-todo My Team/Single Team Member -- phase-2
+//go:inventory-todo My Team/Update Staff -- phase-2
+//go:inventory-todo My Team/Update Staff Rates -- phase-2
+//go:inventory-todo Projects/Add Comment to Project Discussion Message -- phase-2
+//go:inventory-todo Projects/Create New Message in Project Discussion -- phase-2
+//go:inventory-todo Projects/Create Single Project -- phase-2
+//go:inventory-todo Projects/Invitation Rates -- phase-2
+//go:inventory-todo Projects/Invite Team Member to Project(s) -- phase-2
+//go:inventory-todo Projects/List All Messages in Project Discussion -- phase-2
+//go:inventory-todo Projects/List Projects -- phase-2
+//go:inventory-todo Projects/Service Rates -- phase-2
+//go:inventory-todo Projects/Single Project -- phase-2
+//go:inventory-todo Projects/Tasks/Create Task -- phase-2
+//go:inventory-todo Projects/Tasks/Delete Task -- phase-2
+//go:inventory-todo Projects/Tasks/List Tasks -- phase-2
+//go:inventory-todo Projects/Tasks/Single Task -- phase-2
+//go:inventory-todo Projects/Tasks/Update Task -- phase-2
+//go:inventory-todo Projects/Team Member Rates -- phase-2
+//go:inventory-todo Projects/Update Project -- phase-2
+//go:inventory-todo Projects/Update Service Rates -- phase-2
+//go:inventory-todo Projects/Update Team Member Rate -- phase-2
+//go:inventory-todo Reports/Accounts Aging -- phase-2
+//go:inventory-todo Reports/Balance Sheet -- phase-2
+//go:inventory-todo Reports/Bank Reconciliation Summary -- phase-2
+//go:inventory-todo Reports/Client Account Statement -- phase-2
+//go:inventory-todo Reports/Download CSV Report -- phase-2
+//go:inventory-todo Reports/Expense Details -- phase-2
+//go:inventory-todo Reports/General Ledger -- phase-2
+//go:inventory-todo Reports/Invoice Details -- phase-2
+//go:inventory-todo Reports/Item Sales -- phase-2
+//go:inventory-todo Reports/Payments Collected -- phase-2
+//go:inventory-todo Reports/Profit/Loss Report -- phase-2
+//go:inventory-todo Reports/Revenue By Client -- phase-2
+//go:inventory-todo Reports/Sales Tax Summary -- phase-2
+//go:inventory-todo Reports/Time Entry Details -- phase-2
+//go:inventory-todo Reports/Trial Balance -- phase-2
+//go:inventory-todo Settings/Abilities/Abilities -- phase-2
+//go:inventory-todo Settings/Businesses/Add Business -- phase-2
+//go:inventory-todo Settings/Businesses/Delete Business -- phase-2
+//go:inventory-todo Settings/Businesses/Gateway Details -- phase-2
+//go:inventory-todo Settings/Businesses/Provision FreshBooks Payments -- phase-2
+//go:inventory-todo Settings/Developer/Create new application -- phase-2
+//go:inventory-todo Settings/Developer/Get all applications -- phase-2
+//go:inventory-todo Settings/Developer/Modify existing application -- phase-2
+//go:inventory-todo Settings/Developer/Upload App Logo -- phase-2
+//go:inventory-todo Settings/Gateways/List Gateways -- phase-2
+//go:inventory-todo Settings/Items and Services/Create Item -- phase-2
+//go:inventory-todo Settings/Items and Services/Create Service -- phase-2
+//go:inventory-todo Settings/Items and Services/Create Single Tax -- phase-2
+//go:inventory-todo Settings/Items and Services/Delete Item -- phase-2
+//go:inventory-todo Settings/Items and Services/Get a Single Service -- phase-2
+//go:inventory-todo Settings/Items and Services/Get a Single Service Rate -- phase-2
+//go:inventory-todo Settings/Items and Services/List Items -- phase-2
+//go:inventory-todo Settings/Items and Services/List Items Filtered by SKU -- phase-2
+//go:inventory-todo Settings/Items and Services/List Services -- phase-2
+//go:inventory-todo Settings/Items and Services/List Taxes -- phase-2
+//go:inventory-todo Settings/Items and Services/Single Item -- phase-2
+//go:inventory-todo Settings/Items and Services/Single Service -- phase-2
+//go:inventory-todo Settings/Items and Services/Single Tax (DELETE) -- phase-2
+//go:inventory-todo Settings/Items and Services/Single Tax -- phase-2
+//go:inventory-todo Settings/Items and Services/Update Item -- phase-2
+//go:inventory-todo Settings/Items and Services/Update Tax -- phase-2
+//go:inventory-todo Settings/Systems/Get System -- phase-2
+//go:inventory-todo Time Tracking/Create a Time Entry -- phase-2
+//go:inventory-todo Time Tracking/Delete a Time Entry -- phase-2
+//go:inventory-todo Time Tracking/List Entries -- phase-2
+//go:inventory-todo Time Tracking/Time Entries For Employee on Specific Project -- phase-2
+//go:inventory-todo Time Tracking/Time Entries Updated Since Precise Time -- phase-2
+//go:inventory-todo Time Tracking/Time Entries for a Given Day -- phase-2
+//go:inventory-todo Time Tracking/Update a Time Entry -- phase-2
+//go:inventory-todo Tokenization/1. [FBPAY] - Create Payment Method -- phase-2
+//go:inventory-todo Tokenization/1. [STRIPE] - Create Payment Method -- phase-2
+//go:inventory-todo Tokenization/1a. [STRIPE] -  Get Publishable Key -- phase-2
+//go:inventory-todo Tokenization/2. [FBPAY] - Create Setup Intent Using Payment Method Key -- phase-2
+//go:inventory-todo Tokenization/2. [STRIPE] - Create Setup Intent Using Payment Method Key -- phase-2
+//go:inventory-todo Tokenization/3. [STRIPE] - Save Payment Method to Recurring Profile -- phase-2
+//go:inventory-todo Uploader/Upload Expense Receipt -- phase-2
+//go:inventory-todo Uploader/Upload Image Without AccountId -- phase-2
+//go:inventory-todo Uploader/Upload Logo or Proposal Image -- phase-2
+//go:inventory-todo Webhooks/Delete Webhook Callback -- phase-2
+//go:inventory-todo Webhooks/List Webhook Callbacks -- phase-2
+//go:inventory-todo Webhooks/Register for Callback -- phase-2
+//go:inventory-todo Webhooks/Resend Verification Code -- phase-2
+//go:inventory-todo Webhooks/Verify Webhook Callback -- phase-2
