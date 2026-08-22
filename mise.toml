@@ -1,0 +1,42 @@
+[tools]
+go = "1.26.5"
+golangci-lint = "2.13.1"
+goreleaser = "2.17.1"
+actionlint = "1.7.12"
+usage = "6.0.0"
+
+[tasks.fmt-check]
+description = "Check gofmt formatting for one or more modules (default: all)"
+run = "scripts/check.sh fmt-check"
+
+[tasks.vet]
+description = "Run go vet for one or more modules (default: all)"
+run = "scripts/check.sh vet"
+
+[tasks.lint]
+description = "Run golangci-lint for one or more modules (default: all)"
+run = "scripts/check.sh lint"
+
+[tasks.test]
+description = "Run go test -race with coverage for one or more modules (default: all)"
+run = "scripts/check.sh test"
+
+[tasks.cover]
+description = "Enforce the 90% coverage floor for one or more modules (default: all)"
+run = "scripts/check.sh cover"
+
+[tasks.inventory-check]
+description = "Run the inventory parity check against freshbooks source"
+run = "scripts/check.sh inventory-check"
+
+[tasks.build]
+description = "Cross-compile the mcp and cli binaries into dist/ (gitignored)"
+run = "scripts/build.sh"
+
+[tasks.docs]
+description = "Regenerate generated docs (stub until Phase 4 adds cobra/doc)"
+run = "scripts/docs.sh"
+
+[tasks.check]
+description = "Full gate: fmt-check, vet, lint, test, cover, inventory-check, build, then a dirty-tree banner"
+run = "scripts/check.sh all"
