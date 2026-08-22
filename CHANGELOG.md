@@ -13,6 +13,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Design spec `docs/superpowers/specs/2026-08-22-freshbooks-tools-design.md` covering the library, MCP server, CLI, CI/release gates, and the GOAL.md-driven review process.
 - FreshBooks public Postman collection (moved to `freshbooks/internal/inventory/testdata/freshbooks.postman_collection.json` in the Phase 0 scaffold) as the endpoint inventory source.
 - MIT license.
+- Phase 0 review-gate artifacts: work order, lead triage, and the implementer / code-review / simplification / security / QA reports under `docs/phases/0/`.
 - `GOAL.md` treadmill (phase 0 goal block + phase 1-5 roadmap), root `CLAUDE.md`, `docs/progress.md`, and the five review-gate work-order templates under `docs/phases/_templates/`.
 
 ### Changed
