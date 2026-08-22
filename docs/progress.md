@@ -25,6 +25,9 @@ Living status doc. Read first, update at every phase boundary. Last updated: 202
 - 2026-08-22: FreshBooks has an unannounced first-party MCP (`mcp.freshbooks.com` resolves, `mcp:*` scopes in the OAuth metadata). Not a dependency; noted in spec Future Work.
 - 2026-08-22: `auth.freshbooks.com/.well-known/oauth-authorization-server` advertises PKCE S256 and a second set of OAuth endpoints; Phase 1 stage 1 resolves which to use.
 
+- 2026-08-22 (Phase 0 stage 1): the Postman collection has 213 leaf requests in 14 folders / 22 subfolders, not 130 (the spec counted subfolders as requests). Spec section 3 carries the callout with per-folder counts. Inventory keys include the subfolder path. 2 exact duplicate entries (`Single Tax` under `Expenses` and under `Settings/Items and Services`) collapse to one entry each. Phase 2 batch split needs re-cutting: Invoices alone is 50 requests (incl. Payments, Retainers, Other Income).
+- 2026-08-22: toolchain verified: go 1.26.5, mise 2026.5.15, gh logged in as org admin of InfiniteRoomLabs, GOPROXY resolves go-sdk v1.7.0 / cobra v1.10.2 / testify v1.12.1; mise can pin golangci-lint 2.13.1, goreleaser 2.17.1, actionlint 1.7.12.
+
 ## Next action
 
 Run `/goal complete everything in @GOAL.md` in a fresh session. It targets Phase 0 (scaffold).
