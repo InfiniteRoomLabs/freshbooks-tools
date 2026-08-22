@@ -1,0 +1,15 @@
+# build / test artifacts
+dist/
+coverage*.out
+*.test
+# worktrees for parallel phase batches
+.worktrees/
+# agent directories
+.claude/
+.codex/
+.gemini/
+.kittify/
+# local env / secrets (never commit)
+.env
+.envrc
+credentials.json
