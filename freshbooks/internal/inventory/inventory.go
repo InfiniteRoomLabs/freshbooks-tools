@@ -65,7 +65,7 @@ type RespEntry struct {
 
 // Load reads and parses a Postman v2.1 collection file.
 func Load(path string) (*Collection, error) {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // path is a CLI-supplied -in flag, not attacker input
 	if err != nil {
 		return nil, fmt.Errorf("inventory: reading %s: %w", path, err)
 	}
@@ -451,7 +451,7 @@ func WriteJSON(path string, entries []Entry) error {
 
 // ReadJSON reads a previously written inventory.json.
 func ReadJSON(path string) ([]Entry, error) {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // path is a CLI-supplied -inventory flag, not attacker input
 	if err != nil {
 		return nil, fmt.Errorf("inventory: reading %s: %w", path, err)
 	}

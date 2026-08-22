@@ -364,6 +364,13 @@ func TestNormalizeMissingTopLevelFolder(t *testing.T) {
 	}
 }
 
+func TestURLUnmarshalJSONInvalid(t *testing.T) {
+	var u URL
+	if err := json.Unmarshal([]byte(`{"raw": 5}`), &u); err == nil {
+		t.Fatal("UnmarshalJSON() error = nil, want an error for a malformed url object")
+	}
+}
+
 func TestNormalizeBadURL(t *testing.T) {
 	c := &Collection{Item: []Item{
 		{Name: "Folder", Item: []Item{
