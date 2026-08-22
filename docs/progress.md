@@ -6,6 +6,7 @@ Living status doc. Read first, update at every phase boundary. Last updated: 202
 
 - Repo initialized on `main` with the design spec (`docs/superpowers/specs/2026-08-22-freshbooks-tools-design.md`), MIT license, root `CHANGELOG.md`, `.gitignore`, the FreshBooks Postman collection (`docs/freshbooks.postman_collection.json`, pulled via `https://documenter.gw.postman.com/api/collections/3322108/S1ERwwza?segregateAuth=true&versionTag=latest`), `GOAL.md`, `CLAUDE.md`, and the five work-order templates under `docs/phases/_templates/`.
 - No Go code yet. No GitHub repo yet (Phase 0 creates it).
+- FreshBooks dev app registered 2026-08-22 (redirect `https://localhost:8765/callback`, all `user:*` scopes). Credentials resolve through the gitignored `fnox.toml` as `FRESHBOOKS_CLIENT_ID` / `FRESHBOOKS_CLIENT_SECRET` (`fnox exec -- ...`); verified resolving.
 - Spec status: sections 2-9 approved by Wes in chat on 2026-08-22. API facts in section 3 are a mix of CONFIRMED (auth flow, token lifetimes, scopes, base URL, inventory counts) and INFERRED (envelope/error shapes per family, date formats, which OAuth endpoint set accepts our app).
 
 ## Phase ledger

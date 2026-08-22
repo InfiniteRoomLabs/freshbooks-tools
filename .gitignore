@@ -13,3 +13,7 @@ coverage*.out
 .env
 .envrc
 credentials.json
+
+# local secret wiring (vault item names are operator-specific)
+fnox.toml
+mise.local.toml

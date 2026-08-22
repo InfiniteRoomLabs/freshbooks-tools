@@ -14,6 +14,7 @@ Go monorepo for the FreshBooks REST API: `freshbooks/` (client library), `mcp/` 
 - **One module per directory** (`freshbooks/`, `mcp/`, `cli/`), joined by `go.work`. Run `go` commands from inside the module or with `-C <module>`.
 - **Dependencies:** lib is stdlib-only (+ testify in tests). `mcp` adds go-sdk + cobra. `cli` adds cobra, pflag, yaml.v3, x/term. Adding anything else is a design decision: flag it.
 - **Python helpers (scripts that need it):** `uv run` only. **JS (future Docusaurus):** `pnpm` only.
+- **Secrets:** a gitignored `fnox.toml` maps `FRESHBOOKS_CLIENT_ID` / `FRESHBOOKS_CLIENT_SECRET` (the registered dev app) to Bitwarden. Run anything that needs them as `fnox exec -- <cmd>`; never export them in a shell, never write them to a file, never echo them (test resolution by length: `fnox exec -- sh -c 'echo ${#FRESHBOOKS_CLIENT_SECRET}'`). Outside contributors register their own app and set the two env vars however they like.
 
 ## Working conventions
 
