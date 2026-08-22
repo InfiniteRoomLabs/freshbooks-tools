@@ -36,7 +36,9 @@ Verified 2026-08-22 against https://www.freshbooks.com/api/authentication, the P
 - Base URL `https://api.freshbooks.com`. Required headers: `Authorization: Bearer <token>`, `Content-Type: application/json`.
 - OAuth2 authorization-code flow. Documented endpoints: authorize `https://auth.freshbooks.com/oauth/authorize/`, token `https://api.freshbooks.com/auth/oauth/token`, revoke `.../auth/oauth/revoke`. The RFC 8414 metadata additionally advertises `https://auth.freshbooks.com/service/auth/oauth/{authorize,token,revoke,introspect}` with PKCE `S256`. Phase 1 verifies which endpoints accept our app and prefers the metadata ones with PKCE; the documented ones are the fallback.
 - Access tokens live ~12h. Refresh tokens never expire but are **one-time-use**: every refresh returns a new refresh token and invalidates the old one. Whoever refreshes must persist the new token immediately.
-- Redirect URIs must be HTTPS except `http://localhost` (allowed for development), so a CLI loopback flow is viable.
+- Redirect URIs must be HTTPS.
+
+> **STATE AS OF 2026-08-22:** the developer portal's form rejects `http://localhost:...` outright ("Redirect URIs must be HTTPS/SSL URIs"), contradicting third-party guides. The dev app uses `https://localhost:8765/callback`. The CLI loopback listener therefore serves TLS with an ephemeral in-memory self-signed certificate (browser shows a one-time warning), and always offers a paste-the-redirected-URL fallback that needs no listener at all.
 - Scopes: `user:{object}:{read|write}` over ~22 objects; `user:profile:read` is always granted. (`mcp:*` scopes also exist for an unreleased first-party FreshBooks MCP -- irrelevant to us, noted in Future Work.)
 - Identity: `GET /auth/api/v1/users/me` returns `business_memberships[]`, each with `business.id` (integer `business_id`) and `business.account_id` (string `account_id`). Both are needed.
 - Two API families with different URL roots, ID types, envelopes, and error shapes:
@@ -127,7 +129,10 @@ raw, err := c.Do(ctx, http.MethodGet, "/accounting/account/"+string(acct)+"/syst
 ## 7. CLI design (`freshbooks`)
 
 ```
-freshbooks auth login [--scopes ...] [--no-browser]   # loopback PKCE flow on http://localhost:<port>/callback
+freshbooks auth login [--scopes ...] [--callback-port 8765] [--no-browser]
+    # loopback PKCE flow on https://localhost:<port>/callback (ephemeral self-signed TLS,
+    # listener bound to 127.0.0.1); --no-browser prints the auth URL and accepts the
+    # redirected URL (or bare code) pasted on stdin -- no listener needed
 freshbooks auth status | logout | token [--refresh]
 freshbooks config view | contexts | use-context <name> | set-context <name> --account X --business Y
 freshbooks identity me
