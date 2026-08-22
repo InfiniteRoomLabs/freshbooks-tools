@@ -3,7 +3,7 @@
 // parity contract against that file (check mode).
 //
 //	go run ./internal/inventory -in <postman.json> -out <inventory.json>
-//	go run ./internal/inventory -check ./... [-inventory <inventory.json>] [-ignore <ignore.list>]
+//	go run ./internal/inventory -check [-inventory <inventory.json>] [-ignore <ignore.list>] ./...
 package main
 
 import (

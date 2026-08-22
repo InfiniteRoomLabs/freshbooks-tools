@@ -11,7 +11,7 @@ You are implementing **Phase 0 (scaffold)** of `freshbooks-tools`, a public MIT 
 1. The oracle: `docs/superpowers/specs/2026-08-22-freshbooks-tools-design.md` sections 2 (locked), 3 (read the `STATE AS OF` callout about 213 requests), 4, 5.2, 8, 9.5, 10. Do not redesign.
 2. Conventions: `CLAUDE.md` (toolchain, commits, green rule, parity contract, public-repo hygiene), `GOAL.md` stage 2 (the deliverable list).
 3. Global rules that also apply: every new argument-taking shell script uses the `usage` shebang (`#!/usr/bin/env -S usage bash` + `# USAGE` directives); pin `usage` in `mise.toml` so CI has it. No hard-wrapped prose in markdown, ASCII only.
-4. The collection: `docs/freshbooks.postman_collection.json` (you move it). Postman v2.1 schema; requests may have `url` as a string or an object with `raw`; folders nest one level deep (22 subfolders); one folder name has a trailing space (`My Team `); one URL embeds a newline; `{{accountId}}` vs `{{accountid}}` vs hard-coded example IDs; ~6 `my.freshbooks.com/service/api/...` requests.
+4. The collection: `docs/freshbooks.postman_collection.json` (you move it). Postman v2.1 schema; requests may have `url` as a string or an object with `raw`; folders nest one level deep (22 subfolders); one folder name has a trailing space (`My Team `); one URL embeds a newline; `{{accountId}}` vs `{{accountid}}` vs hard-coded example IDs; ~6 `my.freshbooks.com/service/api/...` requests *(overtaken: exactly 3)*.
 
 ## Pinned versions (verified resolvable 2026-08-22; never `latest`)
 
@@ -49,7 +49,7 @@ Normalization rules (each one gets a table-driven test):
 3. Hard-coded IDs: a segment right after `/account/` that is not a variable -> `{accountId}`; a numeric segment right after `/business/` -> `{businessId}`; any other purely numeric path segment -> `{id}`.
 4. `https://my.freshbooks.com/service/api/<rest>` -> host `api.freshbooks.com`, path `/<rest>`, family `internal` (these are candidates for the ignore list, not silently dropped).
 5. Family by path prefix: `/accounting/account/` -> `accounting`; `/accounting/businesses/` -> `ledger`; `/projects/business/`, `/timetracking/business/`, `/comments/business/`, `/auth/api/v1/businesses/` -> `business`; `/auth/` (other) -> `auth`; `/events/` -> `events`; `/uploads/` -> `uploads`; `/payments/` -> `payments`; else `unknown`.
-6. Query params come from the Postman `url.query` array (keep raw `{{var}}` text in values after the same variable rewrite). Bodies and example responses are copied verbatim (strings), not parsed.
+6. Query params come from the Postman `url.query` array (keep raw `{{var}}` text in values after the same variable rewrite). *(Overtaken: the real collection has no `url.query` arrays; all 25 query-bearing requests carry the query in the raw URL string, which the tool parses.)* Bodies and example responses are copied verbatim (strings), not parsed.
 
 Check rules:
 
