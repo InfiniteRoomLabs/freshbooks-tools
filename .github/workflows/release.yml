@@ -91,7 +91,7 @@ jobs:
 
       - name: Run goreleaser
         if: needs.guard.outputs.module == 'mcp' || needs.guard.outputs.module == 'cli'
-        uses: goreleaser/goreleaser-action@v6
+        uses: goreleaser/goreleaser-action@v7
         with:
           workdir: ${{ needs.guard.outputs.module }}
           args: release --clean --release-notes=/tmp/release-notes.md
