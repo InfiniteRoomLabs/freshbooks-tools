@@ -214,7 +214,7 @@ func TestRequestOptionValues(t *testing.T) {
 		Include("lines", "payments"),
 		Search{"status": "paid"},
 		Sort("invoice_date", SortDesc),
-		Page(2),
+		PageNumber(2),
 		PerPage(25),
 		nil,
 	}
@@ -279,7 +279,7 @@ func TestRequestOptionValues(t *testing.T) {
 	})
 
 	t.Run("[edge] non-positive page and per_page are omitted", func(t *testing.T) {
-		got := newRequestOptions([]RequestOption{Page(0), PerPage(-1)}).values(FamilyAccounting).Encode()
+		got := newRequestOptions([]RequestOption{PageNumber(0), PerPage(-1)}).values(FamilyAccounting).Encode()
 		if got != "" {
 			t.Fatalf("values = %q, want empty", got)
 		}

@@ -103,7 +103,9 @@ func (f *FileStore) Save(_ context.Context, t *Token) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	data, err := json.Marshal(t)
+	// Serializing the token is the whole point of a token store; it lands
+	// in a 0600 file inside a 0700 directory, written via temp + rename.
+	data, err := json.Marshal(t) // #nosec G117
 	if err != nil {
 		return fmt.Errorf("freshbooks/auth: encoding the token: %w", err)
 	}

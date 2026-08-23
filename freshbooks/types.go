@@ -272,8 +272,12 @@ func Sort(field, dir string) RequestOption {
 	return optionFunc(func(o *requestOptions) { o.sort = field + suffix })
 }
 
-// Page selects a 1-based page of a list request.
-func Page(n int) RequestOption {
+// PageNumber selects a 1-based page of a list request.
+//
+// The design spec calls this option "Page", which collides with the Page[T]
+// pagination type; the type keeps the short name because it appears in every
+// List signature.
+func PageNumber(n int) RequestOption {
 	return optionFunc(func(o *requestOptions) { o.page = n })
 }
 

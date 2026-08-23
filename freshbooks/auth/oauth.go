@@ -39,7 +39,7 @@ type Endpoints struct {
 // document at https://auth.freshbooks.com/.well-known/oauth-authorization-server.
 // It is the default: a live check on 2026-08-23 confirmed it accepts PKCE
 // S256 and behaves identically to DocumentedEndpoints.
-var MetadataEndpoints = Endpoints{
+var MetadataEndpoints = Endpoints{ // #nosec G101 -- public endpoint URLs, not credentials
 	AuthURL:   "https://auth.freshbooks.com/service/auth/oauth/authorize",
 	TokenURL:  "https://auth.freshbooks.com/service/auth/oauth/token",
 	RevokeURL: "https://auth.freshbooks.com/service/auth/oauth/revoke",
@@ -48,7 +48,7 @@ var MetadataEndpoints = Endpoints{
 // DocumentedEndpoints is the endpoint set named in the FreshBooks prose
 // documentation. It is the supported fallback; a live check on 2026-08-23
 // confirmed it accepts the same requests and returns the same token shape.
-var DocumentedEndpoints = Endpoints{
+var DocumentedEndpoints = Endpoints{ // #nosec G101 -- public endpoint URLs, not credentials
 	AuthURL:   "https://auth.freshbooks.com/oauth/authorize/",
 	TokenURL:  "https://api.freshbooks.com/auth/oauth/token",
 	RevokeURL: "https://api.freshbooks.com/auth/oauth/revoke",
