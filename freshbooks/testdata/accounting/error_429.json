@@ -1,0 +1,13 @@
+{
+  "response": {
+    "errors": [
+      {
+        "errno": 429,
+        "field": "",
+        "message": "Rate limit exceeded.",
+        "object": "request",
+        "value": null
+      }
+    ]
+  }
+}

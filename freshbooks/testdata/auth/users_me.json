@@ -1,0 +1,103 @@
+{
+  "response": {
+    "addresses": [
+      null
+    ],
+    "business_memberships": [
+      {
+        "business": {
+          "account_id": "ACM123",
+          "active": true,
+          "address": {
+            "city": "Springfield",
+            "country": "United States",
+            "id": 70001,
+            "postal_code": "62704",
+            "province": "Illinois",
+            "street": "1 Example St",
+            "street2": ""
+          },
+          "advanced_accounting_enabled": false,
+          "billing_country_code": "USA",
+          "business_clients": [],
+          "business_type": null,
+          "business_uuid": "00000000-0000-4000-8000-000000000001",
+          "date_format": "mm/dd/yyyy",
+          "first_day_of_week": 6,
+          "id": 8675309,
+          "industry": null,
+          "name": "Example Business LLC",
+          "number_format": null,
+          "phone_number": {
+            "id": 70002,
+            "phone_number": "5550100100"
+          },
+          "status": "active_trial",
+          "timezone": "America/New_York"
+        },
+        "fasttrack_token": "REDACTED.JWT.TOKEN",
+        "id": 1111111,
+        "role": "owner",
+        "unacknowledged_change": false
+      }
+    ],
+    "business_statuses": {
+      "ACM123": "active_trial"
+    },
+    "confirmed_at": "2026-08-22T04:31:37Z",
+    "created_at": "2026-08-22T04:31:00Z",
+    "email": "owner@example.com",
+    "first_name": "Sam",
+    "id": 4242424,
+    "identity_id": 4242424,
+    "identity_origin": "magnum",
+    "identity_uuid": "00000000-0000-4000-8000-000000000002",
+    "language": "en",
+    "last_name": "Owner",
+    "links": {
+      "me": "/service/auth/api/v1/users?id=4242424",
+      "roles": "/service/auth/api/v1/users/role/4242424"
+    },
+    "otp_delivery_method": "email",
+    "otp_required_for_login": true,
+    "phone_numbers": [
+      {
+        "phone_number": null,
+        "title": ""
+      }
+    ],
+    "profession": null,
+    "profile": {
+      "address": null,
+      "first_name": "Sam",
+      "has_password": true,
+      "is_email_confirmed": true,
+      "last_name": "Owner",
+      "phone_number": null,
+      "profession": null,
+      "professions": [],
+      "setup_complete": true,
+      "time_format": 0,
+      "timezone": "America/New_York"
+    },
+    "roles": [
+      {
+        "accountid": "ACM123",
+        "created_at": "2026-08-22T04:31:09Z",
+        "id": 15660096,
+        "links": {
+          "destroy": "/service/auth/api/v1/users/role/15660096"
+        },
+        "role": "admin",
+        "systemid": 70004,
+        "userid": 1
+      }
+    ],
+    "setup_complete": true,
+    "subscription_statuses": {
+      "ACM123": "active_trial"
+    },
+    "timezone": "America/New_York",
+    "unconfirmed_email": null
+  }
+}
