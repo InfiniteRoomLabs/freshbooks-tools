@@ -1,0 +1,13 @@
+{
+  "response": {
+    "errors": [
+      {
+        "errno": 2001,
+        "field": "email",
+        "message": "Validation failed.",
+        "object": "client",
+        "value": "not-an-email"
+      }
+    ]
+  }
+}

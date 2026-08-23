@@ -18,6 +18,14 @@ linters:
     generated: strict
     warn-unused: true
     presets: []
+    rules:
+      # Test files read their own fixtures out of testdata/ by construction
+      # (G304) and embed synthetic URLs and token-shaped literals that gosec
+      # reads as credentials (G101). Neither is a finding in a _test.go file.
+      - path: _test\.go
+        linters:
+          - gosec
+        text: "G(101|304)"
 
 issues:
   max-issues-per-linter: 0

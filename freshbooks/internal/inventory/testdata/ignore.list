@@ -26,10 +26,6 @@
 //go:inventory-todo Accounting/Taxes/Get Single Tax -- phase-2
 //go:inventory-todo Accounting/Taxes/List Taxes -- phase-2
 //go:inventory-todo Accounting/Taxes/Update Single Tax -- phase-2
-//go:inventory-todo Authorization/Identity Info Call -- phase-1
-//go:inventory-todo Authorization/List User -- phase-1
-//go:inventory-todo Authorization/Register as a new user -- phase-1
-//go:inventory-todo Authorization/Revoke Refresh Token -- phase-1
 //go:inventory-todo Clients/Credits/Create Credit Note -- phase-2
 //go:inventory-todo Clients/Credits/Create Prepayment Credit -- phase-2
 //go:inventory-todo Clients/Credits/Delete Credit -- phase-2
