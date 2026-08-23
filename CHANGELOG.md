@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Phase 1 (lib core) shipped: the `freshbooks` library client, transport, errors, pagination, types, `auth/` package, and Identity service (see `freshbooks/CHANGELOG.md` for the library-level detail); live-verified OAuth facts recorded as `STATE AS OF 2026-08-23` callouts in spec section 3; sanitized live captures under `freshbooks/testdata/seed/`; `docs/authentication.md` and `docs/library.md` written for real.
+- Phase 1 review-gate artifacts: work order, lead triage, and the implementer / code-review / simplification / security / QA reports under `docs/phases/1/`.
 - Phase 0 scaffold: `go.work` with the `freshbooks`, `mcp`, and `cli` modules; the `freshbooks/internal/inventory` tool that normalizes the Postman collection into `inventory.json` and checks Go source against it via `// inventory:` comments; `mise.toml` tasks (`fmt-check`, `vet`, `lint`, `test`, `cover`, `vuln`, `inventory-check`, `actionlint`, `build`, `docs`, `check`) backed by `scripts/`; `.golangci.yml`; `.github/workflows/{ci,release}.yml` and per-module `.goreleaser.yaml`; `.github/dependabot.yml`; `README.md` and the `docs/*.md` stubs.
 - Gitignored `fnox.toml` wiring for the registered FreshBooks dev app (`FRESHBOOKS_CLIENT_ID` / `FRESHBOOKS_CLIENT_SECRET`); documented in `CLAUDE.md` and `docs/progress.md`.
 - Design spec `docs/superpowers/specs/2026-08-22-freshbooks-tools-design.md` covering the library, MCP server, CLI, CI/release gates, and the GOAL.md-driven review process.
