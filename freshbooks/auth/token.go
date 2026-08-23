@@ -35,10 +35,12 @@ type Token struct {
 }
 
 // String renders the token with its secrets redacted.
-func (t *Token) String() string {
-	if t == nil {
-		return "auth.Token(nil)"
-	}
+//
+// The receiver is deliberately a value, not a pointer: a value receiver makes
+// both Token and *Token satisfy fmt.Stringer, so neither %v on a Token value
+// nor %+v on a struct that embeds one by value can print a credential. fmt
+// renders a nil *Token as <nil> without help.
+func (t Token) String() string {
 	return fmt.Sprintf("auth.Token{AccessToken: redacted, RefreshToken: redacted, Expiry: %s}", t.Expiry.Format(time.RFC3339))
 }
 
@@ -133,6 +135,11 @@ type refreshingSource struct {
 
 	mu     sync.Mutex
 	cached *Token
+	// pendingSave marks cached as a rotated pair that never reached the
+	// store. The old refresh token is already spent server-side, so this
+	// pair is the only live one in existence: it must not be discarded,
+	// and it must not be handed out until it is durable.
+	pendingSave bool
 }
 
 // NewTokenSource returns a TokenSource backed by store. It loads the stored
@@ -161,6 +168,15 @@ func (s *refreshingSource) Token(ctx context.Context) (*Token, error) {
 	if s.cached == nil {
 		return nil, ErrNoToken
 	}
+	// A previous call refreshed but could not persist. Retry the save --
+	// never the refresh, which would spend a token that is already live --
+	// before this pair is allowed out.
+	if s.pendingSave {
+		if err := s.store.Save(ctx, s.cached); err != nil {
+			return nil, fmt.Errorf("freshbooks/auth: persisting the rotated token: %w", err)
+		}
+		s.pendingSave = false
+	}
 	if s.cached.Valid(s.cfg.now(), s.skew) {
 		return s.cached.Clone(), nil
 	}
@@ -179,10 +195,14 @@ func (s *refreshingSource) Token(ctx context.Context) (*Token, error) {
 		return nil, errors.New("freshbooks/auth: the refresh response carried no refresh_token")
 	}
 	// The old refresh token is already dead at this point, so the new pair
-	// must reach durable storage before any caller gets to use it.
+	// must reach durable storage before any caller gets to use it. If the
+	// store fails, keep the pair (it is the only live one) and fail this
+	// call; the next one retries the save, so a transient store failure
+	// does not force a re-authentication.
+	s.cached, s.pendingSave = next, true
 	if err := s.store.Save(ctx, next); err != nil {
 		return nil, fmt.Errorf("freshbooks/auth: persisting the rotated token: %w", err)
 	}
-	s.cached = next
+	s.pendingSave = false
 	return next.Clone(), nil
 }

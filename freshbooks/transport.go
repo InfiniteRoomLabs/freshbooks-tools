@@ -70,7 +70,7 @@ func (c *Client) do(ctx context.Context, method, path string, fam Family, body, 
 			// A malformed method or URL fails identically every time.
 			return err
 		}
-		raw, apiErr, err := c.roundTrip(ctx, req, attempt)
+		raw, apiErr, err := c.roundTrip(ctx, req, fam, attempt)
 		switch {
 		case err != nil:
 			lastErr = err
@@ -126,7 +126,7 @@ func (c *Client) resolve(path string, fam Family, opts []RequestOption) (string,
 // roundTrip performs one HTTP round trip. Exactly one of the three results
 // is meaningful: raw on success, apiErr for a decoded non-2xx response, err
 // for anything that stopped the round trip.
-func (c *Client) roundTrip(ctx context.Context, req *http.Request, attempt int) (raw []byte, apiErr *Error, err error) {
+func (c *Client) roundTrip(ctx context.Context, req *http.Request, fam Family, attempt int) (raw []byte, apiErr *Error, err error) {
 	method, endpoint := req.Method, req.URL.String()
 
 	c.logger.DebugContext(ctx, "freshbooks request", "method", method, "url", redactPath(endpoint), "attempt", attempt)
@@ -154,7 +154,9 @@ func (c *Client) roundTrip(ctx context.Context, req *http.Request, attempt int) 
 	c.logger.DebugContext(ctx, "freshbooks response", "method", method, "url", redactPath(endpoint), "status", resp.StatusCode, "attempt", attempt)
 
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		fam := familyForPath(req.URL.Path)
+		// fam comes from do(), not from req.URL.Path: a WithBaseURL path
+		// prefix would make re-deriving it here disagree with the family
+		// the request was actually built for.
 		retryAfter := parseRetryAfter(resp.Header.Get("Retry-After"), c.now())
 		return nil, decodeError(resp.StatusCode, fam, body, retryAfter), nil
 	}
@@ -216,6 +218,10 @@ func (c *Client) wait(ctx context.Context, d time.Duration) error {
 // isRetryableTransportError reports whether a failed round trip is worth
 // repeating. Everything reaching it is network-level, so only a cancelled or
 // expired context stops the loop.
+//
+// A network failure can happen after the server processed the request, so
+// retrying one gives every method at-least-once semantics. See RetryPolicy
+// for what that means for non-idempotent calls.
 func isRetryableTransportError(err error) bool {
 	return !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded)
 }

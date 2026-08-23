@@ -2,8 +2,11 @@ package freshbooks
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -133,10 +136,32 @@ func TestAll(t *testing.T) {
 }
 
 func TestPageMeta(t *testing.T) {
-	// PageMeta exists so resource list structs can embed the pagination
-	// block both families return; assert the tags it will be decoded with.
-	m := PageMeta{Page: 1, Pages: 2, PerPage: 15, Total: 20}
-	if m.Page != 1 || m.Pages != 2 || m.PerPage != 15 || m.Total != 20 {
-		t.Fatalf("PageMeta = %+v", m)
+	// PageMeta exists so a resource's list-response struct can embed the
+	// pagination block both families return, so the json tags are the whole
+	// contract: decode the shape the API actually sends.
+	const body = `{"page": 2, "pages": 4, "per_page": 15, "total": 53}`
+
+	var got PageMeta
+	if err := json.Unmarshal([]byte(body), &got); err != nil {
+		t.Fatal(err)
+	}
+	want := PageMeta{Page: 2, Pages: 4, PerPage: 15, Total: 53}
+	if got != want {
+		t.Fatalf("decoded %+v, want %+v", got, want)
+	}
+
+	// And the projects fixture's real meta block decodes through it.
+	var wrapper struct {
+		Meta PageMeta `json:"meta"`
+	}
+	raw, err := os.ReadFile(filepath.Join("testdata", "projects", "list.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(raw, &wrapper); err != nil {
+		t.Fatal(err)
+	}
+	if wrapper.Meta.Page != 1 || wrapper.Meta.PerPage != 1 {
+		t.Fatalf("fixture meta = %+v", wrapper.Meta)
 	}
 }

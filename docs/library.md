@@ -67,6 +67,8 @@ client.Invoices.List(ctx, acct,
 
 > The design spec calls the page-selecting option `Page`, which cannot coexist in Go with the `Page[T]` pagination type. The type keeps the short name because it appears in every `List` signature; the option is `PageNumber`.
 
+> The accounting family's `search[field]=value` spelling is confirmed against the live API; the business-scoped family's bare `field=value` is inferred from the FreshBooks documentation and has not been exercised live. Phase 2's first business-scoped list endpoint confirms it.
+
 `List` returns `Page[T]{Items, Page, Pages, PerPage, Total}`. `All` is the auto-paginating iterator:
 
 ```go
@@ -100,6 +102,21 @@ The sentinels are `ErrUnauthorized`, `ErrForbidden`, `ErrNotFound`, `ErrValidati
 ## Retries
 
 By default: three attempts, 500ms base delay doubling each time, capped at 30 seconds, with full jitter, on 429, 502, 503, 504, and transport failures. A `Retry-After` header wins over the computed backoff but is still capped by `MaxDelay` -- a client should not block for an arbitrary period because a header said so. A cancelled context stops the loop immediately.
+
+### Retries make every call at-least-once
+
+This matters for writes. A 502, a 504, or a network timeout can all arrive *after* the server has already processed the request; the retry replays the body, so a `POST` that creates an invoice or a payment can create two. With retrying enabled, every method is at-least-once, not exactly-once.
+
+The library does not yet gate retries by idempotency. Until it does, a write you cannot afford to duplicate should go through a client built with `freshbooks.WithRetry(freshbooks.NoRetry)`, handling the transient statuses yourself:
+
+```go
+writer, err := freshbooks.NewClient(
+    freshbooks.WithTokenSource(src),
+    freshbooks.WithRetry(freshbooks.NoRetry),
+)
+```
+
+Reads are unaffected -- replaying a `GET` costs a round trip and nothing else.
 
 ## The escape hatch
 

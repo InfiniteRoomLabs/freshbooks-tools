@@ -39,15 +39,35 @@ func TestTokenValid(t *testing.T) {
 
 func TestTokenStringRedacts(t *testing.T) {
 	tok := &Token{AccessToken: "super-secret-access", RefreshToken: "super-secret-refresh"}
-	for _, s := range []string{tok.String(), fmt.Sprintf("%v", tok), fmt.Sprintf("%+v", tok)} {
-		if strings.Contains(s, "super-secret") {
-			t.Fatalf("token rendering leaked a credential: %s", s)
+
+	// A pointer receiver would leave every one of these renderings printing
+	// both secrets in full; the value receiver is what makes them safe.
+	renderings := map[string]string{
+		"String on a pointer":              tok.String(),
+		"String on a value":                (*tok).String(),
+		"%v on a pointer":                  fmt.Sprintf("%v", tok),
+		"%+v on a pointer":                 fmt.Sprintf("%+v", tok),
+		"%v on a value":                    fmt.Sprintf("%v", *tok),
+		"%+v on a value":                   fmt.Sprintf("%+v", *tok),
+		"%v on a struct embedding a value": fmt.Sprintf("%v", struct{ Token }{*tok}),
+		"%+v on a struct holding a value":  fmt.Sprintf("%+v", struct{ Tok Token }{*tok}),
+		"%v on a slice of values":          fmt.Sprintf("%v", []Token{*tok}),
+	}
+	for what, got := range renderings {
+		if strings.Contains(got, "super-secret") {
+			t.Errorf("%s leaked a credential: %s", what, got)
+		}
+		if !strings.Contains(got, "redacted") {
+			t.Errorf("%s did not go through Token.String: %s", what, got)
 		}
 	}
-	var nilTok *Token
-	if nilTok.String() != "auth.Token(nil)" {
-		t.Fatalf("nil rendering = %q", nilTok.String())
-	}
+
+	t.Run("[edge] fmt renders a nil pointer without help", func(t *testing.T) {
+		var nilTok *Token
+		if got := fmt.Sprintf("%v", nilTok); got != "<nil>" {
+			t.Fatalf("nil rendering = %q, want <nil>", got)
+		}
+	})
 }
 
 func TestTokenClone(t *testing.T) {
@@ -158,7 +178,7 @@ func TestRefreshingTokenSource(t *testing.T) {
 	})
 
 	t.Run("[sad] a store that cannot save fails the call rather than spending the token silently", func(t *testing.T) {
-		srv, _ := refreshServer(t)
+		srv, hits := refreshServer(t)
 		store := &failingStore{inner: NewMemoryStore(), saveErr: errors.New("disk full")}
 		if err := store.inner.Save(ctx, expiredToken()); err != nil {
 			t.Fatal(err)
@@ -172,6 +192,47 @@ func TestRefreshingTokenSource(t *testing.T) {
 		// The failure must not be papered over on a second call.
 		if _, err := src.Token(ctx); err == nil {
 			t.Fatal("the second call should fail too")
+		}
+		// ...and it must retry the save, not the refresh: the old refresh
+		// token is already spent, so a second Refresh would be guaranteed
+		// to fail with invalid_grant.
+		if got := hits.Load(); got != 1 {
+			t.Fatalf("refreshed %d times while the store was failing, want 1", got)
+		}
+	})
+
+	t.Run("[happy] a transient store failure heals without a second refresh", func(t *testing.T) {
+		srv, hits := refreshServer(t)
+		store := &failingStore{inner: NewMemoryStore(), saveErr: errors.New("disk full")}
+		if err := store.inner.Save(ctx, expiredToken()); err != nil {
+			t.Fatal(err)
+		}
+
+		src := NewTokenSource(testConfig(srv), store)
+		if _, err := src.Token(ctx); err == nil {
+			t.Fatal("the first call should fail while the store is broken")
+		}
+
+		// The disk comes back. The rotated pair is still the only live one,
+		// so the source must persist and use it rather than re-authenticate.
+		store.saveErr = nil
+
+		tok, err := src.Token(ctx)
+		if err != nil {
+			t.Fatalf("the healed call failed: %v", err)
+		}
+		if tok.AccessToken != "synthetic-access-token-0002" {
+			t.Fatalf("access token = %q, want the rotated one", tok.AccessToken)
+		}
+		if got := hits.Load(); got != 1 {
+			t.Fatalf("refreshed %d times, want 1 -- the rotated pair was discarded", got)
+		}
+		stored, err := store.Load(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if stored.RefreshToken != "synthetic-refresh-token-0002" {
+			t.Fatalf("the store holds %q, want the rotated refresh token", stored.RefreshToken)
 		}
 	})
 

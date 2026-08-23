@@ -5,8 +5,6 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -52,10 +50,7 @@ func newTestClient(t *testing.T, h http.Handler, opts ...Option) (*Client, *http
 // serveFixture answers every request with testdata/<area>/<name>.json.
 func serveFixture(t *testing.T, status int, area, name string) http.HandlerFunc {
 	t.Helper()
-	body, err := os.ReadFile(filepath.Join("testdata", area, name+".json"))
-	if err != nil {
-		t.Fatalf("reading fixture: %v", err)
-	}
+	body := readFixture(t, area, name)
 	return func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(status)
@@ -248,7 +243,13 @@ func TestFamilyForPath(t *testing.T) {
 		"/auth/api/v1/users/me":                                FamilyAuth,
 		"/projects/business/1/projects":                        FamilyBusiness,
 		"/timetracking/business/1/time_entries":                FamilyBusiness,
-		"/events/account/ACM123/events/callbacks":              FamilyBusiness,
+		// Account-scoped, and the Postman example response is the
+		// accounting envelope. INFERRED; Phase 2 confirms it live.
+		"/events/account/ACM123/events/callbacks": FamilyAccounting,
+		// Not yet verified either way; both default to business until a
+		// Phase 2 batch touches them.
+		"/payments/account/ACM123/payments/checkout_links": FamilyBusiness,
+		"/uploads/account/ACM123/attachments":              FamilyBusiness,
 	}
 	for path, want := range tests {
 		if got := familyForPath(path); got != want {
@@ -289,8 +290,15 @@ func TestStripAuthOnCrossHostRedirect(t *testing.T) {
 		for i := range via {
 			via[i] = mk("api.example.test")
 		}
-		if err := stripAuthOnCrossHostRedirect(mk("api.example.test"), via); err != http.ErrUseLastResponse {
-			t.Fatalf("err = %v, want http.ErrUseLastResponse", err)
+		err := stripAuthOnCrossHostRedirect(mk("api.example.test"), via)
+		if err == nil {
+			t.Fatal("want an error at the redirect cap")
+		}
+		if err == http.ErrUseLastResponse {
+			t.Fatal("the cap must error, not hand back the final 3xx as a response")
+		}
+		if !strings.Contains(err.Error(), "stopped after 10 redirects") {
+			t.Fatalf("err = %v", err)
 		}
 	})
 

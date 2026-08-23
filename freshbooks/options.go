@@ -108,6 +108,18 @@ func WithClock(now func() time.Time) Option {
 
 // RetryPolicy controls how the transport retries a request that failed with
 // a transient status (429, 502, 503, 504) or a transport error.
+//
+// # At-least-once semantics
+//
+// Retrying is not free of consequences for writes. A 502, a 504, or a
+// network failure can all arrive after the server has already processed the
+// request, and the retry replays the body -- so a POST that creates an
+// invoice or a payment can create two. Every method this library exposes is
+// therefore at-least-once, not exactly-once, whenever retrying is enabled.
+//
+// Until the library gates retries by idempotency, a caller making a write it
+// cannot afford to duplicate should pass WithRetry(NoRetry) for that client
+// and handle the transient statuses itself.
 type RetryPolicy struct {
 	// MaxAttempts is the total number of attempts, not the number of
 	// retries. 1 disables retrying.

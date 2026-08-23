@@ -1,6 +1,7 @@
 package freshbooks
 
 import (
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -181,11 +182,17 @@ func (c *Client) registerServices() {
 // BaseURL reports the API root this client talks to.
 func (c *Client) BaseURL() string { return c.baseURL.String() }
 
+// maxRedirects matches net/http's own default redirect budget.
+const maxRedirects = 10
+
 // stripAuthOnCrossHostRedirect removes the bearer token when a redirect
 // crosses to a different host:port, and caps the redirect chain.
 func stripAuthOnCrossHostRedirect(req *http.Request, via []*http.Request) error {
-	if len(via) >= 10 {
-		return http.ErrUseLastResponse
+	if len(via) >= maxRedirects {
+		// Erroring, not ErrUseLastResponse: handing the final 3xx back as
+		// the response would surface as a decoded API error carrying a
+		// redirect status, which tells the caller nothing true.
+		return fmt.Errorf("freshbooks: stopped after %d redirects", maxRedirects)
 	}
 	if len(via) > 0 && !strings.EqualFold(req.URL.Host, via[len(via)-1].URL.Host) {
 		req.Header.Del("Authorization")
@@ -200,6 +207,11 @@ func familyForPath(path string) Family {
 	case strings.HasPrefix(path, "/auth/"):
 		return FamilyAuth
 	case strings.HasPrefix(path, "/accounting/"):
+		return FamilyAccounting
+	case strings.HasPrefix(path, "/events/"):
+		// Webhook callbacks are account_id-scoped and the collection's
+		// example response is the accounting envelope. INFERRED from the
+		// Postman example only; Phase 2's Callbacks batch confirms live.
 		return FamilyAccounting
 	default:
 		return FamilyBusiness

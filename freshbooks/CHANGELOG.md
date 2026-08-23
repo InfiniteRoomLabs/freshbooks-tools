@@ -36,3 +36,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Repository scaffold: module skeleton, doc.go package overview, and the
   `freshbooks/internal/inventory` tool that normalizes the FreshBooks
   Postman collection into a parity contract for future phases.
+
+### Fixed
+
+- `auth.Token.String` now takes a value receiver, so `%v` on a `Token` value
+  (or on a struct that embeds one) redacts the credentials instead of
+  printing them.
+- A `TokenStore.Save` failure after a successful refresh no longer discards
+  the rotated pair. The source keeps it and retries the save on the next
+  `Token` call, so a transient store failure is recoverable rather than a
+  forced re-authentication.
+- The `auth` package no longer falls back to `http.DefaultClient`: its
+  default has a 30s timeout and refuses to follow redirects, which would
+  otherwise replay the client secret and refresh token to the redirect
+  target.
+- `*Error.Family` is now the family the request was built for rather than one
+  re-derived from the request path, which disagreed under a `WithBaseURL`
+  path prefix.
+- Webhook callback paths (`/events/`) are classified as the accounting family
+  so their envelope is unwrapped.
+- The client's redirect cap returns a real error instead of handing back the
+  final 3xx as a response.

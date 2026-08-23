@@ -89,11 +89,23 @@ func (c Config) endpoints() Endpoints {
 	return c.Endpoints
 }
 
+// defaultHTTPClient is what a Config without an HTTPClient uses. It is not
+// http.DefaultClient: that has no timeout and follows redirects, and these
+// requests carry the client secret and a refresh token in the form body. A
+// token endpoint never legitimately redirects, so a 3xx is surfaced as a
+// failing status rather than replayed to wherever it points.
+var defaultHTTPClient = &http.Client{
+	Timeout: 30 * time.Second,
+	CheckRedirect: func(*http.Request, []*http.Request) error {
+		return http.ErrUseLastResponse
+	},
+}
+
 func (c Config) httpClient() *http.Client {
 	if c.HTTPClient != nil {
 		return c.HTTPClient
 	}
-	return http.DefaultClient
+	return defaultHTTPClient
 }
 
 func (c Config) now() time.Time {

@@ -58,11 +58,43 @@ func TestEndpointDefaults(t *testing.T) {
 	})
 	t.Run("[happy] defaults for client and clock", func(t *testing.T) {
 		c := Config{}
-		if c.httpClient() != http.DefaultClient {
-			t.Fatal("httpClient() should default to http.DefaultClient")
+		hc := c.httpClient()
+		if hc == http.DefaultClient {
+			t.Fatal("httpClient() must not be http.DefaultClient: no timeout, follows redirects")
+		}
+		if hc.Timeout == 0 {
+			t.Error("the default client needs a timeout")
+		}
+		if hc.CheckRedirect == nil {
+			t.Fatal("the default client must not follow redirects with a credential body")
+		}
+		if err := hc.CheckRedirect(nil, nil); err != http.ErrUseLastResponse {
+			t.Errorf("CheckRedirect = %v, want http.ErrUseLastResponse", err)
 		}
 		if c.now().IsZero() {
 			t.Fatal("now() should default to time.Now")
+		}
+	})
+
+	t.Run("[sad] a redirecting token endpoint is a failing status, not a replay", func(t *testing.T) {
+		var hits int
+		target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			hits++
+			_, _ = w.Write([]byte(`{"access_token": "leaked"}`))
+		}))
+		defer target.Close()
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, target.URL, http.StatusFound)
+		}))
+		defer srv.Close()
+
+		cfg := testConfig(srv)
+		cfg.HTTPClient = nil // exercise the package default
+		if _, err := cfg.Exchange(context.Background(), "code", "verifier"); err == nil {
+			t.Fatal("want an error, not a token from the redirect target")
+		}
+		if hits != 0 {
+			t.Fatal("the credential body was replayed to the redirect target")
 		}
 	})
 }

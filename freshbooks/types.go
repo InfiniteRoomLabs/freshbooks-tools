@@ -30,7 +30,14 @@ type BusinessUUID string
 // Family classifies which FreshBooks API family a request belongs to. The
 // families differ in URL root, identifier type, response envelope, error
 // shape, and query encoding, so the transport needs to know which one it is
-// talking to. The constant values match the inventory tool's classifier.
+// talking to.
+//
+// These three are the envelope shapes, not a one-to-one map of the inventory
+// tool's classifier: that tool also names "events", "uploads", "payments",
+// and "ledger" families, which the transport folds into one of the three
+// below by the envelope they actually return. Which envelope each of those
+// uses is INFERRED from the Postman examples; the Phase 2 batch that
+// implements one confirms it live.
 type Family string
 
 // The API families this library distinguishes.

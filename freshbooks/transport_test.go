@@ -258,6 +258,29 @@ func TestErrorResponses(t *testing.T) {
 		}
 	})
 
+	t.Run("[edge] the error's family survives a base URL path prefix", func(t *testing.T) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = io.WriteString(w, `{"response": {"errors": [{"errno": 1012, "message": "gone"}]}}`)
+		}))
+		defer srv.Close()
+
+		// With a prefix, re-deriving the family from the request path would
+		// see "/v1/accounting/..." and mislabel every error as business.
+		c, err := NewClient(WithBaseURL(srv.URL+"/v1"), WithHTTPClient(srv.Client()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = c.Do(context.Background(), http.MethodGet, "/accounting/account/ACM123/users/clients/1", nil, nil)
+		var apiErr *Error
+		if !errors.As(err, &apiErr) {
+			t.Fatalf("err = %v", err)
+		}
+		if apiErr.Family != FamilyAccounting {
+			t.Fatalf("Family = %q, want %q", apiErr.Family, FamilyAccounting)
+		}
+	})
+
 	t.Run("[sad] malformed success JSON", func(t *testing.T) {
 		h := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			_, _ = io.WriteString(w, `{"response": {"result": `)
