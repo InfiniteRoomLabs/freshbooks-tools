@@ -1,0 +1,26 @@
+{
+  "response": {
+    "result": {
+      "bill": {
+        "id": 7,
+        "vendorid": 5,
+        "bill_number": null,
+        "issue_date": "2026-08-22",
+        "due_date": "2026-09-21",
+        "due_offset_days": 30,
+        "currency_code": "USD",
+        "status": "unpaid",
+        "amount": { "amount": "375.00", "code": "USD" },
+        "total_amount": { "amount": "375.00", "code": "USD" },
+        "outstanding": { "amount": "375.00", "code": "USD" },
+        "paid": { "amount": "0.00", "code": "USD" },
+        "tax_amount": { "amount": "0.00", "code": "USD" },
+        "lines": [],
+        "bill_payments": [],
+        "created_at": "2026-08-22 04:32:55",
+        "updated_at": "2026-08-22 05:00:00",
+        "vis_state": 2
+      }
+    }
+  }
+}

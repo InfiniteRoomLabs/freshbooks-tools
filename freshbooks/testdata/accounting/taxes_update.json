@@ -1,0 +1,16 @@
+{
+  "response": {
+    "result": {
+      "tax": {
+        "id": 4001,
+        "taxid": 4001,
+        "accounting_systemid": "ACM123",
+        "name": "HST Updated",
+        "number": "TAX-000001",
+        "amount": "14",
+        "compound": true,
+        "updated": "2026-08-23 09:00:00"
+      }
+    }
+  }
+}

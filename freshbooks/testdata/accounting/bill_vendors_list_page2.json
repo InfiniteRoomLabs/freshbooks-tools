@@ -1,0 +1,31 @@
+{
+  "response": {
+    "result": {
+      "bill_vendors": [
+        {
+          "vendorid": 6,
+          "vendor_name": "Second Example Vendor",
+          "account_number": "45454546",
+          "primary_contact_first_name": "Riley",
+          "primary_contact_last_name": "Vendor",
+          "primary_contact_email": "vendor2@example.com",
+          "city": "Example City",
+          "country": "United States",
+          "currency_code": "USD",
+          "language": "en",
+          "is_1099": false,
+          "tax_defaults": [],
+          "outstanding_balance": [],
+          "overdue_balance": [],
+          "created_at": "2026-08-22 04:32:55",
+          "updated_at": "2026-08-22 04:32:55",
+          "vis_state": 0
+        }
+      ],
+      "page": 2,
+      "pages": 2,
+      "per_page": 1,
+      "total": 2
+    }
+  }
+}

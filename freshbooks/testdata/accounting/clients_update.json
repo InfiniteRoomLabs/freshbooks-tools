@@ -1,0 +1,17 @@
+{
+  "response": {
+    "result": {
+      "client": {
+        "id": 55001,
+        "userid": 55001,
+        "accounting_systemid": "ACM123",
+        "fname": "Alexandra",
+        "lname": "Example",
+        "organization": "Example Signs Co",
+        "email": "client@example.com",
+        "role": "client",
+        "vis_state": 0
+      }
+    }
+  }
+}

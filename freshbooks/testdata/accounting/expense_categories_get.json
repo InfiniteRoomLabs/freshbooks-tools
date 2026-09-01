@@ -1,0 +1,17 @@
+{
+  "response": {
+    "result": {
+      "category": {
+        "id": 2003192,
+        "categoryid": 2003192,
+        "category": "Advertising",
+        "parentid": 2003186,
+        "is_editable": false,
+        "is_cogs": false,
+        "created_at": "2026-08-22 04:32:55",
+        "updated_at": "2026-08-22 04:32:55",
+        "vis_state": 0
+      }
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "response": {
+    "result": {
+      "estimate": {
+        "id": 1706,
+        "estimateid": 1706,
+        "estimate_number": "0000001",
+        "customerid": 55001,
+        "create_date": "2026-08-22",
+        "currency_code": "USD",
+        "display_status": "accepted",
+        "ui_status": "accepted",
+        "status": 1,
+        "accepted": true,
+        "invoiced": false,
+        "vis_state": 0
+      }
+    }
+  }
+}

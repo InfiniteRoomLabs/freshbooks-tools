@@ -1,0 +1,51 @@
+{
+  "response": {
+    "result": {
+      "bill_vendors": [
+        {
+          "vendorid": 5,
+          "vendor_name": "Example Supplies Co",
+          "account_number": "45454545",
+          "primary_contact_first_name": "Jamie",
+          "primary_contact_last_name": "Vendor",
+          "primary_contact_email": "vendor@example.com",
+          "street": "1 Example Ave.",
+          "street2": "",
+          "city": "Example City",
+          "province": "California",
+          "postal_code": "94000",
+          "country": "United States",
+          "phone": "4155550100",
+          "website": "example.com",
+          "currency_code": "USD",
+          "language": "en",
+          "is_1099": false,
+          "tax_defaults": [
+            {
+              "taxid": 4001,
+              "name": "HST",
+              "amount": "13.56",
+              "enabled": true,
+              "system_taxid": 4101,
+              "tax_authorityid": null,
+              "vendorid": 5,
+              "created_at": "2026-08-22 04:32:55",
+              "updated_at": "2026-08-22 04:32:55"
+            }
+          ],
+          "outstanding_balance": [
+            { "amount": { "amount": "375.00", "code": "USD" } }
+          ],
+          "overdue_balance": [],
+          "created_at": "2026-08-22 04:32:55",
+          "updated_at": "2026-08-22 04:32:55",
+          "vis_state": 0
+        }
+      ],
+      "page": 1,
+      "pages": 2,
+      "per_page": 1,
+      "total": 2
+    }
+  }
+}

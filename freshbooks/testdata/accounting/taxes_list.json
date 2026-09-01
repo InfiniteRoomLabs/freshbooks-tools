@@ -1,0 +1,32 @@
+{
+  "response": {
+    "result": {
+      "taxes": [
+        {
+          "id": 4001,
+          "taxid": 4001,
+          "accounting_systemid": "ACM123",
+          "name": "HST",
+          "number": "TAX-000001",
+          "amount": "13",
+          "compound": false,
+          "updated": "2026-08-22 17:21:32"
+        },
+        {
+          "id": 4002,
+          "taxid": 4002,
+          "accounting_systemid": "ACM123",
+          "name": "GST",
+          "number": "",
+          "amount": "5",
+          "compound": false,
+          "updated": "2026-08-22 17:21:32"
+        }
+      ],
+      "page": 1,
+      "pages": 1,
+      "per_page": 15,
+      "total": 2
+    }
+  }
+}

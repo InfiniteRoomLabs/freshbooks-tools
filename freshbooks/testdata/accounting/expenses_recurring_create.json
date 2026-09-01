@@ -1,0 +1,15 @@
+{
+  "response": {
+    "result": {
+      "expense_profile": {
+        "profileid": 4242,
+        "frequency": "m",
+        "start_date": "2026-08-22",
+        "amount": { "amount": "100.00", "code": "USD" },
+        "vendor": "Example Recurring Vendor",
+        "categoryid": 4723650,
+        "is_cogs": false
+      }
+    }
+  }
+}

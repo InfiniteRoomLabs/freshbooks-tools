@@ -1,0 +1,25 @@
+{
+  "response": {
+    "result": {
+      "client": {
+        "id": 55002,
+        "userid": 55002,
+        "uuid": "00000000-0000-4000-8000-000000000004",
+        "accounting_systemid": "ACM123",
+        "fname": "Jordan",
+        "lname": "NewClient",
+        "organization": "New Client Co",
+        "email": "newclient@example.com",
+        "role": "client",
+        "currency_code": "USD",
+        "language": "en",
+        "s_street": "2 Example Ave.",
+        "s_city": "Example City",
+        "s_province": "California",
+        "s_code": "94001",
+        "s_country": "United States",
+        "vis_state": 0
+      }
+    }
+  }
+}

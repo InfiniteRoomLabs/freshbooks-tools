@@ -27,6 +27,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rejects a caller-supplied path segment (an `AccountID`, a checkout-link
   id) carrying a slash, `?`, `#`, or a `.`/`..` traversal before it reaches
   the request path.
+- `ClientsService` (`List`, `Get`, `Create`, `Update`,
+  `RemoveAllSecondaryContacts`) and `ContactsService` (`Update`, `Delete`)
+  covering all 13 `Clients/*` inventory keys, with the client resource named
+  `Customer` in Go to avoid colliding with the library's own `*Client` type.
+- `CreditNotesService` (`List`, `Create`, `Update`, `Delete`) covering the
+  `Clients/Credits/*` subfolder's 6 keys, `CreditType` distinguishing
+  goodwill, prepayment, and overpayment credits.
+- `EstimatesService` (`List`, `Get`, `Create`, `Update`, `Delete`, `Accept`,
+  `Send`) covering all 8 `Estimates/*` inventory keys.
+- `ExpensesService` (`List`, `Get`, `Create`, `Update`, `Delete`,
+  `Summaries`, `Vendors`, `CreateRecurring`) and `ExpenseCategoriesService`
+  (`List`, `Get`, `Create`) covering 13 of the `Expenses/*` inventory keys.
+- `TaxesService` (`List`, `Get`, `Create`, `Update`, `Delete`) covering the
+  tax-rate operations duplicated across `Expenses/*`, `Accounting/Taxes/*`,
+  and `Settings/Items and Services/*` -- one method per operation with all
+  three inventory keys stacked, following the `IdentityService.Me`
+  precedent. `Delete` is a real HTTP `DELETE`, unlike every other
+  soft-deleting resource in this batch.
+- `BillsService` (`List`, `Create`, `Archive`, `Delete`), `BillPaymentsService`
+  (`Create`, `Update`), and `BillVendorsService` (`List`, `Create`, `Update`,
+  `Delete`) covering the Beta `Bills (Beta)` and `Vendors (Beta)` subfolders
+  (14 keys).
 - Core client: `Client` with all 36 resource services declared as fields,
   `NewClient` and the `With*` options (`WithTokenSource`, `WithHTTPClient`,
   `WithBaseURL`, `WithUserAgent`, `WithLogger`, `WithRetry`, `WithClock`),

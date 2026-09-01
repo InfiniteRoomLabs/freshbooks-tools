@@ -1,0 +1,16 @@
+{
+  "response": {
+    "result": {
+      "bill_payment": {
+        "id": 909,
+        "billid": 1141,
+        "amount": { "amount": "375.00", "code": "USD" },
+        "payment_type": "Check",
+        "paid_date": "2026-08-22",
+        "note": "",
+        "matched_with_expense": false,
+        "vis_state": 0
+      }
+    }
+  }
+}

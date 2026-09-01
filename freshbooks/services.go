@@ -5,26 +5,11 @@ package freshbooks
 // methods for its resources without touching client.go and colliding with
 // the other batches.
 
-// ClientsService is the accounting clients resource.
-type ClientsService struct{ client *Client }
-
-// ContactsService is the secondary-contacts resource on a client.
-type ContactsService struct{ client *Client }
-
 // InvoicesService is the invoices resource.
 type InvoicesService struct{ client *Client }
 
 // InvoiceProfilesService is the recurring-invoice-template resource.
 type InvoiceProfilesService struct{ client *Client }
-
-// ExpensesService is the expenses resource.
-type ExpensesService struct{ client *Client }
-
-// ExpenseCategoriesService is the expense-categories resource.
-type ExpenseCategoriesService struct{ client *Client }
-
-// EstimatesService is the estimates and proposals resource.
-type EstimatesService struct{ client *Client }
 
 // PaymentsService is the invoice-payments resource.
 type PaymentsService struct{ client *Client }
@@ -32,23 +17,8 @@ type PaymentsService struct{ client *Client }
 // ItemsService is the items and services catalogue resource.
 type ItemsService struct{ client *Client }
 
-// TaxesService is the tax-rates resource.
-type TaxesService struct{ client *Client }
-
-// BillsService is the vendor-bills resource.
-type BillsService struct{ client *Client }
-
-// BillPaymentsService is the payments-against-bills resource.
-type BillPaymentsService struct{ client *Client }
-
-// BillVendorsService is the vendors resource.
-type BillVendorsService struct{ client *Client }
-
 // BillableItemsService is the billable-items resource.
 type BillableItemsService struct{ client *Client }
-
-// CreditNotesService is the client-credits resource.
-type CreditNotesService struct{ client *Client }
 
 // OtherIncomeService is the other-income resource.
 type OtherIncomeService struct{ client *Client }
