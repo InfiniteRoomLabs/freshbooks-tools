@@ -27,32 +27,6 @@
 //go:inventory-todo Invoices/Other Income/List Other Income -- phase-2
 //go:inventory-todo Invoices/Other Income/Update Single Other Income -- phase-2
 //go:inventory-todo Invoices/Upload Logo/Upload Logo -- phase-2
-//go:inventory-todo My Team/Delete Staff -- phase-2
-//go:inventory-todo My Team/List Staff -- phase-2
-//go:inventory-todo My Team/List Team Members -- phase-2
-//go:inventory-todo My Team/Single Staff -- phase-2
-//go:inventory-todo My Team/Single Team Member -- phase-2
-//go:inventory-todo My Team/Update Staff -- phase-2
-//go:inventory-todo My Team/Update Staff Rates -- phase-2
-//go:inventory-todo Projects/Add Comment to Project Discussion Message -- phase-2
-//go:inventory-todo Projects/Create New Message in Project Discussion -- phase-2
-//go:inventory-todo Projects/Create Single Project -- phase-2
-//go:inventory-todo Projects/Delete Project -- phase-2 (collection lists my.freshbooks.com; verify public host live)
-//go:inventory-todo Projects/Invitation Rates -- phase-2
-//go:inventory-todo Projects/Invite Team Member to Project(s) -- phase-2
-//go:inventory-todo Projects/List All Messages in Project Discussion -- phase-2
-//go:inventory-todo Projects/List Projects -- phase-2
-//go:inventory-todo Projects/Service Rates -- phase-2
-//go:inventory-todo Projects/Single Project -- phase-2
-//go:inventory-todo Projects/Tasks/Create Task -- phase-2
-//go:inventory-todo Projects/Tasks/Delete Task -- phase-2
-//go:inventory-todo Projects/Tasks/List Tasks -- phase-2
-//go:inventory-todo Projects/Tasks/Single Task -- phase-2
-//go:inventory-todo Projects/Tasks/Update Task -- phase-2
-//go:inventory-todo Projects/Team Member Rates -- phase-2
-//go:inventory-todo Projects/Update Project -- phase-2
-//go:inventory-todo Projects/Update Service Rates -- phase-2
-//go:inventory-todo Projects/Update Team Member Rate -- phase-2
 //go:inventory-todo Reports/Accounts Aging -- phase-2
 //go:inventory-todo Reports/Balance Sheet -- phase-2
 //go:inventory-todo Reports/Bank Reconciliation Summary -- phase-2
@@ -68,30 +42,9 @@
 //go:inventory-todo Reports/Sales Tax Summary -- phase-2
 //go:inventory-todo Reports/Time Entry Details -- phase-2
 //go:inventory-todo Reports/Trial Balance -- phase-2
-//go:inventory-todo Settings/Abilities/Abilities -- phase-2
-//go:inventory-todo Settings/Businesses/Add Business -- phase-2
-//go:inventory-todo Settings/Businesses/Delete Business - Subscription -- phase-2 (collection lists my.freshbooks.com; verify public host live)
-//go:inventory-todo Settings/Businesses/Delete Business -- phase-2
 //go:inventory-todo Settings/Businesses/Gateway Details -- phase-2
-//go:inventory-todo Settings/Businesses/Provision FreshBooks Payments -- phase-2
-//go:inventory-todo Settings/Developer/Create new application -- phase-2
-//go:inventory-todo Settings/Developer/Get all applications -- phase-2
-//go:inventory-todo Settings/Developer/Modify existing application -- phase-2
 //go:inventory-todo Settings/Developer/Upload App Logo -- phase-2
 //go:inventory-todo Settings/Gateways/List Gateways -- phase-2
-//go:inventory-todo Settings/Items and Services/Create Service -- phase-2
-//go:inventory-todo Settings/Items and Services/Get a Single Service -- phase-2
-//go:inventory-todo Settings/Items and Services/Get a Single Service Rate -- phase-2
-//go:inventory-todo Settings/Items and Services/List Services -- phase-2
-//go:inventory-todo Settings/Items and Services/Single Service -- phase-2
-//go:inventory-todo Settings/Systems/Get System -- phase-2
-//go:inventory-todo Time Tracking/Create a Time Entry -- phase-2
-//go:inventory-todo Time Tracking/Delete a Time Entry -- phase-2
-//go:inventory-todo Time Tracking/List Entries -- phase-2
-//go:inventory-todo Time Tracking/Time Entries For Employee on Specific Project -- phase-2
-//go:inventory-todo Time Tracking/Time Entries Updated Since Precise Time -- phase-2
-//go:inventory-todo Time Tracking/Time Entries for a Given Day -- phase-2
-//go:inventory-todo Time Tracking/Update a Time Entry -- phase-2
 //go:inventory-todo Tokenization/1. [FBPAY] - Create Payment Method -- phase-2
 //go:inventory-todo Tokenization/1. [STRIPE] - Create Payment Method -- phase-2
 //go:inventory-todo Tokenization/1a. [STRIPE] -  Get Publishable Key -- phase-2

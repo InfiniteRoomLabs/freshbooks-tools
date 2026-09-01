@@ -1,0 +1,4 @@
+{
+  "error": "invalid_resource",
+  "error_description": "Validation failed: Subscription is still active."
+}

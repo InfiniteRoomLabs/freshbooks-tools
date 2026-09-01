@@ -1,0 +1,12 @@
+{
+  "response": {
+    "client_id": "syn-client-abc123",
+    "client_secret": "syn-secret-def456",
+    "name": "Example App",
+    "redirect_uri": "https://app.example.com/callback",
+    "description": "An example app",
+    "website_url": "https://app.example.com",
+    "settings_url": "https://app.example.com/settings",
+    "logo_public_id": "syn-logo-jwt"
+  }
+}
