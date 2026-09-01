@@ -125,8 +125,8 @@ func (s *OtherIncomeService) List(ctx context.Context, acct AccountID, opts ...R
 		return nil, err
 	}
 	return &Page[OtherIncome]{
-		Items: resp.OtherIncome, Page: resp.PageMeta.Page, Pages: resp.PageMeta.Pages,
-		PerPage: resp.PageMeta.PerPage, Total: resp.PageMeta.Total,
+		Items: resp.OtherIncome, Page: resp.Page, Pages: resp.Pages,
+		PerPage: resp.PerPage, Total: resp.Total,
 	}, nil
 }
 

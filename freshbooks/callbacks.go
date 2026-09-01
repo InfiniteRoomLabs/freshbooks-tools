@@ -95,8 +95,8 @@ func (s *CallbacksService) List(ctx context.Context, acct AccountID, opts ...Req
 		return nil, err
 	}
 	return &Page[Callback]{
-		Items: resp.Callbacks, Page: resp.PageMeta.Page, Pages: resp.PageMeta.Pages,
-		PerPage: resp.PageMeta.PerPage, Total: resp.PageMeta.Total,
+		Items: resp.Callbacks, Page: resp.Page, Pages: resp.Pages,
+		PerPage: resp.PerPage, Total: resp.Total,
 	}, nil
 }
 

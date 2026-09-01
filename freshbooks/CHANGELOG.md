@@ -49,6 +49,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`Create`, `Update`), and `BillVendorsService` (`List`, `Create`, `Update`,
   `Delete`) covering the Beta `Bills (Beta)` and `Vendors (Beta)` subfolders
   (14 keys).
+- `LedgerAccountsService` (chart of accounts + type taxonomy,
+  `BusinessUUID`-scoped: `Create`, `List`, `Get`, `Update`, `Types`,
+  `SubTypes`, `SubType`), `JournalEntriesService` (`Create`, `Details`),
+  `JournalEntryAccountsService.List` (the shared Accounting/Journal
+  Entries/Accounts + Reports/General Ledger endpoint), and
+  `OtherIncomeService` (`Create`, `List`, `Update`, `Delete`), covering the
+  14 non-tax `Accounting` inventory entries plus their 4 `Invoices/Other
+  Income` duplicates.
+- `ReportsService`: all 13 accounting reports (`AccountsAging`,
+  `BalanceSheet`, `BankReconciliationSummary`, `ClientAccountStatement`,
+  `DownloadCSV`, `ExpenseDetails`, `InvoiceDetails`, `ItemSales`,
+  `PaymentsCollected`, `ProfitLoss`, `RevenueByClient`, `SalesTaxSummary`,
+  `TrialBalance`) plus the business-scoped `TimeEntryDetails`, covering all
+  15 `Reports` inventory entries. Reports with no Postman example and no
+  matching public docs page return `json.RawMessage` rather than a guessed
+  struct.
+- `CallbacksService` (webhook subscriptions: `Register`, `List`, `Delete`,
+  `Verify`, `ResendVerification`), covering all 5 `Webhooks` entries.
+- `AttachmentsService.UploadExpenseReceipt` and `ImagesService` (`Upload`,
+  `UploadWithoutAccount`), covering all 3 `Uploader` entries plus their 3
+  cross-folder duplicates (`Invoices/Upload Logo`, `Expenses/Upload
+  Expense Receipt Image`, `Settings/Developer/Upload App Logo`).
+- `GatewaysService.Get` and `PaymentOptionsService` (`FBPayTokenize`,
+  `StripeTokenize`, `StripeCreateSetupIntent`, `SaveCreditCard`), covering
+  all 6 `Tokenization` entries plus their 2 `Settings` gateway duplicates.
+- Transport: `doMultipart` for the `/uploads/` endpoints (multipart/form-data
+  with a 10MB upload bound), `doOnHost` for FreshBooks' card-tokenization
+  host (`paid.freshbooks.com`, distinct from the API base URL), and `doRaw`
+  for endpoints that answer a file instead of JSON (`Reports.DownloadCSV`).
 - Core client: `Client` with all 36 resource services declared as fields,
   `NewClient` and the `With*` options (`WithTokenSource`, `WithHTTPClient`,
   `WithBaseURL`, `WithUserAgent`, `WithLogger`, `WithRetry`, `WithClock`),
@@ -135,5 +164,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   path prefix.
 - Webhook callback paths (`/events/`) are classified as the accounting family
   so their envelope is unwrapped.
+- Ledger-account paths (`/accounting/businesses/.../ledger_accounts/...`,
+  `/accounting/ledger_accounts/{types,sub_types}`) are now classified as the
+  business (flat, no envelope) family instead of falling into the general
+  `/accounting/` accounting-enveloped case. They were never reachable before
+  this phase, so this is not a behavior change for released code, but the
+  double-unwrap would have discarded their actual `{"data": ...}` bodies.
 - The client's redirect cap returns a real error instead of handing back the
   final 3xx as a response.
