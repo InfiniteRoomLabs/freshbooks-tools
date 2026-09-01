@@ -17,9 +17,6 @@ type InvoicesService struct{ client *Client }
 // InvoiceProfilesService is the recurring-invoice-template resource.
 type InvoiceProfilesService struct{ client *Client }
 
-// EstimatesService is the estimates and proposals resource.
-type EstimatesService struct{ client *Client }
-
 // PaymentsService is the invoice-payments resource.
 type PaymentsService struct{ client *Client }
 

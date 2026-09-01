@@ -34,14 +34,6 @@
 //go:inventory-todo Clients/Remove All Secondary Contacts -- phase-2
 //go:inventory-todo Clients/Single Client -- phase-2
 //go:inventory-todo Clients/Update Client -- phase-2
-//go:inventory-todo Estimates/Accept Estimate -- phase-2
-//go:inventory-todo Estimates/Create Single Proposal w/ Sections, Logos, and E-signature -- phase-2
-//go:inventory-todo Estimates/Delete Estimate -- phase-2
-//go:inventory-todo Estimates/List Estimates -- phase-2
-//go:inventory-todo Estimates/Send Estimate by Email -- phase-2
-//go:inventory-todo Estimates/Single Estimate -- phase-2
-//go:inventory-todo Estimates/Single Estimate With Estimate Lines -- phase-2
-//go:inventory-todo Estimates/Update Estimate -- phase-2
 //go:inventory-todo Expenses/Upload Expense Receipt Image/Upload Receipt Image -- phase-2
 //go:inventory-todo Invoices/Other Income/Create Single Other Income -- phase-2
 //go:inventory-todo Invoices/Other Income/Delete Single Other Income -- phase-2
