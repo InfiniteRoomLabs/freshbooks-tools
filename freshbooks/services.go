@@ -5,12 +5,6 @@ package freshbooks
 // methods for its resources without touching client.go and colliding with
 // the other batches.
 
-// ClientsService is the accounting clients resource.
-type ClientsService struct{ client *Client }
-
-// ContactsService is the secondary-contacts resource on a client.
-type ContactsService struct{ client *Client }
-
 // InvoicesService is the invoices resource.
 type InvoicesService struct{ client *Client }
 

@@ -21,13 +21,6 @@
 //go:inventory-todo Accounting/Other Income/Delete Single Other Income -- phase-2
 //go:inventory-todo Accounting/Other Income/List Other Income -- phase-2
 //go:inventory-todo Accounting/Other Income/Update Single Other Income -- phase-2
-//go:inventory-todo Clients/Delete Secondary  Contact ID -- phase-2
-//go:inventory-todo Clients/Edit Secondary Contact ID -- phase-2
-//go:inventory-todo Clients/List Clients -- phase-2
-//go:inventory-todo Clients/New Client -- phase-2
-//go:inventory-todo Clients/Remove All Secondary Contacts -- phase-2
-//go:inventory-todo Clients/Single Client -- phase-2
-//go:inventory-todo Clients/Update Client -- phase-2
 //go:inventory-todo Expenses/Upload Expense Receipt Image/Upload Receipt Image -- phase-2
 //go:inventory-todo Invoices/Other Income/Create Single Other Income -- phase-2
 //go:inventory-todo Invoices/Other Income/Delete Single Other Income -- phase-2

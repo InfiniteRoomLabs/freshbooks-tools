@@ -1,0 +1,26 @@
+{
+  "response": {
+    "result": {
+      "client": {
+        "id": 55001,
+        "userid": 55001,
+        "uuid": "00000000-0000-4000-8000-000000000003",
+        "accounting_systemid": "ACM123",
+        "fname": "Alex",
+        "lname": "Example",
+        "organization": "Example Signs Co",
+        "email": "client@example.com",
+        "role": "client",
+        "currency_code": "USD",
+        "language": "en",
+        "pref_email": true,
+        "allow_late_fees": true,
+        "allow_late_notifications": true,
+        "signup_date": "2026-08-22 04:32:55",
+        "updated": "2026-08-22 17:21:32",
+        "num_logins": 0,
+        "vis_state": 0
+      }
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "response": {
+    "result": {
+      "client": {
+        "id": 55002,
+        "userid": 55002,
+        "uuid": "00000000-0000-4000-8000-000000000004",
+        "accounting_systemid": "ACM123",
+        "fname": "Jordan",
+        "lname": "NewClient",
+        "organization": "New Client Co",
+        "email": "newclient@example.com",
+        "role": "client",
+        "currency_code": "USD",
+        "language": "en",
+        "vis_state": 0
+      }
+    }
+  }
+}
