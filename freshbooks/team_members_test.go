@@ -19,7 +19,7 @@ func TestTeamMembersList(t *testing.T) {
 			serveFixture(t, http.StatusOK, "team_members", "list")(w, r)
 		}))
 
-		page, err := c.TeamMembers.List(ctx, BusinessID(8675309))
+		page, err := c.TeamMembers.List(ctx, BusinessID(8675309), nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -32,12 +32,18 @@ func TestTeamMembersList(t *testing.T) {
 		if page.Items[0].UUID != "00000000-0000-4000-8000-000000000101" {
 			t.Errorf("member = %+v", page.Items[0])
 		}
+		if page.Items[0].MiddleName != nil || page.Items[0].JobTitle != nil {
+			t.Errorf("a captured-null field should decode to a nil pointer: %+v", page.Items[0])
+		}
+		if page.Items[0].CreatedAt.IsZero() || page.Items[0].InvitationDateAccepted.IsZero() {
+			t.Errorf("timestamps did not parse: %+v", page.Items[0])
+		}
 	})
 
 	t.Run("[happy] All walks a single page and stops", func(t *testing.T) {
 		c, _ := newTestClient(t, serveFixture(t, http.StatusOK, "team_members", "list"))
 		var got []TeamMember
-		for m, err := range c.TeamMembers.All(ctx, BusinessID(8675309)) {
+		for m, err := range c.TeamMembers.All(ctx, BusinessID(8675309), nil) {
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -50,8 +56,19 @@ func TestTeamMembersList(t *testing.T) {
 
 	t.Run("[sad] a 401 is ErrUnauthorized", func(t *testing.T) {
 		c, _ := newTestClient(t, serveFixture(t, http.StatusUnauthorized, "auth", "error_401"))
-		if _, err := c.TeamMembers.List(ctx, BusinessID(1)); !errors.Is(err, ErrUnauthorized) {
+		if _, err := c.TeamMembers.List(ctx, BusinessID(1), nil); !errors.Is(err, ErrUnauthorized) {
 			t.Fatalf("err = %v", err)
+		}
+	})
+
+	t.Run("[sad] an auth-shaped error still resolves through FamilyBusiness", func(t *testing.T) {
+		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = io.WriteString(w, `{"error": "unauthenticated", "error_description": "This action requires authentication to continue."}`)
+		}))
+		_, err := c.TeamMembers.List(ctx, BusinessID(1), nil)
+		if !errors.Is(err, ErrUnauthorized) {
+			t.Fatalf("err = %v, want ErrUnauthorized even though the family passed is FamilyBusiness", err)
 		}
 	})
 }
@@ -72,7 +89,7 @@ func TestTeamMembersGet(t *testing.T) {
 		if gotPath != "/auth/api/v1/businesses/8675309/team_members/00000000-0000-4000-8000-000000000102" {
 			t.Fatalf("path = %q", gotPath)
 		}
-		if m.Email != "riley@example.com" || m.Country != "United States" {
+		if m.Email != "riley@example.com" || m.Country == nil || *m.Country != "United States" {
 			t.Fatalf("member = %+v", m)
 		}
 	})
@@ -81,6 +98,13 @@ func TestTeamMembersGet(t *testing.T) {
 		c, _ := newTestClient(t, serveFixture(t, http.StatusNotFound, "projects", "error_404"))
 		if _, err := c.TeamMembers.Get(ctx, BusinessID(1), "missing"); !errors.Is(err, ErrNotFound) {
 			t.Fatalf("err = %v", err)
+		}
+	})
+
+	t.Run("[sad] a hostile teamMemberUUID never reaches the network", func(t *testing.T) {
+		c, _ := newTestClient(t, http.NotFoundHandler())
+		if _, err := c.TeamMembers.Get(ctx, BusinessID(1), "../x"); err == nil {
+			t.Fatal("want an error")
 		}
 	})
 }

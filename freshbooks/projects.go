@@ -10,6 +10,15 @@ import (
 
 // Project is a business's project: the unit time entries, tasks, and
 // invoices ultimately roll up to.
+//
+// GroupID is what List/Create/Update return (a bare id); Get returns the
+// expanded Group object instead and leaves GroupID zero -- the captured
+// examples for the two shapes never carry both. Get also has a sibling the
+// project object does not: a project-scoped "abilities" array (17 entries
+// in the captured example), distinct from the business-wide
+// ProjectsService.Abilities endpoint's 9-entry list. This method drops it;
+// a caller who needs it can call (*Client).Do against
+// /projects/business/{id}/projects/{id} and decode both siblings.
 type Project struct {
 	ID             int64     `json:"id"`
 	Title          string    `json:"title"`
@@ -32,9 +41,13 @@ type Project struct {
 	BilledAmount   string    `json:"billed_amount"`
 	BilledStatus   string    `json:"billed_status"`
 	RetainerID     *int64    `json:"retainer_id"`
-	// Group carries the project's team-member and pending-invitation list.
-	// The Postman examples truncate this object and no FreshBooks doc page
-	// specs its fields, so it is left undecoded rather than guessed at.
+	// GroupID is the project's team group id, as List/Create/Update return
+	// it.
+	GroupID int64 `json:"group_id"`
+	// Group carries the expanded team-member and pending-invitation list,
+	// as Get returns it instead of GroupID. Left undecoded: the shape
+	// (members[], pending_invitations[]) is evidenced but no FreshBooks doc
+	// page specs its fields, and no consumer needs it typed yet.
 	Group json.RawMessage `json:"group,omitempty"`
 }
 
@@ -78,7 +91,9 @@ func (s *ProjectsService) Create(ctx context.Context, businessID BusinessID, req
 	return &resp.Project, nil
 }
 
-// Get returns one project by ID.
+// Get returns one project by ID. See Project's doc comment: this returns
+// the expanded Group object (GroupID stays zero) and drops the sibling
+// "abilities" array the captured response carries alongside "project".
 //
 // inventory: Projects/Single Project
 func (s *ProjectsService) Get(ctx context.Context, businessID BusinessID, projectID int64) (*Project, error) {
@@ -95,29 +110,45 @@ type projectsListResponse struct {
 	Projects []Project `json:"projects"`
 }
 
+// ProjectListOptions filters and paginates List. The business family spells
+// filters as bare field=value (spec 5.1's STATE AS OF callout, confirmed by
+// this batch's TimeEntriesService.List).
+type ProjectListOptions struct {
+	Search  Search
+	Page    int
+	PerPage int
+}
+
+func (o *ProjectListOptions) opts() []RequestOption {
+	if o == nil {
+		return nil
+	}
+	return listOpts(o.Search, o.Page, o.PerPage)
+}
+
 // List returns one page of businessID's projects. Filter it with Search,
-// e.g. Search{"active": "true"} or Search{"updated_since": t}.
+// e.g. &ProjectListOptions{Search: Search{"active": "true"}}.
 //
 // inventory: Projects/List Projects
-func (s *ProjectsService) List(ctx context.Context, businessID BusinessID, opts ...RequestOption) (*Page[Project], error) {
+func (s *ProjectsService) List(ctx context.Context, businessID BusinessID, opts *ProjectListOptions, extra ...RequestOption) (*Page[Project], error) {
 	var resp projectsListResponse
 	path := "/projects/business/" + businessID.String() + "/projects"
-	if err := s.client.do(ctx, http.MethodGet, path, FamilyBusiness, nil, &resp, opts...); err != nil {
+	reqOpts := append(opts.opts(), extra...)
+	if err := s.client.do(ctx, http.MethodGet, path, FamilyBusiness, nil, &resp, reqOpts...); err != nil {
 		return nil, err
 	}
-	return &Page[Project]{
-		Items:   resp.Projects,
-		Page:    resp.Meta.Page,
-		Pages:   resp.Meta.Pages,
-		PerPage: resp.Meta.PerPage,
-		Total:   resp.Meta.Total,
-	}, nil
+	return newPage(resp.Projects, resp.Meta), nil
 }
 
 // All walks every page of List.
-func (s *ProjectsService) All(ctx context.Context, businessID BusinessID, opts ...RequestOption) iter.Seq2[Project, error] {
+func (s *ProjectsService) All(ctx context.Context, businessID BusinessID, opts *ProjectListOptions, extra ...RequestOption) iter.Seq2[Project, error] {
 	return All(ctx, func(ctx context.Context, page int) (*Page[Project], error) {
-		return s.List(ctx, businessID, append([]RequestOption{PageNumber(page)}, opts...)...)
+		o := ProjectListOptions{Page: page}
+		if opts != nil {
+			o.Search, o.PerPage = opts.Search, opts.PerPage
+		}
+		o.PerPage = pageSize(o.PerPage)
+		return s.List(ctx, businessID, &o, extra...)
 	})
 }
 
@@ -148,7 +179,9 @@ func (s *ProjectsService) Update(ctx context.Context, businessID BusinessID, pro
 	return &resp.Project, nil
 }
 
-// Delete removes a project.
+// Delete removes a project. Destructive and irreversible: a CLI or MCP
+// surface built on this method must require explicit confirmation and must
+// not expose it as an unattended tool.
 //
 // The Postman collection sources this request from my.freshbooks.com --
 // FreshBooks' internal host -- not the public api.freshbooks.com the rest

@@ -2,7 +2,7 @@
   "project": {
     "id": 2976412,
     "title": "Very Custom Computer Thing",
-    "description": "",
+    "description": null,
     "due_date": null,
     "client_id": 55001,
     "internal": false,
@@ -23,6 +23,27 @@
     "billed_amount": "0.00",
     "billed_status": "unbilled",
     "retainer_id": null,
-    "group": { "system": "postman-example" }
-  }
+    "group": {
+      "id": 4942784,
+      "members": [
+        {
+          "id": 6446258,
+          "identity_id": 4242424,
+          "role": "owner",
+          "first_name": "Sam",
+          "last_name": "Owner",
+          "email": "owner@example.com",
+          "company": "Example Business LLC",
+          "active": true
+        }
+      ],
+      "pending_invitations": []
+    }
+  },
+  "abilities": [
+    { "name": "can_edit", "value": true },
+    { "name": "can_archive", "value": true },
+    { "name": "can_delete", "value": true },
+    { "name": "can_view_discuss_tab", "value": false }
+  ]
 }

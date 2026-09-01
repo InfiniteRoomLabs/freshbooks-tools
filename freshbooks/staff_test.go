@@ -32,6 +32,9 @@ func TestStaffList(t *testing.T) {
 		if members[0].IdentityID != 4242424 || members[0].Role != "owner" {
 			t.Errorf("member = %+v", members[0])
 		}
+		if members[0].UnacknowledgedChange {
+			t.Errorf("member = %+v", members[0])
+		}
 	})
 
 	t.Run("[edge] no members decodes to an empty slice", func(t *testing.T) {
@@ -75,12 +78,31 @@ func TestStaffGet(t *testing.T) {
 		if staff.FirstName != "Ryen" || staff.Role != "admin" || staff.VisState != VisStateActive {
 			t.Fatalf("staff = %+v", staff)
 		}
+		if staff.AccountingSystemID != "ACM123" {
+			t.Fatalf("staff = %+v", staff)
+		}
+		if staff.CurrencyCode != nil || staff.Note != nil || staff.HomePhone != nil || staff.Rate != nil {
+			t.Fatalf("a captured-null field should decode to a nil pointer: %+v", staff)
+		}
+		if staff.LastLogin.IsZero() != true {
+			t.Errorf("LastLogin = %v, want zero for a captured null", staff.LastLogin)
+		}
+		if staff.SignupDate.IsZero() || staff.Updated.IsZero() {
+			t.Fatal("SignupDate/Updated did not parse")
+		}
 	})
 
 	t.Run("[sad] a 404 is ErrNotFound", func(t *testing.T) {
 		c, _ := newTestClient(t, serveFixture(t, http.StatusNotFound, "accounting", "error_404"))
 		if _, err := c.Staff.Get(ctx, AccountID("ACM123"), 999); !errors.Is(err, ErrNotFound) {
 			t.Fatalf("err = %v", err)
+		}
+	})
+
+	t.Run("[sad] a hostile AccountID never reaches the network", func(t *testing.T) {
+		c, _ := newTestClient(t, http.NotFoundHandler())
+		if _, err := c.Staff.Get(ctx, AccountID("../x"), 1); err == nil {
+			t.Fatal("want an error")
 		}
 	})
 }
@@ -128,12 +150,19 @@ func TestStaffUpdate(t *testing.T) {
 			t.Fatalf("err = %v", err)
 		}
 	})
+
+	t.Run("[sad] a hostile AccountID never reaches the network", func(t *testing.T) {
+		c, _ := newTestClient(t, http.NotFoundHandler())
+		if _, err := c.Staff.Update(ctx, AccountID("a/b"), 1, &StaffUpdateRequest{}); err == nil {
+			t.Fatal("want an error")
+		}
+	})
 }
 
 func TestStaffDelete(t *testing.T) {
 	ctx := context.Background()
 
-	t.Run("[happy] PUTs vis_state 1, the only delete verb this family has", func(t *testing.T) {
+	t.Run("[happy] PUTs vis_state 1 via softDelete, the only delete verb this family has", func(t *testing.T) {
 		var gotMethod string
 		var gotBody map[string]any
 		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -159,6 +188,13 @@ func TestStaffDelete(t *testing.T) {
 		c, _ := newTestClient(t, serveFixture(t, http.StatusForbidden, "staff", "error_403"))
 		if err := c.Staff.Delete(ctx, AccountID("ACM123"), 1); !errors.Is(err, ErrForbidden) {
 			t.Fatalf("err = %v", err)
+		}
+	})
+
+	t.Run("[sad] a hostile AccountID never reaches the network", func(t *testing.T) {
+		c, _ := newTestClient(t, http.NotFoundHandler())
+		if err := c.Staff.Delete(ctx, AccountID(".."), 1); err == nil {
+			t.Fatal("want an error")
 		}
 	})
 }

@@ -10,27 +10,34 @@ import (
 // TeamMember is one member of a business's team, as returned by the newer
 // auth-family team-members endpoints. FreshBooks positions this as the
 // replacement for the deprecated Staff resource.
+//
+// The captured List Team Members and Single Team Member responses return
+// null for every optional profile field on at least one of the two
+// examples (MiddleName, JobTitle, Street1, Street2, City, Province,
+// Country, PostalCode, PhoneNumber), so all of them are pointers; the
+// identity/audit fields FreshBooks always sends (UUID, names, Email,
+// BusinessID, BusinessRoleName, Active, the timestamps) stay plain.
 type TeamMember struct {
-	UUID                   string `json:"uuid"`
-	FirstName              string `json:"first_name"`
-	MiddleName             string `json:"middle_name"`
-	LastName               string `json:"last_name"`
-	Email                  string `json:"email"`
-	JobTitle               string `json:"job_title"`
-	Street1                string `json:"street_1"`
-	Street2                string `json:"street_2"`
-	City                   string `json:"city"`
-	Province               string `json:"province"`
-	Country                string `json:"country"`
-	PostalCode             string `json:"postal_code"`
-	PhoneNumber            string `json:"phone_number"`
-	BusinessID             int64  `json:"business_id"`
-	BusinessRoleName       string `json:"business_role_name"`
-	Active                 bool   `json:"active"`
-	IdentityID             *int64 `json:"identity_id"`
-	InvitationDateAccepted string `json:"invitation_date_accepted"`
-	CreatedAt              string `json:"created_at"`
-	UpdatedAt              string `json:"updated_at"`
+	UUID                   string   `json:"uuid"`
+	FirstName              string   `json:"first_name"`
+	MiddleName             *string  `json:"middle_name"`
+	LastName               string   `json:"last_name"`
+	Email                  string   `json:"email"`
+	JobTitle               *string  `json:"job_title"`
+	Street1                *string  `json:"street_1"`
+	Street2                *string  `json:"street_2"`
+	City                   *string  `json:"city"`
+	Province               *string  `json:"province"`
+	Country                *string  `json:"country"`
+	PostalCode             *string  `json:"postal_code"`
+	PhoneNumber            *string  `json:"phone_number"`
+	BusinessID             int64    `json:"business_id"`
+	BusinessRoleName       string   `json:"business_role_name"`
+	Active                 bool     `json:"active"`
+	IdentityID             *int64   `json:"identity_id"`
+	InvitationDateAccepted DateTime `json:"invitation_date_accepted"`
+	CreatedAt              DateTime `json:"created_at"`
+	UpdatedAt              DateTime `json:"updated_at"`
 }
 
 // teamMembersListResponse is the literal wire shape observed for the list
@@ -47,37 +54,78 @@ type teamMemberResponse struct {
 	Response TeamMember `json:"response"`
 }
 
+// TeamMemberListOptions filters and paginates List.
+type TeamMemberListOptions struct {
+	Search  Search
+	Page    int
+	PerPage int
+}
+
+func (o *TeamMemberListOptions) opts() []RequestOption {
+	if o == nil {
+		return nil
+	}
+	return listOpts(o.Search, o.Page, o.PerPage)
+}
+
+func teamMembersPath(businessID BusinessID) string {
+	return "/auth/api/v1/businesses/" + businessID.String() + "/team_members"
+}
+
+func teamMemberPath(businessID BusinessID, teamMemberUUID string) (string, error) {
+	if err := pathSegment(teamMemberUUID); err != nil {
+		return "", err
+	}
+	return teamMembersPath(businessID) + "/" + teamMemberUUID, nil
+}
+
 // List returns one page of businessID's team members.
 //
+// This method and Get pass FamilyBusiness rather than the FamilyAuth their
+// /auth/-rooted path would otherwise get from familyForPath: the captured
+// List Team Members body is {"response": [...], "meta": {...}}, and
+// unwrap's FamilyAuth case would return only env.Response, discarding
+// "meta" and therefore pagination. The trade-off is on errors, not success
+// bodies: Family also selects error decoding (errors.go), so a failure on
+// this call decodes through decodeError's business-flat/auth-flat paths
+// rather than the accounting-envelope path -- decodeError does not actually
+// branch on Family for the flat shapes both families share (TestTeamMembersList's
+// "[sad] an auth-shaped error still resolves" case proves an auth-family
+// {"error", "error_description"} body still maps to the right sentinel),
+// so in practice this costs nothing.
+//
 // inventory: My Team/List Team Members
-func (s *TeamMembersService) List(ctx context.Context, businessID BusinessID, opts ...RequestOption) (*Page[TeamMember], error) {
+func (s *TeamMembersService) List(ctx context.Context, businessID BusinessID, opts *TeamMemberListOptions, extra ...RequestOption) (*Page[TeamMember], error) {
 	var resp teamMembersListResponse
-	path := "/auth/api/v1/businesses/" + businessID.String() + "/team_members"
-	if err := s.client.do(ctx, http.MethodGet, path, FamilyBusiness, nil, &resp, opts...); err != nil {
+	reqOpts := append(opts.opts(), extra...)
+	if err := s.client.do(ctx, http.MethodGet, teamMembersPath(businessID), FamilyBusiness, nil, &resp, reqOpts...); err != nil {
 		return nil, err
 	}
-	return &Page[TeamMember]{
-		Items:   resp.Response,
-		Page:    resp.Meta.Page,
-		Pages:   resp.Meta.Pages,
-		PerPage: resp.Meta.PerPage,
-		Total:   resp.Meta.Total,
-	}, nil
+	return newPage(resp.Response, resp.Meta), nil
 }
 
 // All walks every page of List.
-func (s *TeamMembersService) All(ctx context.Context, businessID BusinessID, opts ...RequestOption) iter.Seq2[TeamMember, error] {
+func (s *TeamMembersService) All(ctx context.Context, businessID BusinessID, opts *TeamMemberListOptions, extra ...RequestOption) iter.Seq2[TeamMember, error] {
 	return All(ctx, func(ctx context.Context, page int) (*Page[TeamMember], error) {
-		return s.List(ctx, businessID, append([]RequestOption{PageNumber(page)}, opts...)...)
+		o := TeamMemberListOptions{Page: page}
+		if opts != nil {
+			o.Search, o.PerPage = opts.Search, opts.PerPage
+		}
+		o.PerPage = pageSize(o.PerPage)
+		return s.List(ctx, businessID, &o, extra...)
 	})
 }
 
-// Get returns one team member by its UUID.
+// Get returns one team member by its UUID. See List's doc comment for why
+// this passes FamilyBusiness on an /auth/-rooted path.
 //
 // inventory: My Team/Single Team Member
 func (s *TeamMembersService) Get(ctx context.Context, businessID BusinessID, teamMemberUUID string) (*TeamMember, error) {
+	path, err := teamMemberPath(businessID, teamMemberUUID)
+	if err != nil {
+		return nil, err
+	}
 	var resp teamMemberResponse
-	path := "/auth/api/v1/businesses/" + businessID.String() + "/team_members/" + teamMemberUUID
 	if err := s.client.do(ctx, http.MethodGet, path, FamilyBusiness, nil, &resp); err != nil {
 		return nil, err
 	}

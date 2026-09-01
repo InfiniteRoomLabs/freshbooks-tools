@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strings"
 	"testing"
 )
 
@@ -36,11 +37,21 @@ func TestTasksCreate(t *testing.T) {
 		if task.ID != 74830 || task.Rate.Amount != "50.00" {
 			t.Fatalf("task = %+v", task)
 		}
+		if task.Updated.IsZero() {
+			t.Fatal("Updated did not parse")
+		}
 	})
 
 	t.Run("[sad] a nil request", func(t *testing.T) {
 		c, _ := newTestClient(t, http.NotFoundHandler())
 		if _, err := c.Tasks.Create(ctx, AccountID("ACM123"), nil); err == nil {
+			t.Fatal("want an error")
+		}
+	})
+
+	t.Run("[sad] a hostile AccountID never reaches the network", func(t *testing.T) {
+		c, _ := newTestClient(t, http.NotFoundHandler())
+		if _, err := c.Tasks.Create(ctx, AccountID("../x"), &TaskCreateRequest{Name: "x"}); err == nil {
 			t.Fatal("want an error")
 		}
 	})
@@ -73,6 +84,13 @@ func TestTasksGet(t *testing.T) {
 			t.Fatalf("err = %v", err)
 		}
 	})
+
+	t.Run("[sad] a hostile AccountID never reaches the network", func(t *testing.T) {
+		c, _ := newTestClient(t, http.NotFoundHandler())
+		if _, err := c.Tasks.Get(ctx, AccountID("a/b"), 1); err == nil {
+			t.Fatal("want an error")
+		}
+	})
 }
 
 func TestTasksList(t *testing.T) {
@@ -80,7 +98,7 @@ func TestTasksList(t *testing.T) {
 
 	t.Run("[happy] a page of tasks", func(t *testing.T) {
 		c, _ := newTestClient(t, serveFixture(t, http.StatusOK, "tasks", "list"))
-		page, err := c.Tasks.List(ctx, AccountID("ACM123"))
+		page, err := c.Tasks.List(ctx, AccountID("ACM123"), nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -91,15 +109,22 @@ func TestTasksList(t *testing.T) {
 
 	t.Run("[sad] a 401 is ErrUnauthorized", func(t *testing.T) {
 		c, _ := newTestClient(t, serveFixture(t, http.StatusUnauthorized, "auth", "error_401"))
-		if _, err := c.Tasks.List(ctx, AccountID("ACM123")); !errors.Is(err, ErrUnauthorized) {
+		if _, err := c.Tasks.List(ctx, AccountID("ACM123"), nil); !errors.Is(err, ErrUnauthorized) {
 			t.Fatalf("err = %v", err)
+		}
+	})
+
+	t.Run("[sad] a hostile AccountID never reaches the network", func(t *testing.T) {
+		c, _ := newTestClient(t, http.NotFoundHandler())
+		if _, err := c.Tasks.List(ctx, AccountID("?x=1"), nil); err == nil {
+			t.Fatal("want an error")
 		}
 	})
 
 	t.Run("[happy] All walks a single page and stops", func(t *testing.T) {
 		c, _ := newTestClient(t, serveFixture(t, http.StatusOK, "tasks", "list"))
 		var got []Task
-		for task, err := range c.Tasks.All(ctx, AccountID("ACM123")) {
+		for task, err := range c.Tasks.All(ctx, AccountID("ACM123"), nil) {
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -107,6 +132,27 @@ func TestTasksList(t *testing.T) {
 		}
 		if len(got) != 2 {
 			t.Fatalf("got %d tasks", len(got))
+		}
+	})
+
+	t.Run("[happy] All carries the caller's Search and defaults per_page to 100, not the caller's PageNumber", func(t *testing.T) {
+		var gotQuery string
+		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			gotQuery = r.URL.RawQuery
+			serveFixture(t, http.StatusOK, "tasks", "list")(w, r)
+		}))
+		opts := &TaskListOptions{Search: Search{"billable": "true"}}
+		for _, err := range c.Tasks.All(ctx, AccountID("ACM123"), opts) {
+			if err != nil {
+				t.Fatal(err)
+			}
+			break
+		}
+		if !strings.Contains(gotQuery, "per_page=100") {
+			t.Fatalf("query = %q, want per_page defaulted to 100", gotQuery)
+		}
+		if !strings.Contains(gotQuery, "search%5Bbillable%5D=true") {
+			t.Fatalf("query = %q, want the caller's Search forwarded", gotQuery)
 		}
 	})
 }
@@ -144,7 +190,7 @@ func TestTasksUpdate(t *testing.T) {
 func TestTasksDelete(t *testing.T) {
 	ctx := context.Background()
 
-	t.Run("[happy] PUTs vis_state 1", func(t *testing.T) {
+	t.Run("[happy] PUTs vis_state 1 via softDelete", func(t *testing.T) {
 		var gotMethod string
 		var gotBody map[string]any
 		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -169,6 +215,13 @@ func TestTasksDelete(t *testing.T) {
 		c, _ := newTestClient(t, serveFixture(t, http.StatusUnprocessableEntity, "accounting", "error_422"))
 		if err := c.Tasks.Delete(ctx, AccountID("ACM123"), 1); !errors.Is(err, ErrValidation) {
 			t.Fatalf("err = %v", err)
+		}
+	})
+
+	t.Run("[sad] a hostile AccountID never reaches the network", func(t *testing.T) {
+		c, _ := newTestClient(t, http.NotFoundHandler())
+		if err := c.Tasks.Delete(ctx, AccountID(".."), 1); err == nil {
+			t.Fatal("want an error")
 		}
 	})
 }

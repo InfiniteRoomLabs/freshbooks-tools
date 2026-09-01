@@ -17,12 +17,41 @@ type Task struct {
 	Billable    bool     `json:"billable"`
 	Tax1        int      `json:"tax1"`
 	Tax2        int      `json:"tax2"`
-	Updated     string   `json:"updated"`
+	Updated     DateTime `json:"updated"`
 	VisState    VisState `json:"vis_state"`
 }
 
 type taskResponse struct {
 	Task Task `json:"task"`
+}
+
+// TaskListOptions filters and paginates List.
+type TaskListOptions struct {
+	Search  Search
+	Page    int
+	PerPage int
+}
+
+func (o *TaskListOptions) opts() []RequestOption {
+	if o == nil {
+		return nil
+	}
+	return listOpts(o.Search, o.Page, o.PerPage)
+}
+
+func tasksPath(acct AccountID) (string, error) {
+	if err := pathSegment(string(acct)); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("/accounting/account/%s/projects/tasks", acct), nil
+}
+
+func taskPath(acct AccountID, id int64) (string, error) {
+	base, err := tasksPath(acct)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s/%d", base, id), nil
 }
 
 // TaskCreateRequest is the payload for Create.
@@ -40,8 +69,11 @@ func (s *TasksService) Create(ctx context.Context, accountID AccountID, req *Tas
 	if req == nil {
 		return nil, fmt.Errorf("freshbooks: Create needs a request")
 	}
+	path, err := tasksPath(accountID)
+	if err != nil {
+		return nil, err
+	}
 	var resp taskResponse
-	path := "/accounting/account/" + string(accountID) + "/projects/tasks"
 	body := map[string]*TaskCreateRequest{"task": req}
 	if err := s.client.do(ctx, http.MethodPost, path, FamilyAccounting, body, &resp); err != nil {
 		return nil, err
@@ -53,8 +85,11 @@ func (s *TasksService) Create(ctx context.Context, accountID AccountID, req *Tas
 //
 // inventory: Projects/Tasks/Single Task
 func (s *TasksService) Get(ctx context.Context, accountID AccountID, taskID int64) (*Task, error) {
+	path, err := taskPath(accountID, taskID)
+	if err != nil {
+		return nil, err
+	}
 	var resp taskResponse
-	path := fmt.Sprintf("/accounting/account/%s/projects/tasks/%d", accountID, taskID)
 	if err := s.client.do(ctx, http.MethodGet, path, FamilyAccounting, nil, &resp); err != nil {
 		return nil, err
 	}
@@ -62,35 +97,35 @@ func (s *TasksService) Get(ctx context.Context, accountID AccountID, taskID int6
 }
 
 type tasksListResponse struct {
-	Page    int    `json:"page"`
-	Pages   int    `json:"pages"`
-	PerPage int    `json:"per_page"`
-	Total   int    `json:"total"`
-	Tasks   []Task `json:"tasks"`
+	Tasks []Task `json:"tasks"`
+	PageMeta
 }
 
 // List returns one page of accountID's tasks.
 //
 // inventory: Projects/Tasks/List Tasks
-func (s *TasksService) List(ctx context.Context, accountID AccountID, opts ...RequestOption) (*Page[Task], error) {
-	var resp tasksListResponse
-	path := "/accounting/account/" + string(accountID) + "/projects/tasks"
-	if err := s.client.do(ctx, http.MethodGet, path, FamilyAccounting, nil, &resp, opts...); err != nil {
+func (s *TasksService) List(ctx context.Context, accountID AccountID, opts *TaskListOptions, extra ...RequestOption) (*Page[Task], error) {
+	path, err := tasksPath(accountID)
+	if err != nil {
 		return nil, err
 	}
-	return &Page[Task]{
-		Items:   resp.Tasks,
-		Page:    resp.Page,
-		Pages:   resp.Pages,
-		PerPage: resp.PerPage,
-		Total:   resp.Total,
-	}, nil
+	var resp tasksListResponse
+	reqOpts := append(opts.opts(), extra...)
+	if err := s.client.do(ctx, http.MethodGet, path, FamilyAccounting, nil, &resp, reqOpts...); err != nil {
+		return nil, err
+	}
+	return newPage(resp.Tasks, resp.PageMeta), nil
 }
 
 // All walks every page of List.
-func (s *TasksService) All(ctx context.Context, accountID AccountID, opts ...RequestOption) iter.Seq2[Task, error] {
+func (s *TasksService) All(ctx context.Context, accountID AccountID, opts *TaskListOptions, extra ...RequestOption) iter.Seq2[Task, error] {
 	return All(ctx, func(ctx context.Context, page int) (*Page[Task], error) {
-		return s.List(ctx, accountID, append([]RequestOption{PageNumber(page)}, opts...)...)
+		o := TaskListOptions{Page: page}
+		if opts != nil {
+			o.Search, o.PerPage = opts.Search, opts.PerPage
+		}
+		o.PerPage = pageSize(o.PerPage)
+		return s.List(ctx, accountID, &o, extra...)
 	})
 }
 
@@ -110,8 +145,11 @@ func (s *TasksService) Update(ctx context.Context, accountID AccountID, taskID i
 	if req == nil {
 		return nil, fmt.Errorf("freshbooks: Update needs a request")
 	}
+	path, err := taskPath(accountID, taskID)
+	if err != nil {
+		return nil, err
+	}
 	var resp taskResponse
-	path := fmt.Sprintf("/accounting/account/%s/projects/tasks/%d", accountID, taskID)
 	body := map[string]*TaskUpdateRequest{"task": req}
 	if err := s.client.do(ctx, http.MethodPut, path, FamilyAccounting, body, &resp); err != nil {
 		return nil, err
@@ -124,7 +162,9 @@ func (s *TasksService) Update(ctx context.Context, accountID AccountID, taskID i
 //
 // inventory: Projects/Tasks/Delete Task
 func (s *TasksService) Delete(ctx context.Context, accountID AccountID, taskID int64) error {
-	path := fmt.Sprintf("/accounting/account/%s/projects/tasks/%d", accountID, taskID)
-	body := map[string]map[string]VisState{"task": {"vis_state": VisStateDeleted}}
-	return s.client.do(ctx, http.MethodPut, path, FamilyAccounting, body, nil)
+	path, err := taskPath(accountID, taskID)
+	if err != nil {
+		return err
+	}
+	return s.client.softDelete(ctx, path, "task")
 }

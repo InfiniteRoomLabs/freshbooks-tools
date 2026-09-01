@@ -4,6 +4,8 @@
       "staff": {
         "id": 1,
         "userid": 1,
+        "accounting_systemid": "ACM123",
+        "api_token": "syn-legacy-api-token",
         "fname": "Ryen",
         "lname": "Marr",
         "display_name": "RyenMarr",

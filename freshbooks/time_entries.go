@@ -8,8 +8,11 @@ import (
 
 // Timer is the running-timer state a time entry may carry.
 type Timer struct {
-	ID        string `json:"id"`
-	IsRunning bool   `json:"is_running,omitempty"`
+	ID string `json:"id"`
+	// IsRunning has no omitempty: it is a field on TimeEntryUpdateRequest
+	// too, and a non-pointer bool with omitempty can never send false --
+	// which would mean Update could never stop a running timer.
+	IsRunning bool `json:"is_running"`
 }
 
 // TimeEntry is one logged (or running) block of time against a client,
@@ -24,79 +27,99 @@ type TimeEntry struct {
 	Duration   int      `json:"duration"`
 	ClientID   int64    `json:"client_id"`
 	ProjectID  int64    `json:"project_id"`
-	TaskID     *int64   `json:"task_id"`
-	ServiceID  *int64   `json:"service_id"`
-	Note       string   `json:"note"`
-	Active     bool     `json:"active"`
-	Billable   bool     `json:"billable"`
-	Billed     bool     `json:"billed"`
-	Internal   bool     `json:"internal"`
-	RetainerID *int64   `json:"retainer_id"`
+	// PendingClient, PendingProject, and PendingTask carry a not-yet-synced
+	// client/project/task name when the entry was logged against one that
+	// does not exist as a FreshBooks resource yet (e.g. a quick timer
+	// started before the project was created). Always null in the captured
+	// examples; typed *string on the strength of the field names alone.
+	PendingClient  *string `json:"pending_client"`
+	PendingProject *string `json:"pending_project"`
+	PendingTask    *string `json:"pending_task"`
+	TaskID         *int64  `json:"task_id"`
+	ServiceID      *int64  `json:"service_id"`
+	Note           string  `json:"note"`
+	Active         bool    `json:"active"`
+	Billable       bool    `json:"billable"`
+	Billed         bool    `json:"billed"`
+	Internal       bool    `json:"internal"`
+	RetainerID     *int64  `json:"retainer_id"`
 }
 
 type timeEntryResponse struct {
 	TimeEntry TimeEntry `json:"time_entry"`
 }
 
+// timeEntriesListResponse's Meta carries two aggregate fields --
+// total_logged and total_unbilled -- that Page[TimeEntry] has no room for
+// (Page's four fields are the pagination block every list response shares,
+// not a per-resource aggregate). Reach them with (*Client).Do against the
+// same path if a caller needs them; List and Search silently drop them.
 type timeEntriesListResponse struct {
-	Meta struct {
-		Total   int `json:"total"`
-		Page    int `json:"page"`
-		Pages   int `json:"pages"`
-		PerPage int `json:"per_page"`
-	} `json:"meta"`
+	Meta        PageMeta    `json:"meta"`
 	TimeEntries []TimeEntry `json:"time_entries"`
 }
 
+// TimeEntryListOptions filters and paginates List and Search.
+type TimeEntryListOptions struct {
+	Search  Search
+	Page    int
+	PerPage int
+}
+
+func (o *TimeEntryListOptions) opts() []RequestOption {
+	if o == nil {
+		return nil
+	}
+	return listOpts(o.Search, o.Page, o.PerPage)
+}
+
+func timeEntriesPath(businessID BusinessID) string {
+	return "/timetracking/business/" + businessID.String() + "/time_entries"
+}
+
+func timeEntryPath(businessID BusinessID, id int64) string {
+	return fmt.Sprintf("%s/%d", timeEntriesPath(businessID), id)
+}
+
+// list is the shared GET path List and Search both run: same response
+// shape, same family, different URL and query.
+func (s *TimeEntriesService) list(ctx context.Context, path string, opts []RequestOption) (*Page[TimeEntry], error) {
+	var resp timeEntriesListResponse
+	if err := s.client.do(ctx, http.MethodGet, path, FamilyBusiness, nil, &resp, opts...); err != nil {
+		return nil, err
+	}
+	return newPage(resp.TimeEntries, resp.Meta), nil
+}
+
 // List returns one page of businessID's time entries. Filter it with
-// Search, e.g. Search{"updated_since": t.Format(RFC3339Layout),
-// "include_deleted": "1"} or Search{"started_from": from, "started_to":
-// to} -- the business family spells filters as bare field=value (CONFIRMED
-// live against https://www.freshbooks.com/api/parameters, 2026-09-01; see
-// the spec 5.1 callout this batch resolved). The Postman collection lists
-// this endpoint three times under different filter combinations ("List
-// Entries", "Time Entries Updated Since Precise Time", "Time Entries for a
-// Given Day"); all three are this one method.
+// opts.Search, e.g. &TimeEntryListOptions{Search: Search{"updated_since":
+// t.Format(RFC3339Layout), "include_deleted": "1"}} or
+// Search{"started_from": from, "started_to": to} -- the business family
+// spells filters as bare field=value (CONFIRMED against the FreshBooks docs
+// at https://www.freshbooks.com/api/parameters, 2026-09-01; docs-only, live
+// confirmation pending; see the spec 5.1 callout this batch resolved). The
+// Postman collection lists this endpoint three times under different
+// filter combinations ("List Entries", "Time Entries Updated Since Precise
+// Time", "Time Entries for a Given Day"); all three are this one method.
 //
 // inventory: Time Tracking/List Entries
 // inventory: Time Tracking/Time Entries Updated Since Precise Time
 // inventory: Time Tracking/Time Entries for a Given Day
-func (s *TimeEntriesService) List(ctx context.Context, businessID BusinessID, opts ...RequestOption) (*Page[TimeEntry], error) {
-	var resp timeEntriesListResponse
-	path := "/timetracking/business/" + businessID.String() + "/time_entries"
-	if err := s.client.do(ctx, http.MethodGet, path, FamilyBusiness, nil, &resp, opts...); err != nil {
-		return nil, err
-	}
-	return &Page[TimeEntry]{
-		Items:   resp.TimeEntries,
-		Page:    resp.Meta.Page,
-		Pages:   resp.Meta.Pages,
-		PerPage: resp.Meta.PerPage,
-		Total:   resp.Meta.Total,
-	}, nil
+func (s *TimeEntriesService) List(ctx context.Context, businessID BusinessID, opts *TimeEntryListOptions, extra ...RequestOption) (*Page[TimeEntry], error) {
+	reqOpts := append(opts.opts(), extra...)
+	return s.list(ctx, timeEntriesPath(businessID), reqOpts)
 }
 
 // Search runs a free-text query (e.g. an identity's name) against a
-// business's time entries via the dedicated search endpoint, ordering by
-// Sort the same way List does. The response shape is INFERRED from the
-// sibling list endpoints: the Postman example for this request carries the
-// query parameters only, no response body.
+// business's time entries via the dedicated search endpoint. The response
+// shape is INFERRED from the sibling list endpoints: the Postman example
+// for this request carries the query parameters only, no response body.
 //
 // inventory: Time Tracking/Time Entries For Employee on Specific Project
-func (s *TimeEntriesService) Search(ctx context.Context, businessID BusinessID, query string, opts ...RequestOption) (*Page[TimeEntry], error) {
-	var resp timeEntriesListResponse
-	path := "/timetracking/business/" + businessID.String() + "/time_entries/search"
-	allOpts := append([]RequestOption{Search{"q": query, "useSearchEndpoint": "true"}}, opts...)
-	if err := s.client.do(ctx, http.MethodGet, path, FamilyBusiness, nil, &resp, allOpts...); err != nil {
-		return nil, err
-	}
-	return &Page[TimeEntry]{
-		Items:   resp.TimeEntries,
-		Page:    resp.Meta.Page,
-		Pages:   resp.Meta.Pages,
-		PerPage: resp.Meta.PerPage,
-		Total:   resp.Meta.Total,
-	}, nil
+func (s *TimeEntriesService) Search(ctx context.Context, businessID BusinessID, query string, opts *TimeEntryListOptions, extra ...RequestOption) (*Page[TimeEntry], error) {
+	reqOpts := append([]RequestOption{Search{"q": query, "useSearchEndpoint": "true"}}, opts.opts()...)
+	reqOpts = append(reqOpts, extra...)
+	return s.list(ctx, timeEntriesPath(businessID)+"/search", reqOpts)
 }
 
 // TimeEntryCreateRequest is the payload for Create. IsLogged, Duration,
@@ -123,9 +146,8 @@ func (s *TimeEntriesService) Create(ctx context.Context, businessID BusinessID, 
 		return nil, fmt.Errorf("freshbooks: Create needs a request")
 	}
 	var resp timeEntryResponse
-	path := "/timetracking/business/" + businessID.String() + "/time_entries"
 	body := map[string]*TimeEntryCreateRequest{"time_entry": req}
-	if err := s.client.do(ctx, http.MethodPost, path, FamilyBusiness, body, &resp); err != nil {
+	if err := s.client.do(ctx, http.MethodPost, timeEntriesPath(businessID), FamilyBusiness, body, &resp); err != nil {
 		return nil, err
 	}
 	return &resp.TimeEntry, nil
@@ -151,9 +173,8 @@ func (s *TimeEntriesService) Update(ctx context.Context, businessID BusinessID, 
 		return nil, fmt.Errorf("freshbooks: Update needs a request")
 	}
 	var resp timeEntryResponse
-	path := fmt.Sprintf("/timetracking/business/%s/time_entries/%d", businessID, timeEntryID)
 	body := map[string]*TimeEntryUpdateRequest{"time_entry": req}
-	if err := s.client.do(ctx, http.MethodPut, path, FamilyBusiness, body, &resp); err != nil {
+	if err := s.client.do(ctx, http.MethodPut, timeEntryPath(businessID, timeEntryID), FamilyBusiness, body, &resp); err != nil {
 		return nil, err
 	}
 	return &resp.TimeEntry, nil
@@ -164,6 +185,5 @@ func (s *TimeEntriesService) Update(ctx context.Context, businessID BusinessID, 
 //
 // inventory: Time Tracking/Delete a Time Entry
 func (s *TimeEntriesService) Delete(ctx context.Context, businessID BusinessID, timeEntryID int64) error {
-	path := fmt.Sprintf("/timetracking/business/%s/time_entries/%d", businessID, timeEntryID)
-	return s.client.do(ctx, http.MethodDelete, path, FamilyBusiness, nil, nil)
+	return s.client.do(ctx, http.MethodDelete, timeEntryPath(businessID, timeEntryID), FamilyBusiness, nil, nil)
 }

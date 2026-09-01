@@ -2,6 +2,7 @@ package freshbooks
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 )
@@ -17,22 +18,30 @@ import (
 // BusinessAddress is a business's mailing address as returned by the
 // business-management endpoints.
 type BusinessAddress struct {
-	ID         int64  `json:"id"`
-	Street     string `json:"street"`
-	City       string `json:"city"`
-	Province   string `json:"province"`
-	Country    string `json:"country"`
-	PostalCode string `json:"postal_code"`
+	ID         int64   `json:"id"`
+	Street     *string `json:"street"`
+	City       *string `json:"city"`
+	Province   *string `json:"province"`
+	Country    string  `json:"country"`
+	PostalCode *string `json:"postal_code"`
 }
 
 // Business is a business record as returned by AddBusiness -- richer than
 // Membership, which only carries the identifiers other services need.
+//
+// PhoneNumber is a pointer: the captured response returns null.
+// BusinessClients is an empty array in the captured response with no
+// non-empty example anywhere in the collection, so its element shape is
+// undetermined; it decodes as raw JSON rather than a guessed struct.
 type Business struct {
-	ID         int64            `json:"id"`
-	Name       string           `json:"name"`
-	AccountID  string           `json:"account_id"`
-	DateFormat string           `json:"date_format"`
-	Address    *BusinessAddress `json:"address"`
+	ID              int64             `json:"id"`
+	Name            string            `json:"name"`
+	AccountID       string            `json:"account_id"`
+	BusinessGroup   BusinessGroup     `json:"business_group"`
+	DateFormat      string            `json:"date_format"`
+	Address         *BusinessAddress  `json:"address"`
+	PhoneNumber     *string           `json:"phone_number"`
+	BusinessClients []json.RawMessage `json:"business_clients,omitempty"`
 }
 
 // BusinessCreateRequest is the payload for AddBusiness.
@@ -56,9 +65,11 @@ func (s *IdentityService) AddBusiness(ctx context.Context, req *BusinessCreateRe
 	return &resp, nil
 }
 
-// DeleteBusiness removes a business. FreshBooks refuses this with a 422
-// while the business carries an active subscription; cancel it first with
-// DeleteBusinessSubscription.
+// DeleteBusiness removes a business. Destructive and irreversible: a CLI or
+// MCP surface built on this method must require explicit confirmation and
+// must not expose it as an unattended tool. FreshBooks refuses this with a
+// 422 while the business carries an active subscription; cancel it first
+// with DeleteBusinessSubscription.
 //
 // inventory: Settings/Businesses/Delete Business
 func (s *IdentityService) DeleteBusiness(ctx context.Context, businessID BusinessID) error {
@@ -67,7 +78,9 @@ func (s *IdentityService) DeleteBusiness(ctx context.Context, businessID Busines
 }
 
 // DeleteBusinessSubscription cancels accountID's billing subscription, the
-// prerequisite DeleteBusiness enforces.
+// prerequisite DeleteBusiness enforces. Destructive and irreversible: a CLI
+// or MCP surface built on this method must require explicit confirmation
+// and must not expose it as an unattended tool.
 //
 // The Postman collection sources this request from my.freshbooks.com --
 // FreshBooks' internal host -- rather than the public api.freshbooks.com
@@ -78,6 +91,9 @@ func (s *IdentityService) DeleteBusiness(ctx context.Context, businessID Busines
 //
 // inventory: Settings/Businesses/Delete Business - Subscription
 func (s *IdentityService) DeleteBusinessSubscription(ctx context.Context, accountID AccountID) error {
+	if err := pathSegment(string(accountID)); err != nil {
+		return err
+	}
 	path := "/auth/api/v1/billing/account/" + string(accountID) + "/subscription"
 	return s.client.do(ctx, http.MethodDelete, path, FamilyAuth, nil, nil)
 }
@@ -99,7 +115,7 @@ type PaymentsProvisionRequest struct {
 //
 // This request's family is "payments" per the inventory classifier, which
 // the transport currently folds into FamilyBusiness as an unverified
-// fallback (spec 5.1's envelope callout, owned by Phase 2 batch d). A null
+// fallback (spec 5.1's existing callout, owned by batch d). A null
 // success body sidesteps the question here since there is no envelope to
 // unwrap either way; if a future confirmation reclassifies "payments",
 // this call needs no change.
@@ -108,6 +124,9 @@ type PaymentsProvisionRequest struct {
 func (s *IdentityService) ProvisionPayments(ctx context.Context, accountID AccountID, req *PaymentsProvisionRequest) error {
 	if req == nil {
 		return fmt.Errorf("freshbooks: ProvisionPayments needs a request")
+	}
+	if err := pathSegment(string(accountID)); err != nil {
+		return err
 	}
 	path := "/payments/account/" + string(accountID) + "/gateway/fbpay"
 	return s.client.do(ctx, http.MethodPost, path, FamilyBusiness, req, nil)
@@ -120,6 +139,13 @@ func (s *IdentityService) ProvisionPayments(ctx context.Context, accountID Accou
 // Identity Info response, not this endpoint's actual shape) -- these fields
 // come from the Create/Modify request bodies, which is the only evidence
 // available.
+//
+// Application deliberately implements fmt.Stringer with a redacted
+// rendering, mirroring auth.Token, so printing one with %v or %s cannot
+// leak the OAuth client secret. An MCP tool surfacing Application must
+// strip ClientSecret from its output explicitly (Phase 3 inherits this
+// constraint in writing): a stateless, model-facing tool result is not the
+// place for a live credential.
 type Application struct {
 	ClientID     string `json:"client_id,omitempty"`
 	ClientSecret string `json:"client_secret,omitempty"`
@@ -129,6 +155,12 @@ type Application struct {
 	WebsiteURL   string `json:"website_url,omitempty"`
 	SettingsURL  string `json:"settings_url,omitempty"`
 	LogoPublicID string `json:"logo_public_id,omitempty"`
+}
+
+// String renders the application with its client secret redacted.
+func (a Application) String() string {
+	return fmt.Sprintf("freshbooks.Application{ClientID: %q, ClientSecret: redacted, Name: %q, RedirectURI: %q}",
+		a.ClientID, a.Name, a.RedirectURI)
 }
 
 // ApplicationCreateRequest is the payload for CreateApplication.
@@ -170,17 +202,27 @@ func (s *IdentityService) Applications(ctx context.Context) ([]Application, erro
 	return resp, nil
 }
 
-// ApplicationUpdateRequest is the payload for UpdateApplication. FreshBooks
-// requires ClientSecret on this call (the Postman example always includes
-// it), unlike Create, which never has one yet.
+// ApplicationUpdateRequest is the payload for UpdateApplication. The
+// captured Postman body is a full-replace PUT -- all seven fields are sent
+// every time, including the four optional ones -- so none of them carry
+// omitempty: a caller clearing Description to "" must have that reach the
+// server as "", not vanish from the request. FreshBooks also requires
+// ClientSecret on this call (the Postman example always includes it),
+// unlike Create, which never has one yet.
 type ApplicationUpdateRequest struct {
 	Name         string `json:"name"`
 	ClientSecret string `json:"client_secret"`
 	RedirectURI  string `json:"redirect_uri"`
-	Description  string `json:"description,omitempty"`
-	WebsiteURL   string `json:"website_url,omitempty"`
-	SettingsURL  string `json:"settings_url,omitempty"`
-	LogoPublicID string `json:"logo_public_id,omitempty"`
+	Description  string `json:"description"`
+	WebsiteURL   string `json:"website_url"`
+	SettingsURL  string `json:"settings_url"`
+	LogoPublicID string `json:"logo_public_id"`
+}
+
+// String renders the update request with its client secret redacted.
+func (r ApplicationUpdateRequest) String() string {
+	return fmt.Sprintf("freshbooks.ApplicationUpdateRequest{Name: %q, ClientSecret: redacted, RedirectURI: %q}",
+		r.Name, r.RedirectURI)
 }
 
 // UpdateApplication edits a registered OAuth application. See Application's
@@ -190,6 +232,9 @@ type ApplicationUpdateRequest struct {
 func (s *IdentityService) UpdateApplication(ctx context.Context, clientID string, req *ApplicationUpdateRequest) (*Application, error) {
 	if req == nil {
 		return nil, fmt.Errorf("freshbooks: UpdateApplication needs a request")
+	}
+	if err := pathSegment(clientID); err != nil {
+		return nil, err
 	}
 	var resp Application
 	path := "/auth/api/v1/partners/applications/" + clientID

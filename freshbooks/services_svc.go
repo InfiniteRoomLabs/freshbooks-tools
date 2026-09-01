@@ -42,22 +42,31 @@ type servicesListResponse struct {
 	Meta     PageMeta  `json:"meta"`
 }
 
+// ServiceListOptions filters and paginates List.
+type ServiceListOptions struct {
+	Search  Search
+	Page    int
+	PerPage int
+}
+
+func (o *ServiceListOptions) opts() []RequestOption {
+	if o == nil {
+		return nil
+	}
+	return listOpts(o.Search, o.Page, o.PerPage)
+}
+
 // List returns one page of businessID's services.
 //
 // inventory: Settings/Items and Services/List Services
-func (s *ServicesService) List(ctx context.Context, businessID BusinessID, opts ...RequestOption) (*Page[Service], error) {
+func (s *ServicesService) List(ctx context.Context, businessID BusinessID, opts *ServiceListOptions, extra ...RequestOption) (*Page[Service], error) {
 	var resp servicesListResponse
 	path := "/comments/business/" + businessID.String() + "/services"
-	if err := s.client.do(ctx, http.MethodGet, path, FamilyBusiness, nil, &resp, opts...); err != nil {
+	reqOpts := append(opts.opts(), extra...)
+	if err := s.client.do(ctx, http.MethodGet, path, FamilyBusiness, nil, &resp, reqOpts...); err != nil {
 		return nil, err
 	}
-	return &Page[Service]{
-		Items:   resp.Services,
-		Page:    resp.Meta.Page,
-		Pages:   resp.Meta.Pages,
-		PerPage: resp.Meta.PerPage,
-		Total:   resp.Meta.Total,
-	}, nil
+	return newPage(resp.Services, resp.Meta), nil
 }
 
 // BillableItem is the accounting-family billable-item record: the same
@@ -75,7 +84,7 @@ type BillableItem struct {
 	Tax1        int      `json:"tax1"`
 	Tax2        int      `json:"tax2"`
 	UnitCost    Money    `json:"unit_cost"`
-	Updated     string   `json:"updated"`
+	Updated     DateTime `json:"updated"`
 	VisState    VisState `json:"vis_state"`
 }
 
@@ -93,6 +102,20 @@ type BillableItemCreateRequest struct {
 	UnitCost    *Money `json:"unit_cost,omitempty"`
 }
 
+func billableItemsPath(acct AccountID) (string, error) {
+	if err := pathSegment(string(acct)); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("/accounting/account/%s/billable_items/billable_items", acct), nil
+}
+
+func billableItemPath(acct AccountID, id int64) (string, error) {
+	if err := pathSegment(string(acct)); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("/accounting/account/%s/billable_items/%d", acct, id), nil
+}
+
 // Create adds a billable item. The Postman collection carries no response
 // example for this endpoint; BillableItem's shape is INFERRED from the
 // sibling Single Service response and the request body's own fields, not
@@ -103,8 +126,11 @@ func (s *ServicesService) Create(ctx context.Context, accountID AccountID, req *
 	if req == nil {
 		return nil, fmt.Errorf("freshbooks: Create needs a request")
 	}
+	path, err := billableItemsPath(accountID)
+	if err != nil {
+		return nil, err
+	}
 	var resp billableItemResponse
-	path := "/accounting/account/" + string(accountID) + "/billable_items/billable_items"
 	body := map[string]*BillableItemCreateRequest{"billable_item": req}
 	if err := s.client.do(ctx, http.MethodPost, path, FamilyAccounting, body, &resp); err != nil {
 		return nil, err
@@ -118,8 +144,11 @@ func (s *ServicesService) Create(ctx context.Context, accountID AccountID, req *
 //
 // inventory: Settings/Items and Services/Single Service
 func (s *ServicesService) GetBillableItem(ctx context.Context, accountID AccountID, id int64) (*BillableItem, error) {
+	path, err := billableItemPath(accountID, id)
+	if err != nil {
+		return nil, err
+	}
 	var resp billableItemResponse
-	path := fmt.Sprintf("/accounting/account/%s/billable_items/%d", accountID, id)
 	if err := s.client.do(ctx, http.MethodGet, path, FamilyAccounting, nil, &resp); err != nil {
 		return nil, err
 	}

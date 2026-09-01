@@ -41,6 +41,9 @@ func TestProjectsCreate(t *testing.T) {
 		if p.CreatedAt.IsZero() {
 			t.Fatal("CreatedAt did not parse the zoneless timestamp")
 		}
+		if p.Description != "" {
+			t.Fatalf("a captured-null description should decode to empty: %+v", p)
+		}
 	})
 
 	t.Run("[sad] a nil request", func(t *testing.T) {
@@ -65,7 +68,7 @@ func TestProjectsCreate(t *testing.T) {
 func TestProjectsGet(t *testing.T) {
 	ctx := context.Background()
 
-	t.Run("[happy] a single project", func(t *testing.T) {
+	t.Run("[happy] a single project, its sibling abilities dropped", func(t *testing.T) {
 		var gotPath string
 		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			gotPath = r.URL.Path
@@ -84,6 +87,12 @@ func TestProjectsGet(t *testing.T) {
 		if p.DueDate.IsZero() != true {
 			t.Errorf("a null due_date should decode to zero")
 		}
+		if p.GroupID != 0 {
+			t.Errorf("Get returns the expanded Group, not GroupID: %+v", p)
+		}
+		if len(p.Group) == 0 {
+			t.Error("Group should carry the raw expanded object")
+		}
 	})
 
 	t.Run("[sad] a 404 is ErrNotFound", func(t *testing.T) {
@@ -97,21 +106,24 @@ func TestProjectsGet(t *testing.T) {
 func TestProjectsList(t *testing.T) {
 	ctx := context.Background()
 
-	t.Run("[happy] a page of projects", func(t *testing.T) {
+	t.Run("[happy] a page of projects, carrying group_id", func(t *testing.T) {
 		c, _ := newTestClient(t, serveFixture(t, http.StatusOK, "projects", "list_full"))
-		page, err := c.Projects.List(ctx, BusinessID(8675309))
+		page, err := c.Projects.List(ctx, BusinessID(8675309), nil)
 		if err != nil {
 			t.Fatal(err)
 		}
 		if len(page.Items) != 1 || page.Total != 1 {
 			t.Fatalf("page = %+v", page)
 		}
+		if page.Items[0].GroupID != 4951020 {
+			t.Fatalf("GroupID = %d", page.Items[0].GroupID)
+		}
 	})
 
 	t.Run("[happy] All walks a single page and stops", func(t *testing.T) {
 		c, _ := newTestClient(t, serveFixture(t, http.StatusOK, "projects", "list_full"))
 		var got []Project
-		for p, err := range c.Projects.All(ctx, BusinessID(8675309)) {
+		for p, err := range c.Projects.All(ctx, BusinessID(8675309), nil) {
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -128,7 +140,8 @@ func TestProjectsList(t *testing.T) {
 			gotQuery = r.URL.RawQuery
 			serveFixture(t, http.StatusOK, "projects", "list_full")(w, r)
 		}))
-		if _, err := c.Projects.List(ctx, BusinessID(8675309), Search{"active": "true"}); err != nil {
+		opts := &ProjectListOptions{Search: Search{"active": "true"}}
+		if _, err := c.Projects.List(ctx, BusinessID(8675309), opts); err != nil {
 			t.Fatal(err)
 		}
 		if gotQuery != "active=true" {
@@ -138,7 +151,7 @@ func TestProjectsList(t *testing.T) {
 
 	t.Run("[sad] a 429 is ErrRateLimited", func(t *testing.T) {
 		c, _ := newTestClient(t, serveFixture(t, http.StatusTooManyRequests, "accounting", "error_429"), WithRetry(NoRetry))
-		if _, err := c.Projects.List(ctx, BusinessID(1)); !errors.Is(err, ErrRateLimited) {
+		if _, err := c.Projects.List(ctx, BusinessID(1), nil); !errors.Is(err, ErrRateLimited) {
 			t.Fatalf("err = %v", err)
 		}
 	})

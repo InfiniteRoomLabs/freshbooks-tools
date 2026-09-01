@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strings"
 	"testing"
 )
 
@@ -22,18 +23,24 @@ func TestIdentityAddBusiness(t *testing.T) {
 			serveFixture(t, http.StatusOK, "settings", "business_added")(w, r)
 		}))
 
-		b, err := c.Identity.AddBusiness(ctx, &BusinessCreateRequest{Name: "Kevin's Corral", DateFormat: "mm/dd/yyyy"})
+		b, err := c.Identity.AddBusiness(ctx, &BusinessCreateRequest{Name: "Example Business LLC", DateFormat: "mm/dd/yyyy"})
 		if err != nil {
 			t.Fatal(err)
 		}
 		if gotMethod != http.MethodPost || gotPath != "/auth/api/v1/users/business" {
 			t.Fatalf("%s %s", gotMethod, gotPath)
 		}
-		if gotBody["name"] != "Kevin's Corral" {
+		if gotBody["name"] != "Example Business LLC" {
 			t.Fatalf("body = %v", gotBody)
 		}
-		if b.ID != 1986590 || b.Address.Country != "Canada" {
+		if b.ID != 1001 || b.Address.Country != "Canada" {
 			t.Fatalf("business = %+v", b)
+		}
+		if len(b.BusinessGroup.Members) != 1 || b.BusinessGroup.Members[0].IdentityID != 4242424 {
+			t.Fatalf("business_group = %+v", b.BusinessGroup)
+		}
+		if b.PhoneNumber != nil {
+			t.Fatalf("a captured-null phone_number should decode to nil: %+v", b)
 		}
 	})
 
@@ -104,6 +111,13 @@ func TestIdentityDeleteBusinessSubscription(t *testing.T) {
 			t.Fatalf("err = %v", err)
 		}
 	})
+
+	t.Run("[sad] a hostile AccountID never reaches the network", func(t *testing.T) {
+		c, _ := newTestClient(t, http.NotFoundHandler())
+		if err := c.Identity.DeleteBusinessSubscription(ctx, AccountID("../x")); err == nil {
+			t.Fatal("want an error")
+		}
+	})
 }
 
 func TestIdentityProvisionPayments(t *testing.T) {
@@ -131,6 +145,14 @@ func TestIdentityProvisionPayments(t *testing.T) {
 	t.Run("[sad] a nil request", func(t *testing.T) {
 		c, _ := newTestClient(t, http.NotFoundHandler())
 		if err := c.Identity.ProvisionPayments(ctx, AccountID("ACM123"), nil); err == nil {
+			t.Fatal("want an error")
+		}
+	})
+
+	t.Run("[sad] a hostile AccountID never reaches the network", func(t *testing.T) {
+		c, _ := newTestClient(t, http.NotFoundHandler())
+		err := c.Identity.ProvisionPayments(ctx, AccountID("a/b"), &PaymentsProvisionRequest{})
+		if err == nil {
 			t.Fatal("want an error")
 		}
 	})
@@ -207,20 +229,27 @@ func TestIdentityApplications(t *testing.T) {
 func TestIdentityUpdateApplication(t *testing.T) {
 	ctx := context.Background()
 
-	t.Run("[happy] puts the application payload", func(t *testing.T) {
+	t.Run("[happy] puts every field, no omitempty on the full-replace body", func(t *testing.T) {
 		var gotPath, gotMethod string
+		var gotBody map[string]any
 		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			gotPath, gotMethod = r.URL.Path, r.Method
+			raw, _ := io.ReadAll(r.Body)
+			_ = json.Unmarshal(raw, &gotBody)
 			serveFixture(t, http.StatusOK, "settings", "application_created")(w, r)
 		}))
 		app, err := c.Identity.UpdateApplication(ctx, "syn-client-abc123", &ApplicationUpdateRequest{
 			Name: "Example App", ClientSecret: "syn-secret-def456", RedirectURI: "https://app.example.com/callback",
+			Description: "",
 		})
 		if err != nil {
 			t.Fatal(err)
 		}
 		if gotMethod != http.MethodPut || gotPath != "/auth/api/v1/partners/applications/syn-client-abc123" {
 			t.Fatalf("%s %s", gotMethod, gotPath)
+		}
+		if _, ok := gotBody["description"]; !ok {
+			t.Fatal("an explicit empty description must still be sent on a full-replace PUT")
 		}
 		if app.ClientID != "syn-client-abc123" {
 			t.Fatalf("app = %+v", app)
@@ -239,6 +268,38 @@ func TestIdentityUpdateApplication(t *testing.T) {
 		req := &ApplicationUpdateRequest{Name: "x", ClientSecret: "s", RedirectURI: "https://example.test"}
 		if _, err := c.Identity.UpdateApplication(ctx, "x", req); err == nil {
 			t.Fatal("want an error")
+		}
+	})
+
+	t.Run("[sad] a hostile clientID never reaches the network", func(t *testing.T) {
+		c, _ := newTestClient(t, http.NotFoundHandler())
+		req := &ApplicationUpdateRequest{Name: "x", ClientSecret: "s", RedirectURI: "https://example.test"}
+		if _, err := c.Identity.UpdateApplication(ctx, "../x", req); err == nil {
+			t.Fatal("want an error")
+		}
+	})
+}
+
+func TestApplicationStringRedacted(t *testing.T) {
+	t.Run("[happy] Application.String never prints the client secret", func(t *testing.T) {
+		app := Application{ClientID: "syn-client-abc123", ClientSecret: "syn-secret-def456", Name: "Example App"}
+		s := app.String()
+		if strings.Contains(s, "syn-secret-def456") {
+			t.Fatal("client secret leaked into String()")
+		}
+		if !strings.Contains(s, "redacted") {
+			t.Fatalf("String() = %q, want it to say redacted", s)
+		}
+	})
+
+	t.Run("[happy] ApplicationUpdateRequest.String never prints the client secret", func(t *testing.T) {
+		req := ApplicationUpdateRequest{Name: "Example App", ClientSecret: "syn-secret-def456"}
+		s := req.String()
+		if strings.Contains(s, "syn-secret-def456") {
+			t.Fatal("client secret leaked into String()")
+		}
+		if !strings.Contains(s, "redacted") {
+			t.Fatalf("String() = %q, want it to say redacted", s)
 		}
 	})
 }

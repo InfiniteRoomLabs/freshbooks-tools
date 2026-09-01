@@ -10,7 +10,7 @@
     {
       "id": 2980878,
       "title": "K2 Hiking Guide",
-      "description": "",
+      "description": null,
       "due_date": "2026-08-20",
       "client_id": 55001,
       "internal": false,
@@ -28,8 +28,7 @@
       "services": [],
       "billed_amount": "0.00",
       "billed_status": "unbilled",
-      "retainer_id": null,
-      "group": null
+      "group_id": 4951020
     }
   ]
 }

@@ -20,7 +20,7 @@ func TestTimeEntriesList(t *testing.T) {
 			gotPath = r.URL.Path
 			serveFixture(t, http.StatusOK, "time_entries", "list")(w, r)
 		}))
-		page, err := c.TimeEntries.List(ctx, BusinessID(8675309))
+		page, err := c.TimeEntries.List(ctx, BusinessID(8675309), nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -33,6 +33,9 @@ func TestTimeEntriesList(t *testing.T) {
 		if page.Items[0].StartedAt.IsZero() {
 			t.Fatal("StartedAt did not parse")
 		}
+		if page.Items[0].PendingClient != nil || page.Items[0].PendingProject != nil || page.Items[0].PendingTask != nil {
+			t.Fatalf("a captured-null field should decode to a nil pointer: %+v", page.Items[0])
+		}
 	})
 
 	t.Run("[happy] filters spell as bare field=value, not search[field]", func(t *testing.T) {
@@ -41,8 +44,8 @@ func TestTimeEntriesList(t *testing.T) {
 			gotQuery = r.URL.Query()
 			serveFixture(t, http.StatusOK, "time_entries", "list")(w, r)
 		}))
-		_, err := c.TimeEntries.List(ctx, BusinessID(8675309),
-			Search{"updated_since": "2026-08-01T03:00:00Z", "include_deleted": "1"})
+		opts := &TimeEntryListOptions{Search: Search{"updated_since": "2026-08-01T03:00:00Z", "include_deleted": "1"}}
+		_, err := c.TimeEntries.List(ctx, BusinessID(8675309), opts)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -58,7 +61,7 @@ func TestTimeEntriesList(t *testing.T) {
 		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			_, _ = io.WriteString(w, `{"meta": {"total": 0, "page": 1, "pages": 0, "per_page": 15}, "time_entries": []}`)
 		}))
-		page, err := c.TimeEntries.List(ctx, BusinessID(1))
+		page, err := c.TimeEntries.List(ctx, BusinessID(1), nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -69,7 +72,7 @@ func TestTimeEntriesList(t *testing.T) {
 
 	t.Run("[sad] a 401 is ErrUnauthorized", func(t *testing.T) {
 		c, _ := newTestClient(t, serveFixture(t, http.StatusUnauthorized, "auth", "error_401"))
-		if _, err := c.TimeEntries.List(ctx, BusinessID(1)); !errors.Is(err, ErrUnauthorized) {
+		if _, err := c.TimeEntries.List(ctx, BusinessID(1), nil); !errors.Is(err, ErrUnauthorized) {
 			t.Fatalf("err = %v", err)
 		}
 	})
@@ -85,7 +88,7 @@ func TestTimeEntriesSearch(t *testing.T) {
 			gotPath, gotQuery = r.URL.Path, r.URL.Query()
 			serveFixture(t, http.StatusOK, "time_entries", "list")(w, r)
 		}))
-		page, err := c.TimeEntries.Search(ctx, BusinessID(8675309), "Jordan", Sort("started_at", SortDesc))
+		page, err := c.TimeEntries.Search(ctx, BusinessID(8675309), "Jordan", nil, Sort("started_at", SortDesc))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -100,9 +103,24 @@ func TestTimeEntriesSearch(t *testing.T) {
 		}
 	})
 
+	t.Run("[happy] merges opts.Search alongside q", func(t *testing.T) {
+		var gotQuery url.Values
+		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			gotQuery = r.URL.Query()
+			serveFixture(t, http.StatusOK, "time_entries", "list")(w, r)
+		}))
+		opts := &TimeEntryListOptions{Search: Search{"billed": "true"}}
+		if _, err := c.TimeEntries.Search(ctx, BusinessID(8675309), "Jordan", opts); err != nil {
+			t.Fatal(err)
+		}
+		if gotQuery.Get("q") != "Jordan" || gotQuery.Get("billed") != "true" {
+			t.Fatalf("query = %v", gotQuery)
+		}
+	})
+
 	t.Run("[sad] a 404 is ErrNotFound", func(t *testing.T) {
 		c, _ := newTestClient(t, serveFixture(t, http.StatusNotFound, "projects", "error_404"))
-		if _, err := c.TimeEntries.Search(ctx, BusinessID(1), "x"); !errors.Is(err, ErrNotFound) {
+		if _, err := c.TimeEntries.Search(ctx, BusinessID(1), "x", nil); !errors.Is(err, ErrNotFound) {
 			t.Fatalf("err = %v", err)
 		}
 	})
@@ -181,6 +199,27 @@ func TestTimeEntriesUpdate(t *testing.T) {
 		}
 		if entry.ID != 47902064 {
 			t.Fatalf("entry = %+v", entry)
+		}
+	})
+
+	t.Run("[happy] Timer.IsRunning=false actually sends false", func(t *testing.T) {
+		var gotBody map[string]any
+		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			raw, _ := io.ReadAll(r.Body)
+			_ = json.Unmarshal(raw, &gotBody)
+			serveFixture(t, http.StatusOK, "time_entries", "single")(w, r)
+		}))
+		_, err := c.TimeEntries.Update(ctx, BusinessID(8675309), 47902064, &TimeEntryUpdateRequest{
+			Timer: &Timer{ID: "t1", IsRunning: false},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		timerBody, _ := gotBody["time_entry"].(map[string]any)
+		timer, _ := timerBody["timer"].(map[string]any)
+		v, ok := timer["is_running"]
+		if !ok || v != false {
+			t.Fatalf("is_running should be sent as an explicit false, got %v (present=%v)", v, ok)
 		}
 	})
 
