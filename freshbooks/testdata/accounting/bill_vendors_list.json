@@ -21,9 +21,22 @@
           "language": "en",
           "is_1099": false,
           "tax_defaults": [
-            { "taxid": 4001, "name": "HST", "amount": "13" }
+            {
+              "taxid": 4001,
+              "name": "HST",
+              "amount": "13.56",
+              "enabled": true,
+              "system_taxid": 4101,
+              "tax_authorityid": null,
+              "vendorid": 5,
+              "created_at": "2026-08-22 04:32:55",
+              "updated_at": "2026-08-22 04:32:55"
+            }
           ],
-          "outstanding_balance": { "amount": "375.00", "code": "USD" },
+          "outstanding_balance": [
+            { "amount": { "amount": "375.00", "code": "USD" } }
+          ],
+          "overdue_balance": [],
           "created_at": "2026-08-22 04:32:55",
           "updated_at": "2026-08-22 04:32:55",
           "vis_state": 0

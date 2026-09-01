@@ -23,11 +23,18 @@ func TestBillVendorsList(t *testing.T) {
 			t.Fatalf("page = %+v", page)
 		}
 		v := page.Items[0]
-		if len(v.TaxDefaults) != 1 || v.TaxDefaults[0].Name != "HST" || v.TaxDefaults[0].TaxID != 4001 {
-			t.Fatalf("tax defaults = %+v", v.TaxDefaults)
+		td := v.TaxDefaults
+		if len(td) != 1 || td[0].Name != "HST" || td[0].TaxID != 4001 {
+			t.Fatalf("tax defaults = %+v", td)
 		}
-		if v.OutstandingBalance == nil || v.OutstandingBalance.Amount != "375.00" {
+		if td[0].Enabled == nil || !*td[0].Enabled || td[0].SystemTaxID == nil || *td[0].SystemTaxID != 4101 {
+			t.Fatalf("tax defaults = %+v", td)
+		}
+		if len(v.OutstandingBalance) != 1 || v.OutstandingBalance[0].Amount.Amount != "375.00" {
 			t.Fatalf("outstanding balance = %+v", v.OutstandingBalance)
+		}
+		if v.OverdueBalance == nil {
+			t.Fatalf("overdue balance = %+v, want an empty (non-nil) slice", v.OverdueBalance)
 		}
 	})
 

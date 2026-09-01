@@ -11,11 +11,19 @@
           "currency_code": "USD",
           "create_date": "2026-08-22",
           "notes": "Goodwill credit",
-          "amount": { "amount": "150.00", "code": "USD" },
-          "paid": { "amount": "150.00", "code": "USD" },
+          "amount": {
+            "amount": "150.00",
+            "code": "USD"
+          },
+          "paid": {
+            "amount": "150.00",
+            "code": "USD"
+          },
           "display_status": "created",
           "payment_status": "paid",
-          "vis_state": 0
+          "vis_state": 0,
+          "dispute_status": null,
+          "last_order_status": null
         }
       ],
       "page": 1,

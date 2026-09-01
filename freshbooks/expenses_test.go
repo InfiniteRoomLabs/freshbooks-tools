@@ -71,6 +71,24 @@ func TestExpensesGet(t *testing.T) {
 		if exp.TaxName1 != "HST" || exp.TaxPercent1 != "13" {
 			t.Fatalf("expense = %+v", exp)
 		}
+		if exp.Attachment == nil || exp.Attachment.AttachmentID != 8668 || exp.Attachment.ID != 8668 {
+			t.Fatalf("attachment = %+v", exp.Attachment)
+		}
+		if exp.Category == nil || exp.Category.Category != "Gas" {
+			t.Fatalf("category = %+v", exp.Category)
+		}
+		if exp.TransactionID == nil || *exp.TransactionID != 900123 {
+			t.Fatalf("transactionid = %v", exp.TransactionID)
+		}
+		if exp.IsDuplicate == nil || !*exp.IsDuplicate {
+			t.Fatalf("isduplicate = %v", exp.IsDuplicate)
+		}
+		if exp.FromBulkImport == nil || *exp.FromBulkImport {
+			t.Fatalf("from_bulk_import = %v", exp.FromBulkImport)
+		}
+		if exp.ProfileID != nil {
+			t.Fatalf("profileid = %v, want nil", exp.ProfileID)
+		}
 	})
 
 	t.Run("[sad] a 404 is ErrNotFound", func(t *testing.T) {

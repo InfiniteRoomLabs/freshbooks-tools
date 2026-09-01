@@ -62,6 +62,11 @@ type CreditNote struct {
 	Status        string `json:"status,omitempty"`
 	DisplayStatus string `json:"display_status,omitempty"`
 	PaymentStatus string `json:"payment_status,omitempty"`
+	// DisputeStatus and LastOrderStatus are nullable in every captured
+	// response; their populated shape is unevidenced, so they are typed as
+	// pointers to a bare string rather than guessed at further.
+	DisputeStatus   *string `json:"dispute_status,omitempty"`
+	LastOrderStatus *string `json:"last_order_status,omitempty"`
 	// FirstName, LastName, Organization, and the address fields snapshot
 	// the client's details at credit-note time.
 	FirstName    string `json:"fname,omitempty"`

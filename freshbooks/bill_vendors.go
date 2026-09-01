@@ -16,9 +16,25 @@ type BillVendorsService struct{ client *Client }
 // BillVendorTaxDefault is one default tax FreshBooks applies to bills raised
 // against a vendor.
 type BillVendorTaxDefault struct {
-	TaxID  int64  `json:"taxid,omitempty"`
-	Name   string `json:"name,omitempty"`
-	Amount string `json:"amount,omitempty"`
+	TaxID          int64    `json:"taxid,omitempty"`
+	Name           string   `json:"name,omitempty"`
+	Amount         string   `json:"amount,omitempty"`
+	Enabled        *bool    `json:"enabled,omitempty"`
+	SystemTaxID    *int64   `json:"system_taxid,omitempty"`
+	TaxAuthorityID *int64   `json:"tax_authorityid,omitempty"`
+	VendorID       *int64   `json:"vendorid,omitempty"`
+	CreatedAt      DateTime `json:"created_at,omitempty"`
+	UpdatedAt      DateTime `json:"updated_at,omitempty"`
+}
+
+// VendorBalance wraps one currency's contribution to a vendor's outstanding
+// or overdue balance. FreshBooks sends both OutstandingBalance and
+// OverdueBalance as arrays of these wrappers, not a bare Money object --
+// confirmed against captured responses and the FreshBooks docs examples,
+// which disagree with the docs page's own field table (it calls the field
+// a plain object).
+type VendorBalance struct {
+	Amount Money `json:"amount"`
 }
 
 // BillVendor is a vendor that bills can be raised against.
@@ -55,8 +71,11 @@ type BillVendor struct {
 	Is1099 bool `json:"is_1099,omitempty"`
 	// TaxDefaults are the default taxes applied to bills from this vendor.
 	TaxDefaults []BillVendorTaxDefault `json:"tax_defaults,omitempty"`
-	// OutstandingBalance is the total unpaid balance owed to this vendor.
-	OutstandingBalance *Money `json:"outstanding_balance,omitempty"`
+	// OutstandingBalance and OverdueBalance are the vendor's unpaid and
+	// overdue balances, one entry per currency. FreshBooks sends these as
+	// arrays even when empty ("[]"), never a bare object.
+	OutstandingBalance []VendorBalance `json:"outstanding_balance,omitempty"`
+	OverdueBalance     []VendorBalance `json:"overdue_balance,omitempty"`
 	// CreatedAt and UpdatedAt are account-local timestamps.
 	CreatedAt DateTime `json:"created_at,omitempty"`
 	UpdatedAt DateTime `json:"updated_at,omitempty"`
@@ -93,8 +112,13 @@ type BillVendorRequest struct {
 	Language                string `json:"language,omitempty"`
 	// Is1099 is a pointer so a caller can explicitly send false to turn 1099
 	// tracking off, not just omit the field to leave it unset.
-	Is1099      *bool    `json:"is_1099,omitempty"`
-	TaxDefaults []string `json:"tax_defaults,omitempty"`
+	Is1099 *bool `json:"is_1099,omitempty"`
+	// TaxDefaults reuses the read type. Every captured create/edit example
+	// sends an empty array, so the element type is unevidenced from a
+	// request body, but the docs field table and every response describe
+	// tax defaults as objects (taxid, system_taxid, enabled, ...), never
+	// bare strings.
+	TaxDefaults []BillVendorTaxDefault `json:"tax_defaults,omitempty"`
 }
 
 // BillVendorListOptions filters and paginates List.

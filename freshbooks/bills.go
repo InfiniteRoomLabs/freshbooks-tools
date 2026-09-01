@@ -14,18 +14,31 @@ type BillsService struct{ client *Client }
 
 // BillLine is one line item on a bill.
 type BillLine struct {
-	Description   string `json:"description,omitempty"`
-	Quantity      int    `json:"quantity,omitempty"`
-	UnitCost      Money  `json:"unit_cost,omitzero"`
-	Amount        Money  `json:"amount,omitzero"`
-	CategoryID    int64  `json:"categoryid,omitempty"`
-	TaxName1      string `json:"tax_name1,omitempty"`
-	TaxName2      string `json:"tax_name2,omitempty"`
-	TaxPercent1   *int   `json:"tax_percent1,omitempty"`
-	TaxPercent2   *int   `json:"tax_percent2,omitempty"`
-	TaxAmount1    Money  `json:"tax_amount1,omitzero"`
-	TaxAmount2    Money  `json:"tax_amount2,omitzero"`
-	CompoundedTax bool   `json:"compounded_tax,omitempty"`
+	Description string `json:"description,omitempty"`
+	// Quantity is a decimal string on read (every captured and documented
+	// bill response quotes it, e.g. "1"), but the create/update request
+	// sends it as a bare JSON number (see BillLineRequest.Quantity) -- a
+	// genuine read/write asymmetry, not a mistake to unify.
+	Quantity string `json:"quantity,omitempty"`
+	UnitCost Money  `json:"unit_cost,omitzero"`
+	Amount   Money  `json:"amount,omitzero"`
+	// CategoryID is populated only if the response happens to carry a bare
+	// categoryid key; every captured bill line instead carries a nested
+	// Category object with no top-level categoryid, so this is 0 on real
+	// reads today. Kept for parity with the write side (BillLineRequest).
+	CategoryID int64            `json:"categoryid,omitempty"`
+	Category   *ExpenseCategory `json:"category,omitempty"`
+	TaxName1   string           `json:"tax_name1,omitempty"`
+	TaxName2   string           `json:"tax_name2,omitempty"`
+	// TaxPercent1 and TaxPercent2 are decimal strings (e.g. "6.25"),
+	// matching the Expense.TaxPercent1/2 precedent: no captured or
+	// documented response shows a populated value, and an int cannot
+	// represent a 2-decimal percentage.
+	TaxPercent1   *string `json:"tax_percent1,omitempty"`
+	TaxPercent2   *string `json:"tax_percent2,omitempty"`
+	TaxAmount1    Money   `json:"tax_amount1,omitzero"`
+	TaxAmount2    Money   `json:"tax_amount2,omitzero"`
+	CompoundedTax bool    `json:"compounded_tax,omitempty"`
 }
 
 // Bill is a vendor bill.
@@ -57,6 +70,9 @@ type Bill struct {
 	TaxAmount   Money `json:"tax_amount,omitzero"`
 	// Lines are the bill's line items.
 	Lines []BillLine `json:"lines,omitempty"`
+	// Attachment is the bill's receipt image, when one was uploaded.
+	// Reuses ExpenseAttachment: the captured shape is identical.
+	Attachment *ExpenseAttachment `json:"attachment,omitempty"`
 	// BillPayments are the payments recorded against this bill.
 	BillPayments []BillPayment `json:"bill_payments,omitempty"`
 	// CreatedAt and UpdatedAt are account-local timestamps.

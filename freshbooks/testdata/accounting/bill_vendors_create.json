@@ -20,6 +20,8 @@
         "language": "en",
         "is_1099": false,
         "tax_defaults": [],
+        "outstanding_balance": [],
+        "overdue_balance": [],
         "created_at": "2026-08-22 04:32:55",
         "updated_at": "2026-08-22 04:32:55",
         "vis_state": 0

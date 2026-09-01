@@ -10,18 +10,33 @@
         "due_offset_days": 30,
         "currency_code": "USD",
         "status": "unpaid",
-        "amount": { "amount": "375.00", "code": "USD" },
-        "total_amount": { "amount": "375.00", "code": "USD" },
-        "outstanding": { "amount": "375.00", "code": "USD" },
+        "amount": { "amount": "125.00", "code": "USD" },
+        "total_amount": { "amount": "125.00", "code": "USD" },
+        "outstanding": { "amount": "125.00", "code": "USD" },
         "paid": { "amount": "0.00", "code": "USD" },
         "tax_amount": { "amount": "0.00", "code": "USD" },
+        "attachment": null,
         "lines": [
           {
+            "id": 13,
             "description": "Widgets",
-            "quantity": 3,
+            "quantity": "3",
             "unit_cost": { "amount": "125.00", "code": "USD" },
-            "amount": { "amount": "375.00", "code": "USD" },
-            "categoryid": 65773
+            "amount": { "amount": "125.00", "code": "USD" },
+            "category": {
+              "id": 65773,
+              "categoryid": 65773,
+              "category": "Office Expenses & Postage",
+              "is_cogs": false,
+              "is_editable": false,
+              "created_at": "2026-08-22 04:32:55",
+              "updated_at": "2026-08-22 04:32:55",
+              "vis_state": 0
+            },
+            "tax_name1": null,
+            "tax_name2": null,
+            "tax_percent1": null,
+            "tax_percent2": null
           }
         ],
         "bill_payments": [],

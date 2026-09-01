@@ -29,6 +29,9 @@ func TestBillsList(t *testing.T) {
 		if len(page.Items) != 1 || page.Items[0].VendorID != 5 {
 			t.Fatalf("page = %+v", page)
 		}
+		if len(page.Items[0].Lines) != 1 || page.Items[0].Lines[0].Quantity != "1" {
+			t.Fatalf("lines = %+v", page.Items[0].Lines)
+		}
 	})
 
 	t.Run("[sad] a 404 is ErrNotFound", func(t *testing.T) {
@@ -83,6 +86,13 @@ func TestBillsCreate(t *testing.T) {
 		}
 		if bill.ID != 7 || len(bill.Lines) != 1 {
 			t.Fatalf("bill = %+v", bill)
+		}
+		line := bill.Lines[0]
+		if line.Quantity != "3" {
+			t.Fatalf("line.Quantity = %q, want the quoted string FreshBooks actually returns", line.Quantity)
+		}
+		if line.Category == nil || line.Category.Category != "Office Expenses & Postage" {
+			t.Fatalf("line.Category = %+v", line.Category)
 		}
 	})
 

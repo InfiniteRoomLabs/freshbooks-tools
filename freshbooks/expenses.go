@@ -11,10 +11,12 @@ import (
 type ExpensesService struct{ client *Client }
 
 // ExpenseAttachment is a receipt image already uploaded via the images
-// endpoint (batch d), referenced by its JWT.
+// endpoint (batch d), referenced by its JWT. AttachmentID and ID are numeric
+// on read (every captured expense response sends them as bare JSON
+// numbers); ExpenseAttachmentRequest keeps its own JWT-only write shape.
 type ExpenseAttachment struct {
-	AttachmentID string `json:"attachmentid,omitempty"`
-	ID           string `json:"id,omitempty"`
+	AttachmentID int64  `json:"attachmentid,omitempty"`
+	ID           int64  `json:"id,omitempty"`
 	JWT          string `json:"jwt,omitempty"`
 	MediaType    string `json:"media_type,omitempty"`
 }
@@ -29,8 +31,11 @@ type Expense struct {
 	Amount Money `json:"amount"`
 	// Date is when the expense was incurred.
 	Date Date `json:"date"`
-	// CategoryID files the expense under a category.
-	CategoryID int64 `json:"categoryid,omitempty"`
+	// CategoryID files the expense under a category; Category is the same
+	// category as a full nested object, present alongside CategoryID on
+	// every captured response.
+	CategoryID int64            `json:"categoryid,omitempty"`
+	Category   *ExpenseCategory `json:"category,omitempty"`
 	// ClientID bills this expense to a client, when set.
 	ClientID int64 `json:"clientid,omitempty"`
 	// ProjectID associates the expense with a project, when set.
@@ -66,6 +71,18 @@ type Expense struct {
 	MarkupPercent string `json:"markup_percent,omitempty"`
 	// Attachment is the receipt image, when one was uploaded.
 	Attachment *ExpenseAttachment `json:"attachment,omitempty"`
+	// TransactionID links this expense to a bank transaction, when FreshBooks
+	// matched one.
+	TransactionID *int64 `json:"transactionid,omitempty"`
+	// IsDuplicate reports whether FreshBooks flagged this expense as a
+	// likely duplicate of another.
+	IsDuplicate *bool `json:"isduplicate,omitempty"`
+	// FromBulkImport reports whether this expense came from a bulk import
+	// rather than being entered individually.
+	FromBulkImport *bool `json:"from_bulk_import,omitempty"`
+	// ProfileID links this expense back to the ExpenseProfile that
+	// generated it, when it was created by a recurring-expense schedule.
+	ProfileID *int64 `json:"profileid,omitempty"`
 	// Updated is the account-local last-modified timestamp.
 	Updated DateTime `json:"updated,omitempty"`
 	// VisState is the expense's visibility state.
