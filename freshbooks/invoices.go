@@ -100,13 +100,39 @@ type Invoice struct {
 	// Status is FreshBooks' numeric invoice status; DisplayStatus and
 	// V3Status are its human-readable derivatives ("draft", "sent",
 	// "overdue", ...).
-	Status        int    `json:"status"`
-	DisplayStatus string `json:"display_status,omitempty"`
-	V3Status      string `json:"v3_status,omitempty"`
-	PaymentStatus string `json:"payment_status,omitempty"`
+	Status         int     `json:"status"`
+	DisplayStatus  string  `json:"display_status,omitempty"`
+	V3Status       string  `json:"v3_status,omitempty"`
+	PaymentStatus  string  `json:"payment_status,omitempty"`
+	AutobillStatus *string `json:"autobill_status,omitempty"`
+	DisputeStatus  *string `json:"dispute_status,omitempty"`
+	// DepositStatus is a status string too, but FreshBooks always sends it
+	// ("none" when no deposit applies) rather than omitting it.
+	DepositStatus     string  `json:"deposit_status,omitempty"`
+	DepositPercentage *string `json:"deposit_percentage,omitempty"`
+	LastOrderStatus   *string `json:"last_order_status,omitempty"`
 	// VisState is the visibility state; VisStateDeleted marks a
 	// soft-deleted invoice.
 	VisState VisState `json:"vis_state"`
+	// UUID and Version are documented response fields with no captured
+	// example in this batch's fixture source; Version looks like an
+	// optimistic-concurrency token (docs example:
+	// "2021-07-05 08:17:47.399872", not one of this package's three known
+	// timestamp layouts), so it stays a plain string rather than a
+	// DateTime this library cannot parse.
+	UUID    string `json:"uuid,omitempty"`
+	Version string `json:"version,omitempty"`
+	// BasecampID, ExtArchive, and SentID are always-present integers in
+	// every captured response (0/0/1 in the fixture); GMail is likewise
+	// always present.
+	BasecampID int64 `json:"basecampid,omitempty"`
+	ExtArchive int64 `json:"ext_archive,omitempty"`
+	SentID     int64 `json:"sentid,omitempty"`
+	GMail      bool  `json:"gmail"`
+	// NetPaidAmount is a documented response field with no captured
+	// example; modeled as a nullable Money like this struct's other
+	// *_amount fields (DepositAmount) rather than confirmed.
+	NetPaidAmount *Money `json:"net_paid_amount,omitempty"`
 
 	CreateDate      Date     `json:"create_date"`
 	DueDate         Date     `json:"due_date,omitempty"`
@@ -443,13 +469,38 @@ func (s *InvoicesService) ShareLink(ctx context.Context, acct AccountID, id int6
 
 // PaymentOptionsRequest configures which payment methods FreshBooks Payments
 // accepts for an invoice or invoice profile. Every FreshBooks example sends
-// all three booleans explicitly, including false -- this is a toggle
-// endpoint, so an omitted field means "leave it as it is", not "off".
+// every boolean explicitly, including false -- this is a toggle endpoint,
+// so an omitted field means "leave it as it is", not "off".
 type PaymentOptionsRequest struct {
-	GatewayName          string `json:"gateway_name,omitempty"`
-	HasCreditCard        bool   `json:"has_credit_card"`
-	HasACHTransfer       bool   `json:"has_ach_transfer"`
-	AllowPartialPayments bool   `json:"allow_partial_payments"`
+	GatewayName            string `json:"gateway_name,omitempty"`
+	HasCreditCard          bool   `json:"has_credit_card"`
+	HasACHTransfer         bool   `json:"has_ach_transfer"`
+	HasBACSDebit           bool   `json:"has_bacs_debit"`
+	HasSEPADebit           bool   `json:"has_sepa_debit"`
+	HasPayPalSmartCheckout bool   `json:"has_paypal_smart_checkout"`
+	AllowPartialPayments   bool   `json:"allow_partial_payments"`
+}
+
+// paymentOptionsBody is the wire payload EnablePaymentOptions sends for both
+// invoices and invoice profiles. FreshBooks' /api/online-payments docs page
+// gives one worked example, for the invoice variant:
+//
+//	{"gateway_name":"stripe","entity_id":2168250,"entity_type":"invoice","has_credit_card":true}
+//
+// entity_id is a bare JSON number there (the response later echoes it back
+// quoted as a string, so a read model must not reuse this write type), and
+// entity_type is singular ("invoice") despite the docs field table
+// describing it as plural ("invoices") -- every request, response, and
+// query example on the page agrees with the singular form, so that is what
+// this library sends. The Postman example for the same endpoint omits both
+// fields entirely; per CLAUDE.md's inferred-vs-confirmed rule the docs win
+// (see spec section 3's STATE AS OF 2026-09-01 callout). The invoice-profile
+// entity_type ("invoice_profile") has no docs or Postman example at all and
+// is INFERRED by analogy.
+type paymentOptionsBody struct {
+	PaymentOptionsRequest
+	EntityType string `json:"entity_type"`
+	EntityID   int64  `json:"entity_id"`
 }
 
 // EnablePaymentOptions turns on FreshBooks Payments for an invoice: which
@@ -464,7 +515,8 @@ func (s *InvoicesService) EnablePaymentOptions(ctx context.Context, acct Account
 		return err
 	}
 	path := fmt.Sprintf("/payments/account/%s/invoice/%d/payment_options", acct, id)
-	return s.client.do(ctx, http.MethodPost, path, FamilyBusiness, req, nil)
+	body := paymentOptionsBody{PaymentOptionsRequest: *req, EntityType: "invoice", EntityID: id}
+	return s.client.do(ctx, http.MethodPost, path, FamilyBusiness, body, nil)
 }
 
 // InvoicePresentationDefaults is the account's default branding, applied to

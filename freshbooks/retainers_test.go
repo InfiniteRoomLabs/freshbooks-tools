@@ -12,7 +12,7 @@ import (
 func TestRetainersList(t *testing.T) {
 	ctx := context.Background()
 
-	t.Run("[happy] decodes the flat list and its meta block", func(t *testing.T) {
+	t.Run("[happy] decodes the flat list; the response carries no meta block", func(t *testing.T) {
 		var gotPath string
 		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			gotPath = r.URL.Path
@@ -25,8 +25,14 @@ func TestRetainersList(t *testing.T) {
 		if gotPath != "/comments/business/8675309/retainers" {
 			t.Fatalf("path = %q", gotPath)
 		}
-		if len(page.Items) != 2 || page.Total != 2 {
+		if len(page.Items) != 2 {
 			t.Fatalf("page = %+v", page)
+		}
+		// The fixture matches FreshBooks' captured example, which has no
+		// "meta" block; Total stays zero-valued rather than asserting a
+		// pagination fact no evidence supports (see List's doc comment).
+		if page.Total != 0 {
+			t.Fatalf("page.Total = %d, want 0 (no meta block in the response)", page.Total)
 		}
 	})
 

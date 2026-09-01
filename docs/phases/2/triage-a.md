@@ -32,3 +32,9 @@ Lead triage of the three read-only lane reports (`a-code-review.md` REQUEST CHAN
 ## Lane verdict reconciliation
 
 No lane-vs-lane conflicts. Security PASS stands; its A1 is promoted to a fix (F16) by lead choice because it is pattern-setting for b/c/d. Review's six blockers are all real wire-behavior defects; simplify's four recommendations are behavior-preserving and land in the same commit so later batches inherit the shared seams.
+
+## F16 deviation record (added post-QA, G7)
+
+F16 as written asked for two things in `resolve`: reject a path whose parsed segments contain `.`/`..`, and reject one whose `ref.RawQuery` is non-empty "when the path was built from caller-supplied IDs". Only the first half landed as a central `resolve` guard (`noTraversal`); the second half was deliberately not implemented as a blanket rule, because `Invoices.ShareLink` legitimately builds its own `?share_method=share_link` query string into the path it hands to `resolve` -- a blanket "reject any RawQuery" would have broken that call, which is correct and already covered by a passing test.
+
+The security property F16 was protecting still holds, by a different route: `pathSegment` rejects `/`, `?`, `#`, and `..` in every caller-supplied identifier (`AccountID`, checkout-link ids) before it is ever interpolated into a path string, so a caller-supplied value can never introduce a query parameter in the first place -- only the library's own literal path templates (like `ShareLink`'s) ever carry one, and those are reviewed source, not caller input. QA (`docs/phases/2/reports/a-qa.md`, ADV-6) traced every path builder in the batch and confirmed no gap: retainers interpolate `BusinessID`, a typed `int64` whose `String()` only emits decimal digits, so they were left out of `pathSegment` validation entirely (documented in `retainers.go`'s file-level comment) rather than validated redundantly.

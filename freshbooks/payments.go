@@ -18,23 +18,27 @@ import (
 
 // Payment is a record of money received against an invoice.
 type Payment struct {
-	ID                 int64    `json:"id"`
-	LogID              int64    `json:"logid"`
-	AccountingSystemID string   `json:"accounting_systemid,omitempty"`
-	ClientID           int64    `json:"clientid"`
-	InvoiceID          int64    `json:"invoiceid"`
-	Amount             Money    `json:"amount"`
-	Date               Date     `json:"date"`
-	Type               string   `json:"type"`
-	Note               string   `json:"note,omitempty"`
-	Gateway            *string  `json:"gateway,omitempty"`
-	OrderID            *string  `json:"orderid,omitempty"`
-	TransactionID      *string  `json:"transactionid,omitempty"`
-	CreditID           *int64   `json:"creditid,omitempty"`
-	OverpaymentID      *int64   `json:"overpaymentid,omitempty"`
-	FromCredit         bool     `json:"from_credit"`
-	Updated            DateTime `json:"updated,omitempty"`
-	VisState           VisState `json:"vis_state"`
+	ID                 int64   `json:"id"`
+	LogID              int64   `json:"logid"`
+	AccountingSystemID string  `json:"accounting_systemid,omitempty"`
+	ClientID           int64   `json:"clientid"`
+	InvoiceID          int64   `json:"invoiceid"`
+	Amount             Money   `json:"amount"`
+	Date               Date    `json:"date"`
+	Type               string  `json:"type"`
+	Note               string  `json:"note,omitempty"`
+	Gateway            *string `json:"gateway,omitempty"`
+	OrderID            *string `json:"orderid,omitempty"`
+	// TransactionID is the gateway's transaction id. FreshBooks' docs type
+	// it int (deprecated field, but still typed); every captured example
+	// has it null, so this was INFERRED as *string until QA caught it
+	// against the docs -- it is *int64.
+	TransactionID *int64   `json:"transactionid,omitempty"`
+	CreditID      *int64   `json:"creditid,omitempty"`
+	OverpaymentID *int64   `json:"overpaymentid,omitempty"`
+	FromCredit    bool     `json:"from_credit"`
+	Updated       DateTime `json:"updated,omitempty"`
+	VisState      VisState `json:"vis_state"`
 }
 
 type paymentEnvelope struct {
@@ -291,18 +295,19 @@ func (s *PaymentsService) DeleteCheckoutLink(ctx context.Context, acct AccountID
 }
 
 // checkoutLinkGatewayRequest is the wire payload for
-// UpdateCheckoutLinkGateway. Unlike PaymentOptionsRequest (used for
-// invoices and invoice profiles), FreshBooks' only captured example for
-// this endpoint also sends entity_type and entity_id identifying which
-// checkout link is being configured; UpdateCheckoutLinkGateway builds this
-// from its id argument rather than asking the caller to repeat it.
+// UpdateCheckoutLinkGateway. It embeds PaymentOptionsRequest so every
+// payment-method boolean travels with it (unlike the entity fields below,
+// FreshBooks' only captured example for this endpoint agrees with the
+// invoice variant's docs on the boolean set), and adds entity_type/
+// entity_id identifying which checkout link is being configured;
+// UpdateCheckoutLinkGateway builds those two from its id argument rather
+// than asking the caller to repeat it. Unlike paymentOptionsBody's
+// entity_id (an invoice or invoice-profile id, always numeric), a
+// checkout-link id is a string.
 type checkoutLinkGatewayRequest struct {
-	GatewayName          string `json:"gateway_name,omitempty"`
-	HasCreditCard        bool   `json:"has_credit_card"`
-	HasACHTransfer       bool   `json:"has_ach_transfer"`
-	AllowPartialPayments bool   `json:"allow_partial_payments"`
-	EntityType           string `json:"entity_type"`
-	EntityID             string `json:"entity_id"`
+	PaymentOptionsRequest
+	EntityType string `json:"entity_type"`
+	EntityID   string `json:"entity_id"`
 }
 
 // UpdateCheckoutLinkGateway configures which FreshBooks Payments gateway and
@@ -320,14 +325,7 @@ func (s *PaymentsService) UpdateCheckoutLinkGateway(ctx context.Context, acct Ac
 		return err
 	}
 	path := fmt.Sprintf("/payments/account/%s/checkout_link/%s/payment_options", acct, id)
-	body := checkoutLinkGatewayRequest{
-		GatewayName:          req.GatewayName,
-		HasCreditCard:        req.HasCreditCard,
-		HasACHTransfer:       req.HasACHTransfer,
-		AllowPartialPayments: req.AllowPartialPayments,
-		EntityType:           "checkout_link",
-		EntityID:             id,
-	}
+	body := checkoutLinkGatewayRequest{PaymentOptionsRequest: *req, EntityType: "checkout_link", EntityID: id}
 	return s.client.do(ctx, http.MethodPost, path, FamilyBusiness, body, nil)
 }
 

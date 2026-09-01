@@ -23,13 +23,16 @@ type Item struct {
 	SKU                string `json:"sku,omitempty"`
 	// Qty and Inventory are decimal strings, matching how FreshBooks sends
 	// them.
-	Qty       string   `json:"qty,omitempty"`
-	Inventory string   `json:"inventory,omitempty"`
-	UnitCost  Money    `json:"unit_cost"`
-	Tax1      float64  `json:"tax1,omitempty"`
-	Tax2      float64  `json:"tax2,omitempty"`
-	Updated   DateTime `json:"updated,omitempty"`
-	VisState  VisState `json:"vis_state"`
+	Qty       string `json:"qty,omitempty"`
+	Inventory string `json:"inventory,omitempty"`
+	UnitCost  Money  `json:"unit_cost"`
+	// Tax1 and Tax2 are the ids of the item's default taxes (FreshBooks'
+	// docs: "id of default tax for the item"), not rates -- QA caught this
+	// modeled as a float64.
+	Tax1     *int64   `json:"tax1,omitempty"`
+	Tax2     *int64   `json:"tax2,omitempty"`
+	Updated  DateTime `json:"updated,omitempty"`
+	VisState VisState `json:"vis_state"`
 }
 
 type itemEnvelope struct {

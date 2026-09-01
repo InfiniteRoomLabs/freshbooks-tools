@@ -60,6 +60,13 @@ type InvoiceProfile struct {
 	SendGmail           bool   `json:"send_gmail"`
 	DueOffsetDays       int    `json:"due_offset_days,omitempty"`
 	RetainerID          *int64 `json:"retainer_id,omitempty"`
+	// ExtArchive is FreshBooks' deprecated 0/1 archived flag, nullable in
+	// the captured example.
+	ExtArchive *int64 `json:"ext_archive,omitempty"`
+	// TotalAccruedRevenue is a documented field with no captured example
+	// showing a non-null value or a docs type; modeled as a nullable Money
+	// like this struct's Amount/DiscountTotal rather than confirmed.
+	TotalAccruedRevenue *Money `json:"total_accrued_revenue,omitempty"`
 
 	CreateDate   Date     `json:"create_date"`
 	Updated      DateTime `json:"updated,omitempty"`
@@ -249,7 +256,9 @@ func (s *InvoiceProfilesService) Delete(ctx context.Context, acct AccountID, id 
 }
 
 // EnablePaymentOptions turns on FreshBooks Payments for a recurring invoice
-// profile: which gateway to use, and which payment methods it accepts.
+// profile: which gateway to use, and which payment methods it accepts. See
+// paymentOptionsBody's doc comment (invoices.go) for the entity_type/
+// entity_id fields this sends and why.
 //
 // inventory: Invoices/Invoice Recurring Template/Enable Payment Options On Invoice Profile
 func (s *InvoiceProfilesService) EnablePaymentOptions(ctx context.Context, acct AccountID, id int64, req *PaymentOptionsRequest) error {
@@ -260,7 +269,8 @@ func (s *InvoiceProfilesService) EnablePaymentOptions(ctx context.Context, acct 
 		return err
 	}
 	path := fmt.Sprintf("/payments/account/%s/invoice_profile/%d/payment_options", acct, id)
-	return s.client.do(ctx, http.MethodPost, path, FamilyBusiness, req, nil)
+	body := paymentOptionsBody{PaymentOptionsRequest: *req, EntityType: "invoice_profile", EntityID: id}
+	return s.client.do(ctx, http.MethodPost, path, FamilyBusiness, body, nil)
 }
 
 func invoiceProfilesPath(acct AccountID) (string, error) {

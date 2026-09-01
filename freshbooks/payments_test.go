@@ -77,6 +77,23 @@ func TestPaymentsGet(t *testing.T) {
 		}
 	})
 
+	t.Run("[happy] a non-null numeric transactionid decodes as *int64", func(t *testing.T) {
+		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"response": {"result": {"payment": {
+				"id": 5003, "invoiceid": 90001, "clientid": 55001, "amount": {"amount": "10.00", "code": "USD"},
+				"date": "2026-08-24", "type": "Credit Card", "transactionid": 4457812
+			}}}}`))
+		}))
+		p, err := c.Payments.Get(ctx, "ACM123", 5003)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if p.TransactionID == nil || *p.TransactionID != 4457812 {
+			t.Fatalf("TransactionID = %v, want *int64(4457812)", p.TransactionID)
+		}
+	})
+
 	t.Run("[sad] a 404 propagates as ErrNotFound", func(t *testing.T) {
 		c, _ := newTestClient(t, serveFixture(t, http.StatusNotFound, "accounting", "error_404"))
 		if _, err := c.Payments.Get(ctx, "ACM123", 1); !errors.Is(err, ErrNotFound) {

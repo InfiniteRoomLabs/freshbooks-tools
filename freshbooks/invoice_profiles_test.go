@@ -75,6 +75,9 @@ func TestInvoiceProfilesGet(t *testing.T) {
 		if p.CustomerID != 55001 || p.Frequency != "m" {
 			t.Fatalf("profile = %+v", p)
 		}
+		if p.ExtArchive != nil || p.TotalAccruedRevenue != nil {
+			t.Fatalf("profile = %+v, want the null docs-only fields to decode as nil pointers", p)
+		}
 	})
 
 	t.Run("[sad] a 404 propagates as ErrNotFound", func(t *testing.T) {
@@ -189,8 +192,11 @@ func TestInvoiceProfilesEnablePaymentOptions(t *testing.T) {
 
 	t.Run("[happy] posts the gateway payload", func(t *testing.T) {
 		var gotPath string
+		var gotBody map[string]any
 		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			gotPath = r.URL.Path
+			raw, _ := io.ReadAll(r.Body)
+			_ = json.Unmarshal(raw, &gotBody)
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`{"payment_options": {"gateway_name": "stripe"}}`))
 		}))
@@ -200,6 +206,9 @@ func TestInvoiceProfilesEnablePaymentOptions(t *testing.T) {
 		}
 		if gotPath != "/payments/account/ACM123/invoice_profile/700/payment_options" {
 			t.Fatalf("path = %q", gotPath)
+		}
+		if gotBody["entity_type"] != "invoice_profile" || gotBody["entity_id"] != float64(700) {
+			t.Fatalf("body = %v, want entity_type \"invoice_profile\" and entity_id 700", gotBody)
 		}
 	})
 

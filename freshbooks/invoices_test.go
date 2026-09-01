@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"sync/atomic"
 	"testing"
 )
 
@@ -92,6 +93,18 @@ func TestInvoicesGet(t *testing.T) {
 		}
 		if inv.InvoiceID != 90001 || inv.CustomerID != 55001 {
 			t.Fatalf("invoice = %+v", inv)
+		}
+		if inv.UUID == "" || inv.Version == "" {
+			t.Fatalf("invoice = %+v, want UUID and Version decoded", inv)
+		}
+		if inv.SentID != 1 || inv.BasecampID != 0 || inv.ExtArchive != 0 || inv.GMail != false {
+			t.Fatalf("invoice = %+v", inv)
+		}
+		if inv.DepositStatus != "none" {
+			t.Fatalf("invoice = %+v", inv)
+		}
+		if inv.AutobillStatus != nil || inv.DisputeStatus != nil || inv.DepositPercentage != nil || inv.LastOrderStatus != nil || inv.NetPaidAmount != nil {
+			t.Fatalf("invoice = %+v, want the null docs-only fields to decode as nil pointers", inv)
 		}
 	})
 
@@ -327,6 +340,31 @@ func TestInvoicesPDF(t *testing.T) {
 			t.Fatal("want an error")
 		}
 	})
+
+	t.Run("[happy] a 429 with Retry-After is retried, proving PDF shares do's retry loop", func(t *testing.T) {
+		var hits atomic.Int32
+		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			if hits.Add(1) == 1 {
+				w.Header().Set("Retry-After", "0")
+				w.WriteHeader(http.StatusTooManyRequests)
+				_, _ = w.Write([]byte(`{"error": "rate limited"}`))
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("%PDF-1.4 fake pdf bytes"))
+		}), WithRetry(testRetry(2)))
+
+		raw, err := c.Invoices.PDF(ctx, "ACM123", 90001)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if hits.Load() != 2 {
+			t.Fatalf("hits = %d, want 2 attempts", hits.Load())
+		}
+		if string(raw) != "%PDF-1.4 fake pdf bytes" {
+			t.Fatalf("raw = %q", raw)
+		}
+	})
 }
 
 func TestInvoicesShareLink(t *testing.T) {
@@ -384,6 +422,9 @@ func TestInvoicesEnablePaymentOptions(t *testing.T) {
 		}
 		if gotBody["gateway_name"] != "fbpay" || gotBody["has_credit_card"] != true {
 			t.Fatalf("body = %v", gotBody)
+		}
+		if gotBody["entity_type"] != "invoice" || gotBody["entity_id"] != float64(90001) {
+			t.Fatalf("body = %v, want entity_type \"invoice\" and entity_id 90001", gotBody)
 		}
 	})
 
