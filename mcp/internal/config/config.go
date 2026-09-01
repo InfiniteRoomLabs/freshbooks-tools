@@ -91,7 +91,11 @@ func stringFlag(cmd *cobra.Command, name, env string) string {
 	if cmd.Flags().Changed(name) {
 		return f.Value.String()
 	}
-	if v, ok := os.LookupEnv(env); ok {
+	// An env var explicitly set to "" is treated as unset, not as the
+	// user's chosen empty value: every flag this resolves through has a
+	// sensible non-empty default, and a stray empty env var should not
+	// silently defeat it.
+	if v, ok := os.LookupEnv(env); ok && v != "" {
 		return v
 	}
 	return f.Value.String()
