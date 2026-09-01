@@ -21,12 +21,6 @@
 //go:inventory-todo Accounting/Other Income/Delete Single Other Income -- phase-2
 //go:inventory-todo Accounting/Other Income/List Other Income -- phase-2
 //go:inventory-todo Accounting/Other Income/Update Single Other Income -- phase-2
-//go:inventory-todo Clients/Credits/Create Credit Note -- phase-2
-//go:inventory-todo Clients/Credits/Create Prepayment Credit -- phase-2
-//go:inventory-todo Clients/Credits/Delete Credit -- phase-2
-//go:inventory-todo Clients/Credits/List Credits -- phase-2
-//go:inventory-todo Clients/Credits/Update Credit Note -- phase-2
-//go:inventory-todo Clients/Credits/Update Prepayment Credit -- phase-2
 //go:inventory-todo Clients/Delete Secondary  Contact ID -- phase-2
 //go:inventory-todo Clients/Edit Secondary Contact ID -- phase-2
 //go:inventory-todo Clients/List Clients -- phase-2

@@ -26,9 +26,6 @@ type ItemsService struct{ client *Client }
 // BillableItemsService is the billable-items resource.
 type BillableItemsService struct{ client *Client }
 
-// CreditNotesService is the client-credits resource.
-type CreditNotesService struct{ client *Client }
-
 // OtherIncomeService is the other-income resource.
 type OtherIncomeService struct{ client *Client }
 

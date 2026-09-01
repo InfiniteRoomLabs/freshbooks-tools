@@ -1,0 +1,21 @@
+{
+  "response": {
+    "result": {
+      "credit_note": {
+        "id": 30947,
+        "creditid": 30947,
+        "clientid": 55001,
+        "credit_number": "0000069",
+        "credit_type": "goodwill",
+        "currency_code": "USD",
+        "create_date": "2026-08-22",
+        "notes": "Updated notes",
+        "amount": { "amount": "150.00", "code": "USD" },
+        "paid": { "amount": "150.00", "code": "USD" },
+        "display_status": "created",
+        "payment_status": "paid",
+        "vis_state": 0
+      }
+    }
+  }
+}
