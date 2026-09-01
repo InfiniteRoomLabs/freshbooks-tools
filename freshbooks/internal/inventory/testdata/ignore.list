@@ -42,12 +42,6 @@
 //go:inventory-todo Estimates/Single Estimate -- phase-2
 //go:inventory-todo Estimates/Single Estimate With Estimate Lines -- phase-2
 //go:inventory-todo Estimates/Update Estimate -- phase-2
-//go:inventory-todo Expenses/Bills (Beta)/Add Bill from Vendor -- phase-2
-//go:inventory-todo Expenses/Bills (Beta)/Add Payment to Bill -- phase-2
-//go:inventory-todo Expenses/Bills (Beta)/Archive Bill -- phase-2
-//go:inventory-todo Expenses/Bills (Beta)/Delete Bill -- phase-2
-//go:inventory-todo Expenses/Bills (Beta)/Edit Payment to Bill -- phase-2
-//go:inventory-todo Expenses/Bills (Beta)/Get Bills -- phase-2
 //go:inventory-todo Expenses/Create Custom Expense Category -- phase-2
 //go:inventory-todo Expenses/Create Expense -- phase-2
 //go:inventory-todo Expenses/Create Expense with Receipt -- phase-2
@@ -62,10 +56,6 @@
 //go:inventory-todo Expenses/Update Expense -- phase-2
 //go:inventory-todo Expenses/Update Expense with Receipt -- phase-2
 //go:inventory-todo Expenses/Upload Expense Receipt Image/Upload Receipt Image -- phase-2
-//go:inventory-todo Expenses/Vendors (Beta)/Add Vendor -- phase-2
-//go:inventory-todo Expenses/Vendors (Beta)/Delete Vendor -- phase-2
-//go:inventory-todo Expenses/Vendors (Beta)/Edit Vendor Details -- phase-2
-//go:inventory-todo Expenses/Vendors (Beta)/Get Vendors -- phase-2
 //go:inventory-todo Invoices/Other Income/Create Single Other Income -- phase-2
 //go:inventory-todo Invoices/Other Income/Delete Single Other Income -- phase-2
 //go:inventory-todo Invoices/Other Income/List Other Income -- phase-2

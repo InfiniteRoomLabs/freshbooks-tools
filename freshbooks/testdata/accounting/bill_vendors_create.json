@@ -1,0 +1,29 @@
+{
+  "response": {
+    "result": {
+      "bill_vendor": {
+        "vendorid": 5,
+        "vendor_name": "Example Supplies Co",
+        "account_number": "45454545",
+        "primary_contact_first_name": "Jamie",
+        "primary_contact_last_name": "Vendor",
+        "primary_contact_email": "vendor@example.com",
+        "street": "1 Example Ave.",
+        "street2": "",
+        "city": "Example City",
+        "province": "California",
+        "postal_code": "94000",
+        "country": "United States",
+        "phone": "4155550100",
+        "website": "example.com",
+        "currency_code": "USD",
+        "language": "en",
+        "is_1099": false,
+        "tax_defaults": [],
+        "created_at": "2026-08-22 04:32:55",
+        "updated_at": "2026-08-22 04:32:55",
+        "vis_state": 0
+      }
+    }
+  }
+}

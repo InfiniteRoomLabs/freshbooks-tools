@@ -32,15 +32,6 @@ type PaymentsService struct{ client *Client }
 // ItemsService is the items and services catalogue resource.
 type ItemsService struct{ client *Client }
 
-// BillsService is the vendor-bills resource.
-type BillsService struct{ client *Client }
-
-// BillPaymentsService is the payments-against-bills resource.
-type BillPaymentsService struct{ client *Client }
-
-// BillVendorsService is the vendors resource.
-type BillVendorsService struct{ client *Client }
-
 // BillableItemsService is the billable-items resource.
 type BillableItemsService struct{ client *Client }
 
