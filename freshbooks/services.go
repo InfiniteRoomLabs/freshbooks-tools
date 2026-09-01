@@ -32,9 +32,6 @@ type PaymentsService struct{ client *Client }
 // ItemsService is the items and services catalogue resource.
 type ItemsService struct{ client *Client }
 
-// TaxesService is the tax-rates resource.
-type TaxesService struct{ client *Client }
-
 // BillsService is the vendor-bills resource.
 type BillsService struct{ client *Client }
 

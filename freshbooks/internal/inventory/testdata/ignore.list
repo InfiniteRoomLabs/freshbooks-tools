@@ -21,11 +21,6 @@
 //go:inventory-todo Accounting/Other Income/Delete Single Other Income -- phase-2
 //go:inventory-todo Accounting/Other Income/List Other Income -- phase-2
 //go:inventory-todo Accounting/Other Income/Update Single Other Income -- phase-2
-//go:inventory-todo Accounting/Taxes/Create Single Tax -- phase-2
-//go:inventory-todo Accounting/Taxes/Delete Single Tax -- phase-2
-//go:inventory-todo Accounting/Taxes/Get Single Tax -- phase-2
-//go:inventory-todo Accounting/Taxes/List Taxes -- phase-2
-//go:inventory-todo Accounting/Taxes/Update Single Tax -- phase-2
 //go:inventory-todo Clients/Credits/Create Credit Note -- phase-2
 //go:inventory-todo Clients/Credits/Create Prepayment Credit -- phase-2
 //go:inventory-todo Clients/Credits/Delete Credit -- phase-2
@@ -57,20 +52,15 @@
 //go:inventory-todo Expenses/Create Expense -- phase-2
 //go:inventory-todo Expenses/Create Expense with Receipt -- phase-2
 //go:inventory-todo Expenses/Create Recurring Expense -- phase-2
-//go:inventory-todo Expenses/Create Single Tax -- phase-2
 //go:inventory-todo Expenses/Delete Expense -- phase-2
 //go:inventory-todo Expenses/Expense Summaries -- phase-2
 //go:inventory-todo Expenses/Expense Vendors -- phase-2
 //go:inventory-todo Expenses/List Expense Categories -- phase-2
 //go:inventory-todo Expenses/List Expenses -- phase-2
-//go:inventory-todo Expenses/List Taxes -- phase-2
 //go:inventory-todo Expenses/Single Expense -- phase-2
 //go:inventory-todo Expenses/Single Expense Category -- phase-2
-//go:inventory-todo Expenses/Single Tax (DELETE) -- phase-2
-//go:inventory-todo Expenses/Single Tax (GET) -- phase-2
 //go:inventory-todo Expenses/Update Expense -- phase-2
 //go:inventory-todo Expenses/Update Expense with Receipt -- phase-2
-//go:inventory-todo Expenses/Update Tax -- phase-2
 //go:inventory-todo Expenses/Upload Expense Receipt Image/Upload Receipt Image -- phase-2
 //go:inventory-todo Expenses/Vendors (Beta)/Add Vendor -- phase-2
 //go:inventory-todo Expenses/Vendors (Beta)/Delete Vendor -- phase-2
@@ -134,15 +124,10 @@
 //go:inventory-todo Settings/Developer/Upload App Logo -- phase-2
 //go:inventory-todo Settings/Gateways/List Gateways -- phase-2
 //go:inventory-todo Settings/Items and Services/Create Service -- phase-2
-//go:inventory-todo Settings/Items and Services/Create Single Tax -- phase-2
 //go:inventory-todo Settings/Items and Services/Get a Single Service -- phase-2
 //go:inventory-todo Settings/Items and Services/Get a Single Service Rate -- phase-2
 //go:inventory-todo Settings/Items and Services/List Services -- phase-2
-//go:inventory-todo Settings/Items and Services/List Taxes -- phase-2
 //go:inventory-todo Settings/Items and Services/Single Service -- phase-2
-//go:inventory-todo Settings/Items and Services/Single Tax (DELETE) -- phase-2
-//go:inventory-todo Settings/Items and Services/Single Tax (GET) -- phase-2
-//go:inventory-todo Settings/Items and Services/Update Tax -- phase-2
 //go:inventory-todo Settings/Systems/Get System -- phase-2
 //go:inventory-todo Time Tracking/Create a Time Entry -- phase-2
 //go:inventory-todo Time Tracking/Delete a Time Entry -- phase-2
