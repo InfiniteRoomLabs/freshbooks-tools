@@ -4,6 +4,9 @@
       "trial_balance": {
         "company_name": "Postman Sandbox",
         "currency_code": "USD",
+        "download_token": "tok_trial_balance",
+        "start_date": "2019-01-01",
+        "end_date": "2019-12-31",
         "data": [
           {
             "account_name": "Cash",

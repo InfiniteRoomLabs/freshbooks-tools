@@ -39,7 +39,8 @@
         },
         "manage_account_url": "https://wepay.example.test/account/15524535345",
         "currencies": ["CAD"],
-        "country": "CA"
+        "country": "CA",
+        "action_reasons": []
       },
       "stripe": {
         "id": "stripe-connection-id",
@@ -49,7 +50,8 @@
         "country": "CA",
         "currencies": ["CAD", "USD"],
         "publishable_key": "pk_test_example",
-        "bank_transfer_enabled": false
+        "bank_transfer_enabled": false,
+        "max_ach_fee": 5000
       },
       "paypal": null
     }

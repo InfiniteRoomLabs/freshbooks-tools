@@ -132,6 +132,11 @@ func journalEntriesPath(acct AccountID) (string, error) {
 // only example targets my.freshbooks.com, which the inventory tool rewrites
 // to the public path below; this has not been confirmed live.
 //
+// The current FreshBooks docs describe a different, newer
+// business_uuid-scoped journal-entries API; this method implements the
+// Postman-captured endpoint instead, per the parity contract -- see spec
+// 5.1's STATE AS OF 2026-09-01 callout.
+//
 // inventory: Accounting/Journal Entries/Add Journal Entry
 func (s *JournalEntriesService) Create(ctx context.Context, acct AccountID, req *JournalEntryCreateRequest) (*JournalEntry, error) {
 	if req == nil {

@@ -18,7 +18,7 @@ func TestReportsAccountsAging(t *testing.T) {
 	}))
 
 	t.Run("[happy] buckets a client's balance by age", func(t *testing.T) {
-		got, err := c.Reports.AccountsAging(ctx, "ACM123")
+		got, err := c.Reports.AccountsAging(ctx, "ACM123", nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -30,6 +30,22 @@ func TestReportsAccountsAging(t *testing.T) {
 		}
 		if got.Totals.Total.Amount != "4278.48" {
 			t.Fatalf("totals = %+v", got.Totals)
+		}
+	})
+
+	t.Run("[happy] date-range and currency options encode as bare query params", func(t *testing.T) {
+		var gotQuery string
+		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			gotQuery = r.URL.RawQuery
+			serveFixture(t, http.StatusOK, "reports", "accounts_aging")(w, r)
+		}))
+		if _, err := c.Reports.AccountsAging(ctx, "ACM123", &AccountsAgingOptions{
+			StartDate: "2019-01-01", EndDate: "2019-05-08", CurrencyCode: "USD",
+		}); err != nil {
+			t.Fatal(err)
+		}
+		if gotQuery != "currency_code=USD&end_date=2019-05-08&start_date=2019-01-01" {
+			t.Fatalf("query = %q", gotQuery)
 		}
 	})
 }
@@ -111,12 +127,28 @@ func TestReportsUnknownShapeReports(t *testing.T) {
 
 	t.Run("[happy] ExpenseDetails returns raw JSON", func(t *testing.T) {
 		c, _ := newTestClient(t, serveFixture(t, http.StatusOK, "reports", "expense_details"))
-		raw, err := c.Reports.ExpenseDetails(ctx, "ACM123")
+		raw, err := c.Reports.ExpenseDetails(ctx, "ACM123", nil)
 		if err != nil {
 			t.Fatal(err)
 		}
 		if len(raw) == 0 {
 			t.Fatal("want a non-empty raw payload")
+		}
+	})
+
+	t.Run("[happy] ExpenseDetails date-range and currency options encode as bare query params", func(t *testing.T) {
+		var gotQuery string
+		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			gotQuery = r.URL.RawQuery
+			serveFixture(t, http.StatusOK, "reports", "expense_details")(w, r)
+		}))
+		if _, err := c.Reports.ExpenseDetails(ctx, "ACM123", &ExpenseDetailsOptions{
+			StartDate: "2019-01-01", EndDate: "2019-12-31", CurrencyCode: "USD",
+		}); err != nil {
+			t.Fatal(err)
+		}
+		if gotQuery != "currency_code=USD&end_date=2019-12-31&start_date=2019-01-01" {
+			t.Fatalf("query = %q", gotQuery)
 		}
 	})
 }
@@ -176,12 +208,28 @@ func TestReportsInvoiceDetails(t *testing.T) {
 	c, _ := newTestClient(t, serveFixture(t, http.StatusOK, "reports", "invoice_details"))
 
 	t.Run("[happy] decodes the outstanding/paid/total summary", func(t *testing.T) {
-		got, err := c.Reports.InvoiceDetails(ctx, "ACM123")
+		got, err := c.Reports.InvoiceDetails(ctx, "ACM123", nil)
 		if err != nil {
 			t.Fatal(err)
 		}
 		if got.DateType != "issue" || got.Summary.Total.Amount != "0.00" {
 			t.Fatalf("got = %+v", got)
+		}
+	})
+
+	t.Run("[happy] docs-confirmed options encode as bare query params", func(t *testing.T) {
+		var gotQuery string
+		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			gotQuery = r.URL.RawQuery
+			serveFixture(t, http.StatusOK, "reports", "invoice_details")(w, r)
+		}))
+		if _, err := c.Reports.InvoiceDetails(ctx, "ACM123", &InvoiceDetailsOptions{
+			StartDate: "2019-01-01", EndDate: "2019-12-31", ClientIDs: "31006", StatusIDs: "paid", DateType: "issue",
+		}); err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(gotQuery, "clientids=31006") || !strings.Contains(gotQuery, "date_type=issue") {
+			t.Fatalf("query = %q", gotQuery)
 		}
 	})
 }
@@ -207,6 +255,15 @@ func TestReportsItemSales(t *testing.T) {
 		if len(got.Items) != 1 || got.Items[0].Invoices[0].Status != "overdue" {
 			t.Fatalf("got = %+v", got.Items)
 		}
+		if got.Total == nil || got.Total.Amount != "23320.00" || got.TotalDiscount == nil || got.TotalDiscount.Amount != "0.00" {
+			t.Fatalf("totals = %+v / %+v", got.Total, got.TotalDiscount)
+		}
+		if got.TotalQty != 20 {
+			t.Fatalf("TotalQty = %d, want the report-level bare number", got.TotalQty)
+		}
+		if got.StartDate != "2019-01-01" || len(got.StatusIDs) != 0 {
+			t.Fatalf("StartDate/StatusIDs = %q / %v", got.StartDate, got.StatusIDs)
+		}
 	})
 }
 
@@ -215,12 +272,28 @@ func TestReportsPaymentsCollected(t *testing.T) {
 	c, _ := newTestClient(t, serveFixture(t, http.StatusOK, "reports", "payments_collected"))
 
 	t.Run("[edge] an empty period has no payments or totals", func(t *testing.T) {
-		got, err := c.Reports.PaymentsCollected(ctx, "ACM123")
+		got, err := c.Reports.PaymentsCollected(ctx, "ACM123", nil)
 		if err != nil {
 			t.Fatal(err)
 		}
 		if len(got.Payments) != 0 || len(got.Totals) != 0 {
 			t.Fatalf("got = %+v", got)
+		}
+	})
+
+	t.Run("[happy] docs-confirmed options encode as bare query params", func(t *testing.T) {
+		var gotQuery string
+		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			gotQuery = r.URL.RawQuery
+			serveFixture(t, http.StatusOK, "reports", "payments_collected")(w, r)
+		}))
+		if _, err := c.Reports.PaymentsCollected(ctx, "ACM123", &PaymentsCollectedOptions{
+			StartDate: "2019-04-24", EndDate: "2019-04-24", Locale: "en-US", PaymentMethods: "credit_card",
+		}); err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(gotQuery, "locale=en-US") || !strings.Contains(gotQuery, "payment_methods=credit_card") {
+			t.Fatalf("query = %q", gotQuery)
 		}
 	})
 }
@@ -230,7 +303,7 @@ func TestReportsProfitLoss(t *testing.T) {
 	c, _ := newTestClient(t, serveFixture(t, http.StatusOK, "reports", "profit_loss"))
 
 	t.Run("[happy] the expense tree nests children", func(t *testing.T) {
-		got, err := c.Reports.ProfitLoss(ctx, "ACM123")
+		got, err := c.Reports.ProfitLoss(ctx, "ACM123", nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -242,6 +315,22 @@ func TestReportsProfitLoss(t *testing.T) {
 		}
 		if got.NetProfit.Total.Amount != "-141.12" {
 			t.Fatalf("net profit = %+v", got.NetProfit)
+		}
+	})
+
+	t.Run("[happy] date-range and currency options encode as bare query params", func(t *testing.T) {
+		var gotQuery string
+		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			gotQuery = r.URL.RawQuery
+			serveFixture(t, http.StatusOK, "reports", "profit_loss")(w, r)
+		}))
+		if _, err := c.Reports.ProfitLoss(ctx, "ACM123", &ProfitLossOptions{
+			StartDate: "2019-04-24", EndDate: "2019-04-24", CurrencyCode: "USD",
+		}); err != nil {
+			t.Fatal(err)
+		}
+		if gotQuery != "currency_code=USD&end_date=2019-04-24&start_date=2019-04-24" {
+			t.Fatalf("query = %q", gotQuery)
 		}
 	})
 }
@@ -313,6 +402,9 @@ func TestReportsTrialBalance(t *testing.T) {
 		if len(got.Data) != 2 || got.Data[0].Debit.Amount != "6350.55" {
 			t.Fatalf("got = %+v", got.Data)
 		}
+		if got.DownloadToken == "" || got.StartDate != "2019-01-01" || got.EndDate != "2019-12-31" {
+			t.Fatalf("DownloadToken/StartDate/EndDate = %q / %q / %q", got.DownloadToken, got.StartDate, got.EndDate)
+		}
 	})
 }
 
@@ -341,6 +433,12 @@ func TestReportsTimeEntryDetails(t *testing.T) {
 		if got.Meta.Total != 9 || got.Meta.PerPage != 30 {
 			t.Fatalf("meta = %+v", got.Meta)
 		}
+		if got.Meta.TotalLogged != 3 || got.Meta.TotalUnbilled != 2 {
+			t.Fatalf("meta totals = %+v", got.Meta)
+		}
+		if got.DownloadToken == "" {
+			t.Fatalf("DownloadToken did not decode: %+v", got)
+		}
 		if len(got.Abilities) != 1 || !got.Abilities[0].Abilities[0].Value {
 			t.Fatalf("abilities = %+v", got.Abilities)
 		}
@@ -365,7 +463,7 @@ func TestReportsRejectUnsafeAccountID(t *testing.T) {
 				called = true
 				w.WriteHeader(http.StatusOK)
 			}))
-			if _, err := c.Reports.AccountsAging(ctx, tc.acct); err == nil {
+			if _, err := c.Reports.AccountsAging(ctx, tc.acct, nil); err == nil {
 				t.Fatal("want an error")
 			}
 			if _, err := c.Reports.BalanceSheet(ctx, tc.acct, nil); err == nil {

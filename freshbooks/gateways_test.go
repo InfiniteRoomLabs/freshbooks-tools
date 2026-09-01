@@ -35,6 +35,12 @@ func TestGatewaysGet(t *testing.T) {
 		if conn.FBPay.BankInfo.BankName == "" || conn.FBPay.BankInfo.LastPaymentAmount != "1240.79" {
 			t.Fatalf("bank_info = %+v", conn.FBPay.BankInfo)
 		}
+		if conn.Stripe.MaxACHFee != 5000 {
+			t.Fatalf("MaxACHFee = %d, want the bare-number capture", conn.Stripe.MaxACHFee)
+		}
+		if conn.FBPay.ActionReasons == nil {
+			t.Fatalf("ActionReasons did not decode: %+v", conn.FBPay)
+		}
 	})
 
 	t.Run("[edge] no gateway connected yet", func(t *testing.T) {

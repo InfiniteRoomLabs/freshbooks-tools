@@ -131,6 +131,11 @@ func (s *LedgerAccountsService) Create(ctx context.Context, biz BusinessUUID, re
 // List returns every ledger account in biz's chart of accounts. The API
 // answers a flat array with no pagination envelope.
 //
+// The current FreshBooks docs describe this list under a different,
+// report-shaped path; this method implements the Postman-captured
+// endpoint instead, per the parity contract -- see spec 5.1's STATE AS OF
+// 2026-09-01 callout. Create and Get both match the current docs exactly.
+//
 // inventory: Accounting/Accounts/List Accounts
 func (s *LedgerAccountsService) List(ctx context.Context, biz BusinessUUID) ([]LedgerAccount, error) {
 	path, err := ledgerAccountsPath(biz)

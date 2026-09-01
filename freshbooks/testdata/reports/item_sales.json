@@ -6,8 +6,13 @@
         "company_name": "Postman Sandbox",
         "currency_code": "USD",
         "download_token": "tok_item_sales",
+        "start_date": "2019-01-01",
         "end_date": "2019-12-31",
         "item_names": [],
+        "statusids": [],
+        "total": {"amount": "23320.00", "code": "USD"},
+        "total_discount": {"amount": "0.00", "code": "USD"},
+        "total_qty": 20,
         "items": [
           {
             "invoices": [

@@ -56,6 +56,9 @@ type FBPayConnection struct {
 	ManageAccountURL    string         `json:"manage_account_url"`
 	Currencies          []string       `json:"currencies"`
 	Country             string         `json:"country"`
+	// ActionReasons is empty in every captured example, so its populated
+	// element shape is unconfirmed.
+	ActionReasons []json.RawMessage `json:"action_reasons"`
 }
 
 // StripeConnection is the account's Stripe gateway connection.
@@ -68,6 +71,11 @@ type StripeConnection struct {
 	Currencies          []string `json:"currencies"`
 	PublishableKey      string   `json:"publishable_key"`
 	BankTransferEnabled bool     `json:"bank_transfer_enabled"`
+	// MaxACHFee is a bare number in the capture (unlike GatewayPricing's
+	// MaxACHFee, which is a null, presumed-string field on a different
+	// object -- these are two distinct captured keys with two distinct
+	// observed shapes, not one field modeled twice).
+	MaxACHFee int `json:"max_ach_fee"`
 }
 
 // GatewayConnection is one set of payment-gateway connections for the
@@ -76,6 +84,10 @@ type StripeConnection struct {
 type GatewayConnection struct {
 	FBPay  *FBPayConnection  `json:"fbpay"`
 	Stripe *StripeConnection `json:"stripe"`
+	// PayPal is null in every captured example, so its populated shape is
+	// unconfirmed; kept rather than dropped so an account with PayPal
+	// connected does not look identical to one without it.
+	PayPal json.RawMessage `json:"paypal"`
 }
 
 // Get returns acct's connected payment gateways. The Postman collection

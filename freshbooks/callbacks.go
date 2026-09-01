@@ -160,6 +160,10 @@ func (s *CallbacksService) Delete(ctx context.Context, acct AccountID, callbackI
 // verifier code FreshBooks delivered to its URI. An unverified callback
 // never receives events.
 //
+// The request body includes callback_id per the captured Postman example,
+// which the live docs page omits -- see spec 5.1's STATE AS OF 2026-09-01
+// callout for the discrepancy.
+//
 // inventory: Webhooks/Verify Webhook Callback
 func (s *CallbacksService) Verify(ctx context.Context, acct AccountID, callbackID int64, verifier string) (*Callback, error) {
 	path, err := callbackPath(acct, callbackID)
@@ -185,6 +189,10 @@ func (s *CallbacksService) Verify(ctx context.Context, acct AccountID, callbackI
 // an unverified callback. It shares Verify's PUT endpoint but is a distinct
 // operation: the request body asks for a resend rather than submitting a
 // verifier.
+//
+// The request body includes callback_id per the captured Postman example,
+// which the live docs page omits -- see spec 5.1's STATE AS OF 2026-09-01
+// callout for the discrepancy.
 //
 // inventory: Webhooks/Resend Verification Code
 func (s *CallbacksService) ResendVerification(ctx context.Context, acct AccountID, callbackID int64) error {

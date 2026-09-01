@@ -24,9 +24,9 @@
       "highlight": null
     }
   ],
-  "meta": {"total": 9, "per_page": 30, "page": 1, "pages": 1, "total_logged": 0, "total_unbilled": 0},
+  "meta": {"total": 9, "per_page": 30, "page": 1, "pages": 1, "total_logged": 3, "total_unbilled": 2},
   "aggregations": null,
-  "download_token": null,
+  "download_token": "tok_time_entry_details",
   "abilities": [
     {
       "time_entry_id": 47654134,

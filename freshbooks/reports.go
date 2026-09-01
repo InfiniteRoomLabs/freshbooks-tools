@@ -85,14 +85,34 @@ type AccountsAgingReport struct {
 	Totals        AgingBuckets          `json:"totals"`
 }
 
+// AccountsAgingOptions filters the accounts-aging report. The Postman
+// example took none of these; they match the bare start_date/end_date/
+// currency_code shape every sibling report in this file uses.
+type AccountsAgingOptions struct {
+	StartDate    string
+	EndDate      string
+	CurrencyCode string
+}
+
+func (o *AccountsAgingOptions) values() url.Values {
+	q := url.Values{}
+	if o == nil {
+		return q
+	}
+	setNonEmpty(q, map[string]string{
+		"start_date": o.StartDate, "end_date": o.EndDate, "currency_code": o.CurrencyCode,
+	})
+	return q
+}
+
 // AccountsAging returns the accounts-receivable aging report for acct.
 //
 // inventory: Reports/Accounts Aging
-func (s *ReportsService) AccountsAging(ctx context.Context, acct AccountID) (*AccountsAgingReport, error) {
+func (s *ReportsService) AccountsAging(ctx context.Context, acct AccountID, opts *AccountsAgingOptions) (*AccountsAgingReport, error) {
 	var resp struct {
 		AccountsAging AccountsAgingReport `json:"accounts_aging"`
 	}
-	if err := s.get(ctx, acct, "accounts_aging", nil, &resp); err != nil {
+	if err := s.get(ctx, acct, "accounts_aging", opts.values(), &resp); err != nil {
 		return nil, err
 	}
 	return &resp.AccountsAging, nil
@@ -261,6 +281,29 @@ func (s *ReportsService) DownloadInvoiceDetailsCSV(ctx context.Context, acct Acc
 	return s.client.fetchRaw(ctx, http.MethodGet, path, FamilyAccounting, "text/csv")
 }
 
+// ExpenseDetailsOptions filters the expense-details report. The Postman
+// example took none of these; they match the bare start_date/end_date/
+// currency_code shape every sibling report in this file uses. See
+// ExpenseDetails' doc comment for why the docs page's fuller parameter
+// list (group_by, exclude_personal, ...) is not modeled: it documents a
+// different, business_uuid-scoped endpoint.
+type ExpenseDetailsOptions struct {
+	StartDate    string
+	EndDate      string
+	CurrencyCode string
+}
+
+func (o *ExpenseDetailsOptions) values() url.Values {
+	q := url.Values{}
+	if o == nil {
+		return q
+	}
+	setNonEmpty(q, map[string]string{
+		"start_date": o.StartDate, "end_date": o.EndDate, "currency_code": o.CurrencyCode,
+	})
+	return q
+}
+
 // ExpenseDetails returns the expense-details report for acct. The Postman
 // collection carries no example response for this exact endpoint, and the
 // FreshBooks expense-details-report docs page describes a differently
@@ -270,11 +313,11 @@ func (s *ReportsService) DownloadInvoiceDetailsCSV(ctx context.Context, acct Acc
 // holds the report object unparsed until that discrepancy is resolved live.
 //
 // inventory: Reports/Expense Details
-func (s *ReportsService) ExpenseDetails(ctx context.Context, acct AccountID) (raw json.RawMessage, err error) {
+func (s *ReportsService) ExpenseDetails(ctx context.Context, acct AccountID, opts *ExpenseDetailsOptions) (raw json.RawMessage, err error) {
 	var resp struct {
 		ExpenseDetails json.RawMessage `json:"expense_details"`
 	}
-	if err := s.get(ctx, acct, "expense_details", nil, &resp); err != nil {
+	if err := s.get(ctx, acct, "expense_details", opts.values(), &resp); err != nil {
 		return nil, err
 	}
 	return resp.ExpenseDetails, nil
@@ -304,14 +347,38 @@ type InvoiceDetailsReport struct {
 	SummaryOnly   bool              `json:"summary_only"`
 }
 
+// InvoiceDetailsOptions filters the invoice-details report. ClientIDs and
+// StatusIDs are comma-separated, matching ItemSalesOptions' convention.
+// Confirmed against https://www.freshbooks.com/api/reports.
+type InvoiceDetailsOptions struct {
+	StartDate    string
+	EndDate      string
+	CurrencyCode string
+	ClientIDs    string
+	StatusIDs    string
+	DateType     string
+}
+
+func (o *InvoiceDetailsOptions) values() url.Values {
+	q := url.Values{}
+	if o == nil {
+		return q
+	}
+	setNonEmpty(q, map[string]string{
+		"start_date": o.StartDate, "end_date": o.EndDate, "currency_code": o.CurrencyCode,
+		"clientids": o.ClientIDs, "statusids": o.StatusIDs, "date_type": o.DateType,
+	})
+	return q
+}
+
 // InvoiceDetails returns the invoice-details report for acct.
 //
 // inventory: Reports/Invoice Details
-func (s *ReportsService) InvoiceDetails(ctx context.Context, acct AccountID) (*InvoiceDetailsReport, error) {
+func (s *ReportsService) InvoiceDetails(ctx context.Context, acct AccountID, opts *InvoiceDetailsOptions) (*InvoiceDetailsReport, error) {
 	var resp struct {
 		InvoiceDetails InvoiceDetailsReport `json:"invoice_details"`
 	}
-	if err := s.get(ctx, acct, "invoice_details", nil, &resp); err != nil {
+	if err := s.get(ctx, acct, "invoice_details", opts.values(), &resp); err != nil {
 		return nil, err
 	}
 	return &resp.InvoiceDetails, nil
@@ -368,13 +435,26 @@ type ItemSale struct {
 
 // ItemSalesReport is the item-sales report: sales totals per item.
 type ItemSalesReport struct {
-	ClientIDs     []int64    `json:"clientids"`
-	CompanyName   string     `json:"company_name"`
-	CurrencyCode  string     `json:"currency_code"`
-	DownloadToken string     `json:"download_token"`
-	EndDate       string     `json:"end_date"`
-	ItemNames     []string   `json:"item_names"`
-	Items         []ItemSale `json:"items"`
+	ClientIDs    []int64 `json:"clientids"`
+	CompanyName  string  `json:"company_name"`
+	CurrencyCode string  `json:"currency_code"`
+	// DownloadToken is the report's CSV export token.
+	DownloadToken string   `json:"download_token"`
+	StartDate     string   `json:"start_date"`
+	EndDate       string   `json:"end_date"`
+	ItemNames     []string `json:"item_names"`
+	// StatusIDs echoes the invoice-status filter applied to the report.
+	StatusIDs []string   `json:"statusids"`
+	Items     []ItemSale `json:"items"`
+	// Total and TotalDiscount are the report's grand totals, across every
+	// item; nil only if the API ever omits them (not observed in the
+	// capture).
+	Total         *Money `json:"total"`
+	TotalDiscount *Money `json:"total_discount"`
+	// TotalQty is the report-level item count, a bare number in the
+	// capture -- unlike ItemSale.TotalQty, which is a per-item decimal
+	// string, so it needs its own type rather than reusing that field's.
+	TotalQty int `json:"total_qty"`
 }
 
 // ItemSales returns the item-sales report for acct.
@@ -404,14 +484,39 @@ type PaymentsCollectedReport struct {
 	Totals         []json.RawMessage `json:"totals"`
 }
 
+// PaymentsCollectedOptions filters the payments-collected report.
+// ClientIDs and PaymentMethods are comma-separated, matching
+// ItemSalesOptions' convention. Confirmed against
+// https://www.freshbooks.com/api/reports.
+type PaymentsCollectedOptions struct {
+	StartDate      string
+	EndDate        string
+	CurrencyCode   string
+	Locale         string
+	ClientIDs      string
+	PaymentMethods string
+}
+
+func (o *PaymentsCollectedOptions) values() url.Values {
+	q := url.Values{}
+	if o == nil {
+		return q
+	}
+	setNonEmpty(q, map[string]string{
+		"start_date": o.StartDate, "end_date": o.EndDate, "currency_code": o.CurrencyCode,
+		"locale": o.Locale, "clientids": o.ClientIDs, "payment_methods": o.PaymentMethods,
+	})
+	return q
+}
+
 // PaymentsCollected returns the payments-collected report for acct.
 //
 // inventory: Reports/Payments Collected
-func (s *ReportsService) PaymentsCollected(ctx context.Context, acct AccountID) (*PaymentsCollectedReport, error) {
+func (s *ReportsService) PaymentsCollected(ctx context.Context, acct AccountID, opts *PaymentsCollectedOptions) (*PaymentsCollectedReport, error) {
 	var resp struct {
 		PaymentsCollected PaymentsCollectedReport `json:"payments_collected"`
 	}
-	if err := s.get(ctx, acct, "payments_collected", nil, &resp); err != nil {
+	if err := s.get(ctx, acct, "payments_collected", opts.values(), &resp); err != nil {
 		return nil, err
 	}
 	return &resp.PaymentsCollected, nil
@@ -444,14 +549,36 @@ type ProfitLossReport struct {
 	TotalIncome   ProfitLossLine   `json:"total_income"`
 }
 
+// ProfitLossOptions filters the profit-and-loss report. The Postman
+// example took none of these; they match the bare start_date/end_date/
+// currency_code shape every sibling report in this file uses. The
+// FreshBooks docs page also lists these parameters, but against the
+// newer business_uuid-scoped path -- see ProfitLoss' doc comment.
+type ProfitLossOptions struct {
+	StartDate    string
+	EndDate      string
+	CurrencyCode string
+}
+
+func (o *ProfitLossOptions) values() url.Values {
+	q := url.Values{}
+	if o == nil {
+		return q
+	}
+	setNonEmpty(q, map[string]string{
+		"start_date": o.StartDate, "end_date": o.EndDate, "currency_code": o.CurrencyCode,
+	})
+	return q
+}
+
 // ProfitLoss returns the profit-and-loss report for acct.
 //
 // inventory: Reports/Profit/Loss Report
-func (s *ReportsService) ProfitLoss(ctx context.Context, acct AccountID) (*ProfitLossReport, error) {
+func (s *ReportsService) ProfitLoss(ctx context.Context, acct AccountID, opts *ProfitLossOptions) (*ProfitLossReport, error) {
 	var resp struct {
 		ProfitLoss ProfitLossReport `json:"profitloss"`
 	}
-	if err := s.get(ctx, acct, "profitloss_entity", nil, &resp); err != nil {
+	if err := s.get(ctx, acct, "profitloss_entity", opts.values(), &resp); err != nil {
 		return nil, err
 	}
 	return &resp.ProfitLoss, nil
@@ -592,9 +719,13 @@ type TrialBalanceLine struct {
 
 // TrialBalanceReport is the trial-balance report.
 type TrialBalanceReport struct {
-	CompanyName  string             `json:"company_name"`
-	CurrencyCode string             `json:"currency_code"`
-	Data         []TrialBalanceLine `json:"data"`
+	CompanyName string `json:"company_name"`
+	// DownloadToken is the report's CSV export token.
+	DownloadToken string             `json:"download_token"`
+	StartDate     string             `json:"start_date"`
+	EndDate       string             `json:"end_date"`
+	CurrencyCode  string             `json:"currency_code"`
+	Data          []TrialBalanceLine `json:"data"`
 }
 
 // TrialBalance returns the trial-balance report for acct.
@@ -650,6 +781,17 @@ type TimeEntryDetailEntry struct {
 	Highlight json.RawMessage `json:"highlight"`
 }
 
+// TimeEntryDetailsMeta is the time-entry-details report's pagination block:
+// the shared PageMeta fields every business-family list uses, plus
+// TotalLogged/TotalUnbilled, two totals specific to this report. Kept as
+// its own type rather than widening the shared PageMeta, which no other
+// endpoint's response carries these on.
+type TimeEntryDetailsMeta struct {
+	PageMeta
+	TotalLogged   int `json:"total_logged"`
+	TotalUnbilled int `json:"total_unbilled"`
+}
+
 // TimeEntryDetailsReport is the time-entry-details report: logged time
 // entries plus what the caller may do with each. Unlike every other report
 // in this file it is business-scoped (BusinessID, not AccountID) and its
@@ -657,8 +799,13 @@ type TimeEntryDetailEntry struct {
 // envelope.
 type TimeEntryDetailsReport struct {
 	TimeEntries []TimeEntryDetailEntry `json:"time_entries"`
-	Meta        PageMeta               `json:"meta"`
-	Abilities   []TimeEntryAbilities   `json:"abilities"`
+	Meta        TimeEntryDetailsMeta   `json:"meta"`
+	// Aggregations is null in the captured example; its populated shape
+	// is unconfirmed.
+	Aggregations json.RawMessage `json:"aggregations"`
+	// DownloadToken is the report's CSV export token.
+	DownloadToken string               `json:"download_token"`
+	Abilities     []TimeEntryAbilities `json:"abilities"`
 }
 
 // TimeEntryDetails returns the time-entry-details report for biz.
