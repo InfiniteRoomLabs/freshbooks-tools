@@ -76,55 +76,10 @@
 //go:inventory-todo Expenses/Vendors (Beta)/Delete Vendor -- phase-2
 //go:inventory-todo Expenses/Vendors (Beta)/Edit Vendor Details -- phase-2
 //go:inventory-todo Expenses/Vendors (Beta)/Get Vendors -- phase-2
-//go:inventory-todo Invoices/Create Invoice with Expense -- phase-2
-//go:inventory-todo Invoices/Delete  Invoice -- phase-2
-//go:inventory-todo Invoices/Enable Payment Options On Invoice -- phase-2
-//go:inventory-todo Invoices/Get default invoice presentation styles -- phase-2
-//go:inventory-todo Invoices/Invoice Links/Downloads/Download Invoice PDF -- phase-2
-//go:inventory-todo Invoices/Invoice Links/Downloads/Share Link -- phase-2
-//go:inventory-todo Invoices/Invoice Links/Downloads/Share PDF -- phase-2
-//go:inventory-todo Invoices/Invoice Recurring Template/Create Single Invoice Profile -- phase-2
-//go:inventory-todo Invoices/Invoice Recurring Template/Create Single Invoice Profile w/ Time Entry Holder -- phase-2
-//go:inventory-todo Invoices/Invoice Recurring Template/Delete  Invoice Profile -- phase-2
-//go:inventory-todo Invoices/Invoice Recurring Template/Enable Payment Options On Invoice Profile -- phase-2
-//go:inventory-todo Invoices/Invoice Recurring Template/Get Single Invoice Profile -- phase-2
-//go:inventory-todo Invoices/Invoice Recurring Template/List Invoice Profiles -- phase-2
-//go:inventory-todo Invoices/Invoice Recurring Template/Update Invoice Profile -- phase-2
-//go:inventory-todo Invoices/Items and Services/Create Item -- phase-2
-//go:inventory-todo Invoices/Items and Services/Delete Item -- phase-2
-//go:inventory-todo Invoices/Items and Services/List Items -- phase-2
-//go:inventory-todo Invoices/Items and Services/List Items Filtered by SKU -- phase-2
-//go:inventory-todo Invoices/Items and Services/Single Item -- phase-2
-//go:inventory-todo Invoices/Items and Services/Update Item -- phase-2
-//go:inventory-todo Invoices/List Invoices -- phase-2
 //go:inventory-todo Invoices/Other Income/Create Single Other Income -- phase-2
 //go:inventory-todo Invoices/Other Income/Delete Single Other Income -- phase-2
 //go:inventory-todo Invoices/Other Income/List Other Income -- phase-2
 //go:inventory-todo Invoices/Other Income/Update Single Other Income -- phase-2
-//go:inventory-todo Invoices/Payments/Delete Checkout Link -- phase-2
-//go:inventory-todo Invoices/Payments/Delete Payment -- phase-2
-//go:inventory-todo Invoices/Payments/List Payments -- phase-2
-//go:inventory-todo Invoices/Payments/Make Payment -- phase-2
-//go:inventory-todo Invoices/Payments/Single Checkout Link -- phase-2
-//go:inventory-todo Invoices/Payments/Single Payment -- phase-2
-//go:inventory-todo Invoices/Payments/Update Checkout Link -- phase-2
-//go:inventory-todo Invoices/Payments/Update Checkout Link Payment Gateway -- phase-2
-//go:inventory-todo Invoices/Payments/Update Payment -- phase-2
-//go:inventory-todo Invoices/Retainers/Create Retainer -- phase-2
-//go:inventory-todo Invoices/Retainers/Delete Retainer -- phase-2
-//go:inventory-todo Invoices/Retainers/Get all retainers -- phase-2
-//go:inventory-todo Invoices/Retainers/Single Retainer -- phase-2
-//go:inventory-todo Invoices/Retainers/Undelete Retainer -- phase-2
-//go:inventory-todo Invoices/Retainers/Update Retainer -- phase-2
-//go:inventory-todo Invoices/Send Invoice by Email -- phase-2
-//go:inventory-todo Invoices/Single Invoice -- phase-2
-//go:inventory-todo Invoices/Single Invoice w/ Line Items -- phase-2
-//go:inventory-todo Invoices/Single Invoice w/ Logo -- phase-2
-//go:inventory-todo Invoices/Single Invoice w/ Logo and styles -- phase-2
-//go:inventory-todo Invoices/Single Invoice w/ Payment Gateway -- phase-2
-//go:inventory-todo Invoices/Toggle Online Payments on Invoice -- phase-2
-//go:inventory-todo Invoices/Update Invoice -- phase-2
-//go:inventory-todo Invoices/Update Invoice w/ Expense -- phase-2
 //go:inventory-todo Invoices/Upload Logo/Upload Logo -- phase-2
 //go:inventory-todo My Team/Delete Staff -- phase-2
 //go:inventory-todo My Team/List Staff -- phase-2
@@ -178,21 +133,15 @@
 //go:inventory-todo Settings/Developer/Modify existing application -- phase-2
 //go:inventory-todo Settings/Developer/Upload App Logo -- phase-2
 //go:inventory-todo Settings/Gateways/List Gateways -- phase-2
-//go:inventory-todo Settings/Items and Services/Create Item -- phase-2
 //go:inventory-todo Settings/Items and Services/Create Service -- phase-2
 //go:inventory-todo Settings/Items and Services/Create Single Tax -- phase-2
-//go:inventory-todo Settings/Items and Services/Delete Item -- phase-2
 //go:inventory-todo Settings/Items and Services/Get a Single Service -- phase-2
 //go:inventory-todo Settings/Items and Services/Get a Single Service Rate -- phase-2
-//go:inventory-todo Settings/Items and Services/List Items -- phase-2
-//go:inventory-todo Settings/Items and Services/List Items Filtered by SKU -- phase-2
 //go:inventory-todo Settings/Items and Services/List Services -- phase-2
 //go:inventory-todo Settings/Items and Services/List Taxes -- phase-2
-//go:inventory-todo Settings/Items and Services/Single Item -- phase-2
 //go:inventory-todo Settings/Items and Services/Single Service -- phase-2
 //go:inventory-todo Settings/Items and Services/Single Tax (DELETE) -- phase-2
 //go:inventory-todo Settings/Items and Services/Single Tax (GET) -- phase-2
-//go:inventory-todo Settings/Items and Services/Update Item -- phase-2
 //go:inventory-todo Settings/Items and Services/Update Tax -- phase-2
 //go:inventory-todo Settings/Systems/Get System -- phase-2
 //go:inventory-todo Time Tracking/Create a Time Entry -- phase-2

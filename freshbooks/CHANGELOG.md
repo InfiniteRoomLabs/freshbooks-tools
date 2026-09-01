@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `InvoicesService` (`List`, `All`, `Get`, `Create`, `Update`, `Delete`,
+  `Send`, `PDF`, `ShareLink`, `EnablePaymentOptions`,
+  `InvoicePresentationDefaults`), `InvoiceProfilesService` (recurring invoice
+  templates: `List`, `All`, `Get`, `Create`, `Update`, `Delete`,
+  `EnablePaymentOptions`), `ItemsService` (catalogue items, shared by the
+  `Invoices/Items and Services` and `Settings/Items and Services` Postman
+  folders), `PaymentsService` (invoice payments plus FreshBooks Payments
+  checkout links: `CreateCheckoutLink`, `UpdateCheckoutLink`,
+  `DeleteCheckoutLink`, `UpdateCheckoutLinkGateway`), and `RetainersService`
+  (business-scoped recurring minimum-fee arrangements: `List`, `Get`,
+  `Create`, `Update`, `Delete`, `Undelete`) -- Phase 2 batch a, 51 inventory
+  entries.
+- `(*Client).fetchRaw`, an unexported transport helper for endpoints (invoice
+  PDF downloads) that answer with something other than JSON.
 - Core client: `Client` with all 36 resource services declared as fields,
   `NewClient` and the `With*` options (`WithTokenSource`, `WithHTTPClient`,
   `WithBaseURL`, `WithUserAgent`, `WithLogger`, `WithRetry`, `WithClock`),

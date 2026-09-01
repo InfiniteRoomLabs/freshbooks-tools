@@ -1,0 +1,23 @@
+{
+  "response": {
+    "result": {
+      "payment": {
+        "accounting_systemid": "ACM123",
+        "amount": {
+          "amount": "10.00",
+          "code": "USD"
+        },
+        "clientid": 55001,
+        "date": "2026-08-24",
+        "from_credit": false,
+        "id": 5001,
+        "invoiceid": 90001,
+        "logid": 5001,
+        "note": "Paid in full",
+        "type": "Check",
+        "updated": "2026-08-24 14:23:57",
+        "vis_state": 0
+      }
+    }
+  }
+}
