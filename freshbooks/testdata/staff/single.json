@@ -1,0 +1,37 @@
+{
+  "response": {
+    "result": {
+      "staff": {
+        "id": 1,
+        "userid": 1,
+        "fname": "Ryen",
+        "lname": "Marr",
+        "display_name": "RyenMarr",
+        "username": "accountant@example.com",
+        "email": "accountant@example.com",
+        "role": "admin",
+        "level": 3,
+        "organization": "Example Business LLC",
+        "language": "en",
+        "currency_code": null,
+        "rate": null,
+        "note": null,
+        "bus_phone": "",
+        "home_phone": null,
+        "mob_phone": "",
+        "fax": "",
+        "p_street": "",
+        "p_street2": "",
+        "p_city": "",
+        "p_province": "",
+        "p_code": "",
+        "p_country": "",
+        "num_logins": 0,
+        "last_login": null,
+        "signup_date": "2026-08-22 09:14:53",
+        "updated": "2026-08-24 14:37:58",
+        "vis_state": 0
+      }
+    }
+  }
+}

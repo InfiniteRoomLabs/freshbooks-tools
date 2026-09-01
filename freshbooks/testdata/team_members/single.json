@@ -1,0 +1,24 @@
+{
+  "response": {
+    "uuid": "00000000-0000-4000-8000-000000000102",
+    "first_name": "Riley",
+    "middle_name": null,
+    "last_name": "Contractor",
+    "email": "riley@example.com",
+    "job_title": null,
+    "street_1": null,
+    "street_2": "Suite 2",
+    "city": null,
+    "province": null,
+    "country": "United States",
+    "postal_code": null,
+    "phone_number": null,
+    "business_id": 8675309,
+    "business_role_name": "no_seat_employee",
+    "active": true,
+    "identity_id": null,
+    "invitation_date_accepted": null,
+    "created_at": "2026-03-22T16:52:01Z",
+    "updated_at": "2026-04-11T12:36:04Z"
+  }
+}

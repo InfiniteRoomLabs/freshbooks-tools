@@ -1,0 +1,13 @@
+{
+  "response": {
+    "errors": [
+      {
+        "errno": 1003,
+        "field": null,
+        "message": "Permission Denied.",
+        "object": null,
+        "value": null
+      }
+    ]
+  }
+}

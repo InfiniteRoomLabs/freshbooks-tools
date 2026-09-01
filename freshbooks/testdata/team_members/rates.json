@@ -1,0 +1,6 @@
+{
+  "team_member_rates": [
+    { "rate": "35.00", "identity_id": 4242424, "business_id": 8675309 },
+    { "rate": "500.00", "identity_id": 4242425, "business_id": 8675309 }
+  ]
+}

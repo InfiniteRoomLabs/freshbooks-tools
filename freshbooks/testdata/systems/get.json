@@ -1,0 +1,26 @@
+{
+  "response": {
+    "result": {
+      "system": {
+        "id": 4236410,
+        "accountid": "ACM123",
+        "business_uuid": null,
+        "active": true,
+        "country": "Canada",
+        "currency_code": "USD",
+        "email": "owner@example.com",
+        "name": "Example Business LLC",
+        "language": "en",
+        "timezone": "America/New_York",
+        "date_format": "mm/dd/yyyy",
+        "duration": 12,
+        "billing_status": "uptodate",
+        "bus_phone": "",
+        "fax": "",
+        "city": "",
+        "code": "",
+        "date": "2026-08-22 09:14:53"
+      }
+    }
+  }
+}
