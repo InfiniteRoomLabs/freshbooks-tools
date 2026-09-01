@@ -9,6 +9,12 @@ import (
 
 // Task is an accounting-family billable task, the line item projects and
 // time entries bill against.
+//
+// The captured response also carries taskid, tname, and tdesc: legacy
+// aliases FreshBooks' docs document as duplicating ID, Name, and
+// Description respectively (same values in every captured example). Not
+// modeled since they carry no information Name/Description/ID don't
+// already have.
 type Task struct {
 	ID          int64    `json:"id"`
 	Name        string   `json:"name"`
@@ -120,12 +126,18 @@ func (s *TasksService) List(ctx context.Context, accountID AccountID, opts *Task
 // All walks every page of List.
 func (s *TasksService) All(ctx context.Context, accountID AccountID, opts *TaskListOptions, extra ...RequestOption) iter.Seq2[Task, error] {
 	return All(ctx, func(ctx context.Context, page int) (*Page[Task], error) {
-		o := TaskListOptions{Page: page}
+		o := TaskListOptions{}
 		if opts != nil {
 			o.Search, o.PerPage = opts.Search, opts.PerPage
 		}
 		o.PerPage = pageSize(o.PerPage)
-		return s.List(ctx, accountID, &o, extra...)
+		// The loop's own PageNumber must be the last RequestOption applied,
+		// after extra: newRequestOptions folds options last-wins, so a
+		// PageNumber the caller passed through extra would otherwise
+		// silently override the iterator's page and re-fetch the same page
+		// forever instead of walking.
+		pageOpts := append(append([]RequestOption{}, extra...), PageNumber(page))
+		return s.List(ctx, accountID, &o, pageOpts...)
 	})
 }
 

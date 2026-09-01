@@ -3,8 +3,11 @@
     "result": {
       "task": {
         "id": 74830,
+        "taskid": 74830,
         "name": "Saving the planet",
+        "tname": "Saving the planet",
         "description": "Hourly rate for doing positive things",
+        "tdesc": "Hourly rate for doing positive things",
         "rate": { "amount": "50.00", "code": "USD" },
         "billable": true,
         "tax1": 0,

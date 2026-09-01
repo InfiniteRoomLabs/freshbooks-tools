@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"testing"
 )
 
@@ -37,6 +39,45 @@ func TestTeamMembersList(t *testing.T) {
 		}
 		if page.Items[0].CreatedAt.IsZero() || page.Items[0].InvitationDateAccepted.IsZero() {
 			t.Errorf("timestamps did not parse: %+v", page.Items[0])
+		}
+	})
+
+	t.Run("[corner] a PageNumber passed through extra cannot pin All to one page", func(t *testing.T) {
+		var gotPages []string
+		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			pageStr := r.URL.Query().Get("page")
+			gotPages = append(gotPages, pageStr)
+			n, err := strconv.Atoi(pageStr)
+			if err != nil {
+				n = 1
+			}
+			resp := struct {
+				Response []TeamMember `json:"response"`
+				Meta     struct {
+					Page    int `json:"page"`
+					Pages   int `json:"pages"`
+					PerPage int `json:"per_page"`
+					Total   int `json:"total"`
+				} `json:"meta"`
+			}{}
+			resp.Response = []TeamMember{{UUID: fmt.Sprintf("uuid-%d", n)}}
+			resp.Meta.Page, resp.Meta.Pages, resp.Meta.PerPage, resp.Meta.Total = n, 3, 1, 3
+			body, _ := json.Marshal(resp)
+			_, _ = w.Write(body)
+		}))
+
+		var gotUUIDs []string
+		for m, err := range c.TeamMembers.All(ctx, BusinessID(8675309), nil, PageNumber(3)) {
+			if err != nil {
+				t.Fatal(err)
+			}
+			gotUUIDs = append(gotUUIDs, m.UUID)
+		}
+		if want := []string{"1", "2", "3"}; !equalStrings(gotPages, want) {
+			t.Fatalf("pages requested = %v, want %v (extra's PageNumber(3) must not pin the walk)", gotPages, want)
+		}
+		if want := []string{"uuid-1", "uuid-2", "uuid-3"}; !equalStrings(gotUUIDs, want) {
+			t.Fatalf("uuids = %v, want %v", gotUUIDs, want)
 		}
 	})
 

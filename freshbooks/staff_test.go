@@ -163,6 +163,11 @@ func TestStaffDelete(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("[happy] PUTs vis_state 1 via softDelete, the only delete verb this family has", func(t *testing.T) {
+		// staff/deleted.json is an invented success body, not a captured
+		// one: the Postman collection's only My Team/Delete Staff capture
+		// is a 403 Permission Denied (see the [sad] case below, backed by
+		// the real staff/error_403.json capture). No success example exists
+		// for this operation anywhere in the collection.
 		var gotMethod string
 		var gotBody map[string]any
 		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

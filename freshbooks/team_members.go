@@ -107,12 +107,18 @@ func (s *TeamMembersService) List(ctx context.Context, businessID BusinessID, op
 // All walks every page of List.
 func (s *TeamMembersService) All(ctx context.Context, businessID BusinessID, opts *TeamMemberListOptions, extra ...RequestOption) iter.Seq2[TeamMember, error] {
 	return All(ctx, func(ctx context.Context, page int) (*Page[TeamMember], error) {
-		o := TeamMemberListOptions{Page: page}
+		o := TeamMemberListOptions{}
 		if opts != nil {
 			o.Search, o.PerPage = opts.Search, opts.PerPage
 		}
 		o.PerPage = pageSize(o.PerPage)
-		return s.List(ctx, businessID, &o, extra...)
+		// The loop's own PageNumber must be the last RequestOption applied,
+		// after extra: newRequestOptions folds options last-wins, so a
+		// PageNumber the caller passed through extra would otherwise
+		// silently override the iterator's page and re-fetch the same page
+		// forever instead of walking.
+		pageOpts := append(append([]RequestOption{}, extra...), PageNumber(page))
+		return s.List(ctx, businessID, &o, pageOpts...)
 	})
 }
 

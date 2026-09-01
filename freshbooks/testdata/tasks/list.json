@@ -8,8 +8,11 @@
       "tasks": [
         {
           "id": 55226,
+          "taskid": 55226,
           "name": "Computer Hardware",
+          "tname": "Computer Hardware",
           "description": "",
+          "tdesc": "",
           "rate": { "amount": "0.00", "code": "USD" },
           "billable": true,
           "tax1": 0,
@@ -19,8 +22,11 @@
         },
         {
           "id": 74830,
+          "taskid": 74830,
           "name": "Saving the planet",
+          "tname": "Saving the planet",
           "description": "Hourly rate for doing positive things",
+          "tdesc": "Hourly rate for doing positive things",
           "rate": { "amount": "50.00", "code": "USD" },
           "billable": true,
           "tax1": 0,

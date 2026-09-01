@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -155,6 +157,76 @@ func TestTasksList(t *testing.T) {
 			t.Fatalf("query = %q, want the caller's Search forwarded", gotQuery)
 		}
 	})
+
+	t.Run("[corner] a PageNumber passed through extra cannot pin All to one page", func(t *testing.T) {
+		var gotPages []string
+		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			pageStr := r.URL.Query().Get("page")
+			gotPages = append(gotPages, pageStr)
+			n, err := strconv.Atoi(pageStr)
+			if err != nil {
+				n = 1
+			}
+			resp := struct {
+				Response struct {
+					Result struct {
+						Page    int    `json:"page"`
+						Pages   int    `json:"pages"`
+						PerPage int    `json:"per_page"`
+						Total   int    `json:"total"`
+						Tasks   []Task `json:"tasks"`
+					} `json:"result"`
+				} `json:"response"`
+			}{}
+			resp.Response.Result.Page = n
+			resp.Response.Result.Pages = 3
+			resp.Response.Result.PerPage = 1
+			resp.Response.Result.Total = 3
+			resp.Response.Result.Tasks = []Task{{ID: int64(n), Name: fmt.Sprintf("t%d", n)}}
+			body, _ := json.Marshal(resp)
+			_, _ = w.Write(body)
+		}))
+
+		var gotIDs []int64
+		// PageNumber(3) arrives via extra, the same channel a caller's own
+		// RequestOption would use; the iterator's own page must still win.
+		for task, err := range c.Tasks.All(ctx, AccountID("ACM123"), nil, PageNumber(3)) {
+			if err != nil {
+				t.Fatal(err)
+			}
+			gotIDs = append(gotIDs, task.ID)
+		}
+		if want := []string{"1", "2", "3"}; !equalStrings(gotPages, want) {
+			t.Fatalf("pages requested = %v, want %v (extra's PageNumber(3) must not pin the walk)", gotPages, want)
+		}
+		if want := []int64{1, 2, 3}; !equalInt64s(gotIDs, want) {
+			t.Fatalf("ids = %v, want %v", gotIDs, want)
+		}
+	})
+}
+
+func equalStrings(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func equalInt64s(a, b []int64) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func TestTasksUpdate(t *testing.T) {

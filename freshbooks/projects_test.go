@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"testing"
 )
 
@@ -149,6 +151,45 @@ func TestProjectsList(t *testing.T) {
 		}
 	})
 
+	t.Run("[corner] a PageNumber passed through extra cannot pin All to one page", func(t *testing.T) {
+		var gotPages []string
+		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			pageStr := r.URL.Query().Get("page")
+			gotPages = append(gotPages, pageStr)
+			n, err := strconv.Atoi(pageStr)
+			if err != nil {
+				n = 1
+			}
+			resp := struct {
+				Meta struct {
+					Page    int `json:"page"`
+					Pages   int `json:"pages"`
+					PerPage int `json:"per_page"`
+					Total   int `json:"total"`
+				} `json:"meta"`
+				Projects []Project `json:"projects"`
+			}{}
+			resp.Meta.Page, resp.Meta.Pages, resp.Meta.PerPage, resp.Meta.Total = n, 3, 1, 3
+			resp.Projects = []Project{{ID: int64(n), Title: fmt.Sprintf("p%d", n)}}
+			body, _ := json.Marshal(resp)
+			_, _ = w.Write(body)
+		}))
+
+		var gotIDs []int64
+		for p, err := range c.Projects.All(ctx, BusinessID(8675309), nil, PageNumber(3)) {
+			if err != nil {
+				t.Fatal(err)
+			}
+			gotIDs = append(gotIDs, p.ID)
+		}
+		if want := []string{"1", "2", "3"}; !equalStrings(gotPages, want) {
+			t.Fatalf("pages requested = %v, want %v (extra's PageNumber(3) must not pin the walk)", gotPages, want)
+		}
+		if want := []int64{1, 2, 3}; !equalInt64s(gotIDs, want) {
+			t.Fatalf("ids = %v, want %v", gotIDs, want)
+		}
+	})
+
 	t.Run("[sad] a 429 is ErrRateLimited", func(t *testing.T) {
 		c, _ := newTestClient(t, serveFixture(t, http.StatusTooManyRequests, "accounting", "error_429"), WithRetry(NoRetry))
 		if _, err := c.Projects.List(ctx, BusinessID(1), nil); !errors.Is(err, ErrRateLimited) {
@@ -190,29 +231,32 @@ func TestProjectsUpdate(t *testing.T) {
 func TestProjectsDelete(t *testing.T) {
 	ctx := context.Background()
 
-	t.Run("[happy] DELETEs against the rewritten public path with a vis_state body", func(t *testing.T) {
+	t.Run("[happy] DELETEs the documented public path with no body", func(t *testing.T) {
+		// No captured success example exists for this endpoint on either
+		// path (the Postman my.freshbooks.com capture is itself a 404; the
+		// docs page carries no example body): the 204 this handler returns
+		// is invented, not captured. Delete decodes nothing, so a bare
+		// status is all that's needed either way.
 		var gotMethod, gotPath string
-		var gotBody map[string]any
+		var gotBody []byte
 		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			gotMethod, gotPath = r.Method, r.URL.Path
-			raw, _ := io.ReadAll(r.Body)
-			_ = json.Unmarshal(raw, &gotBody)
+			gotBody, _ = io.ReadAll(r.Body)
 			w.WriteHeader(http.StatusNoContent)
 		}))
 		if err := c.Projects.Delete(ctx, BusinessID(8675309), 2976412); err != nil {
 			t.Fatal(err)
 		}
-		if gotMethod != http.MethodDelete || gotPath != "/comments/business/8675309/project/2976412" {
+		if gotMethod != http.MethodDelete || gotPath != "/projects/business/8675309/project/2976412" {
 			t.Fatalf("%s %s", gotMethod, gotPath)
 		}
-		inner, _ := gotBody["project"].(map[string]any)
-		if inner["vis_state"] != float64(VisStateDeleted) {
-			t.Fatalf("body = %v", gotBody)
+		if len(gotBody) != 0 {
+			t.Fatalf("body = %q, want no body per the documented endpoint", gotBody)
 		}
 	})
 
-	t.Run("[sad] a 404 carries error_type/message, not the usual error field", func(t *testing.T) {
-		c, _ := newTestClient(t, serveFixture(t, http.StatusNotFound, "projects", "delete_error_404"))
+	t.Run("[sad] a 404 is ErrNotFound", func(t *testing.T) {
+		c, _ := newTestClient(t, serveFixture(t, http.StatusNotFound, "projects", "error_404"))
 		err := c.Projects.Delete(ctx, BusinessID(1), 1)
 		if !errors.Is(err, ErrNotFound) {
 			t.Fatalf("err = %v", err)

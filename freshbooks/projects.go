@@ -13,12 +13,12 @@ import (
 //
 // GroupID is what List/Create/Update return (a bare id); Get returns the
 // expanded Group object instead and leaves GroupID zero -- the captured
-// examples for the two shapes never carry both. Get also has a sibling the
-// project object does not: a project-scoped "abilities" array (17 entries
-// in the captured example), distinct from the business-wide
-// ProjectsService.Abilities endpoint's 9-entry list. This method drops it;
-// a caller who needs it can call (*Client).Do against
-// /projects/business/{id}/projects/{id} and decode both siblings.
+// examples for the two shapes never carry both. Get and Update both have a
+// sibling the project object does not: a project-scoped "abilities" array
+// (17 entries in the captured examples), distinct from the business-wide
+// ProjectsService.Abilities endpoint's 9-entry list. Both methods drop it;
+// a caller who needs it can call (*Client).Do against the same path and
+// decode both siblings.
 type Project struct {
 	ID             int64     `json:"id"`
 	Title          string    `json:"title"`
@@ -95,6 +95,13 @@ func (s *ProjectsService) Create(ctx context.Context, businessID BusinessID, req
 // the expanded Group object (GroupID stays zero) and drops the sibling
 // "abilities" array the captured response carries alongside "project".
 //
+// The path is plural (".../projects/{id}"), matching the Postman
+// collection's captured request and its real 200 response; FreshBooks'
+// docs (https://www.freshbooks.com/api/project) spell it singular
+// (".../project/{id}"). Both forms appear to resolve; this is the
+// collection and the docs disagreeing, recorded per the inferred-vs-
+// confirmed convention rather than silently picking one.
+//
 // inventory: Projects/Single Project
 func (s *ProjectsService) Get(ctx context.Context, businessID BusinessID, projectID int64) (*Project, error) {
 	var resp projectResponse
@@ -143,12 +150,18 @@ func (s *ProjectsService) List(ctx context.Context, businessID BusinessID, opts 
 // All walks every page of List.
 func (s *ProjectsService) All(ctx context.Context, businessID BusinessID, opts *ProjectListOptions, extra ...RequestOption) iter.Seq2[Project, error] {
 	return All(ctx, func(ctx context.Context, page int) (*Page[Project], error) {
-		o := ProjectListOptions{Page: page}
+		o := ProjectListOptions{}
 		if opts != nil {
 			o.Search, o.PerPage = opts.Search, opts.PerPage
 		}
 		o.PerPage = pageSize(o.PerPage)
-		return s.List(ctx, businessID, &o, extra...)
+		// The loop's own PageNumber must be the last RequestOption applied,
+		// after extra: newRequestOptions folds options last-wins, so a
+		// PageNumber the caller passed through extra would otherwise
+		// silently override the iterator's page and re-fetch the same page
+		// forever instead of walking.
+		pageOpts := append(append([]RequestOption{}, extra...), PageNumber(page))
+		return s.List(ctx, businessID, &o, pageOpts...)
 	})
 }
 
@@ -179,25 +192,26 @@ func (s *ProjectsService) Update(ctx context.Context, businessID BusinessID, pro
 	return &resp.Project, nil
 }
 
-// Delete removes a project. Destructive and irreversible: a CLI or MCP
-// surface built on this method must require explicit confirmation and must
-// not expose it as an unattended tool.
+// Delete removes a project via the documented public endpoint
+// (https://www.freshbooks.com/api/project: DELETE
+// /projects/business/{business_id}/project/{project_id}, no request body),
+// the same path root Get/Create/Update use. Destructive and irreversible: a
+// CLI or MCP surface built on this method must require explicit
+// confirmation and must not expose it as an unattended tool.
 //
-// The Postman collection sources this request from my.freshbooks.com --
-// FreshBooks' internal host -- not the public api.freshbooks.com the rest
-// of the collection uses; it is also the collection's only request against
-// this particular path root (/comments/business/.../project/{id}, not
-// /projects/business/... like Get/Update). The inventory tool rewrites the
-// host to public; this method implements against that rewritten path.
-// INFERRED from that Postman example alone, never confirmed live: if the
-// public host answers differently (or not at all), Delete's real shape may
-// differ from this.
+// The Postman collection's only project-delete request is sourced from
+// my.freshbooks.com -- FreshBooks' internal host -- and rewritten by the
+// inventory tool to /comments/business/{id}/project/{id}; that request's
+// own captured response is itself a 404
+// ({"error_type":"not_found","message":"..."}), so it is not usable
+// evidence for what a delete actually does. This method implements the
+// documented path instead, per "the docs win" (CLAUDE.md); it remains
+// unconfirmed live either way.
 //
 // inventory: Projects/Delete Project
 func (s *ProjectsService) Delete(ctx context.Context, businessID BusinessID, projectID int64) error {
-	path := fmt.Sprintf("/comments/business/%s/project/%d", businessID, projectID)
-	body := map[string]map[string]VisState{"project": {"vis_state": VisStateDeleted}}
-	return s.client.do(ctx, http.MethodDelete, path, FamilyBusiness, body, nil)
+	path := fmt.Sprintf("/projects/business/%s/project/%d", businessID, projectID)
+	return s.client.do(ctx, http.MethodDelete, path, FamilyBusiness, nil, nil)
 }
 
 // Ability is one permission flag the current identity holds for a business's
