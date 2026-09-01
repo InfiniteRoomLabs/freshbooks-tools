@@ -1,0 +1,38 @@
+{
+  "response": {
+    "result": {
+      "journal_entry": {
+        "currency_code": "USD",
+        "description": "Here is a basic description of the journal entry made.",
+        "details": [
+          {
+            "credit": null,
+            "currency_code": "USD",
+            "debit": "200",
+            "description": "Here is a basic description of the journal entry made.",
+            "detailid": 1313598,
+            "id": 1313598,
+            "name": "JournalEntry",
+            "sub_accountid": 635974,
+            "user_entered_date": "2019-04-20"
+          },
+          {
+            "credit": "200",
+            "currency_code": "USD",
+            "debit": null,
+            "description": "Here is a basic description of the journal entry made.",
+            "detailid": 1313600,
+            "id": 1313600,
+            "name": "JournalEntry",
+            "sub_accountid": 635976,
+            "user_entered_date": "2019-04-20"
+          }
+        ],
+        "entryid": 629310,
+        "id": 629310,
+        "name": "JournalEntry",
+        "user_entered_date": "2019-04-20"
+      }
+    }
+  }
+}

@@ -20,19 +20,23 @@ type ItemsService struct{ client *Client }
 // BillableItemsService is the billable-items resource.
 type BillableItemsService struct{ client *Client }
 
-// OtherIncomeService is the other-income resource.
+// OtherIncomeService manages other-income records: non-invoice income
+// tracked for accounting and reporting. See other_income.go.
 type OtherIncomeService struct{ client *Client }
 
-// JournalEntriesService is the journal-entries resource.
+// JournalEntriesService manages journal entries: manual debit/credit
+// postings to the ledger. See journal_entries.go.
 type JournalEntriesService struct{ client *Client }
 
-// JournalEntryAccountsService is the journal-entry-accounts resource.
+// JournalEntryAccountsService reads the general-ledger view. See
+// journal_entries.go.
 type JournalEntryAccountsService struct{ client *Client }
 
-// LedgerAccountsService is the chart-of-accounts resource.
+// LedgerAccountsService manages a business's chart of accounts and its type
+// taxonomy. See ledger_accounts.go.
 type LedgerAccountsService struct{ client *Client }
 
-// ReportsService is the reporting resource.
+// ReportsService reads the accounting reports. See reports.go.
 type ReportsService struct{ client *Client }
 
 // SystemsService is the account-system-settings resource.

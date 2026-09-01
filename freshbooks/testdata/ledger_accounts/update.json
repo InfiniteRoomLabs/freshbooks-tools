@@ -1,0 +1,15 @@
+{
+  "data": {
+    "uuid": "12e355dd-eb0f-40a6-bedb-5b1e1cf38be6",
+    "name": "Store Cash",
+    "number": "1001",
+    "description": "Account for Store Cash",
+    "type": "asset",
+    "sub_type": "Cash & Bank",
+    "parent_account": null,
+    "sub_accounts": [],
+    "auto_created": false,
+    "state": "active",
+    "updated_at": "2022-09-27T10:27:36.485733Z"
+  }
+}

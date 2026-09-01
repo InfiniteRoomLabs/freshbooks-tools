@@ -1,0 +1,19 @@
+{
+  "response": {
+    "result": {
+      "other_income": {
+        "amount": {"amount": "113.00", "code": "USD"},
+        "category_name": "online_sales",
+        "created_at": "2019-04-24 14:20:41",
+        "date": "2019-04-20",
+        "incomeid": 2852,
+        "note": "Han Solo portrait",
+        "payment_type": "VISA",
+        "source": "Etsy",
+        "taxes": [{"amount": "3", "name": "HST"}],
+        "updated_at": "2019-04-24 14:20:41",
+        "vis_state": 0
+      }
+    }
+  }
+}

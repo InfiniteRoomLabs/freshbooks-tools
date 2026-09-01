@@ -1,0 +1,37 @@
+{
+  "response": {
+    "result": {
+      "item_sales": {
+        "clientids": [],
+        "company_name": "Postman Sandbox",
+        "currency_code": "USD",
+        "download_token": "tok_item_sales",
+        "end_date": "2019-12-31",
+        "item_names": [],
+        "items": [
+          {
+            "invoices": [
+              {
+                "amount": {"amount": "2800.00", "code": "USD"},
+                "create_date": "2019-04-20",
+                "discount": {"amount": "0.00", "code": "USD"},
+                "fname": "Nicolas",
+                "invoice_number": "0000005",
+                "invoiceid": 26398,
+                "lname": "one",
+                "organization": "first company",
+                "qty": "1",
+                "unit_cost": {"amount": "2800.00", "code": "USD"},
+                "v3_status": "overdue"
+              }
+            ],
+            "name": "Acting Services",
+            "total": {"amount": "2800.00", "code": "USD"},
+            "total_discount": {"amount": "0.00", "code": "USD"},
+            "total_qty": "1"
+          }
+        ]
+      }
+    }
+  }
+}

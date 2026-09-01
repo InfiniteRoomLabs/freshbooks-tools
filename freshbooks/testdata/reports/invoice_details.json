@@ -1,0 +1,22 @@
+{
+  "response": {
+    "result": {
+      "invoice_details": {
+        "clientids": [],
+        "company_name": "Postman Sandbox",
+        "currency_code": "USD",
+        "date_type": "issue",
+        "download_token": "tok_invoice_details",
+        "end_date": "2019-04-24",
+        "start_date": "2019-04-24",
+        "statusids": [],
+        "summary": {
+          "outstanding": {"amount": "0.00", "code": "USD"},
+          "paid": {"amount": "0.00", "code": "USD"},
+          "total": {"amount": "0.00", "code": "USD"}
+        },
+        "summary_only": false
+      }
+    }
+  }
+}

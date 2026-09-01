@@ -1,0 +1,19 @@
+{
+  "response": {
+    "result": {
+      "other_income": {
+        "amount": {"amount": "125.00", "code": "USD"},
+        "category_name": "online_sales",
+        "created_at": "2019-04-19 08:51:14",
+        "date": "2019-04-19",
+        "incomeid": 2122,
+        "note": "Nepalese Hand-sewn Pouch",
+        "payment_type": "VISA",
+        "source": "Squarespace Site",
+        "taxes": [],
+        "updated_at": "2019-04-19 08:58:09",
+        "vis_state": 1
+      }
+    }
+  }
+}

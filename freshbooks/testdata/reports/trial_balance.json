@@ -1,0 +1,30 @@
+{
+  "response": {
+    "result": {
+      "trial_balance": {
+        "company_name": "Postman Sandbox",
+        "currency_code": "USD",
+        "data": [
+          {
+            "account_name": "Cash",
+            "account_number": "1000",
+            "account_sub_name": "Petty Cash",
+            "account_sub_number": "1",
+            "credit": {"amount": "0.00", "code": "USD"},
+            "debit": {"amount": "6350.55", "code": "USD"},
+            "sub_accountid": 635972
+          },
+          {
+            "account_name": "Accounts Receivable",
+            "account_number": "1200",
+            "account_sub_name": "Customer Deposits",
+            "account_sub_number": "2",
+            "credit": {"amount": "400.00", "code": "USD"},
+            "debit": {"amount": "0.00", "code": "USD"},
+            "sub_accountid": 635976
+          }
+        ]
+      }
+    }
+  }
+}

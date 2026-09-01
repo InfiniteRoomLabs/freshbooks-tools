@@ -1,0 +1,63 @@
+{
+  "response": {
+    "result": {
+      "profitloss": {
+        "cash_based": false,
+        "company_name": "Postman Sandbox",
+        "currency_code": "USD",
+        "download_token": "tok_profit_loss",
+        "end_date": "2019-04-24",
+        "expenses": [
+          {
+            "children": [
+              {
+                "children": [],
+                "data": [],
+                "description": "Gas",
+                "entry_type": "debit",
+                "total": {"amount": "141.12", "code": "USD"}
+              }
+            ],
+            "data": [],
+            "description": "Car & Truck Expenses",
+            "entry_type": "debit",
+            "total": {"amount": "141.12", "code": "USD"}
+          }
+        ],
+        "income": [
+          {
+            "children": [],
+            "data": [],
+            "description": "Sales",
+            "entry_type": "credit",
+            "total": {"amount": "0.00", "code": "USD"}
+          }
+        ],
+        "labels": [],
+        "net_profit": {
+          "children": [],
+          "data": [],
+          "description": "Net Profit (USD)",
+          "entry_type": "credit",
+          "total": {"amount": "-141.12", "code": "USD"}
+        },
+        "resolution": null,
+        "start_date": "2019-04-24",
+        "total_expenses": {
+          "children": [],
+          "data": [],
+          "description": "Total Expenses",
+          "entry_type": "debit",
+          "total": {"amount": "141.12", "code": "USD"}
+        },
+        "total_income": {
+          "children": [],
+          "data": [],
+          "description": "Gross Profit",
+          "entry_type": "credit",
+          "total": {"amount": "0.00", "code": "USD"}
+        }
+      }
+    }
+  }
+}

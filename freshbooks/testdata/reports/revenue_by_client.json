@@ -1,0 +1,18 @@
+{
+  "response": {
+    "result": {
+      "revenue_by_client": {
+        "clientids": [],
+        "clients": [],
+        "currency_code": "USD",
+        "download_token": "tok_revenue_by_client",
+        "end_date": "2019-04-24",
+        "labels": ["2019-04-01"],
+        "sales_type": "collected",
+        "start_date": "2019-04-24",
+        "total_sales": {"amount": "0.00", "code": "USD"},
+        "total_sales_data": [{"amount": "0.00", "code": "USD"}]
+      }
+    }
+  }
+}

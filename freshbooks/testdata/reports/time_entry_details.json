@@ -1,0 +1,36 @@
+{
+  "time_entries": [
+    {
+      "id": 47654134,
+      "identity_id": 37256,
+      "timer": null,
+      "is_logged": true,
+      "started_at": "2016-08-16T20:00:00Z",
+      "created_at": "2019-04-18T20:50:28Z",
+      "duration": 7200,
+      "client_id": 31006,
+      "project_id": 2976412,
+      "pending_client": null,
+      "pending_project": null,
+      "pending_task": null,
+      "task_id": null,
+      "service_id": null,
+      "note": "Stuff",
+      "active": true,
+      "billable": false,
+      "billed": false,
+      "internal": false,
+      "retainer_id": null,
+      "highlight": null
+    }
+  ],
+  "meta": {"total": 9, "per_page": 30, "page": 1, "pages": 1, "total_logged": 0, "total_unbilled": 0},
+  "aggregations": null,
+  "download_token": null,
+  "abilities": [
+    {
+      "time_entry_id": 47654134,
+      "abilities": [{"name": "can_edit", "value": true}, {"name": "can_delete", "value": true}]
+    }
+  ]
+}

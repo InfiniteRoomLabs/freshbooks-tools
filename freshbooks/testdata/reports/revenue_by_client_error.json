@@ -1,0 +1,7 @@
+{
+  "response": {
+    "errors": [
+      {"errno": 1004, "field": "sales_type", "message": "Invalid value '' for field 'sales_type'.", "object": "report", "value": ""}
+    ]
+  }
+}

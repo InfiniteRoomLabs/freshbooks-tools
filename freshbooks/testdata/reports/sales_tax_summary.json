@@ -1,0 +1,25 @@
+{
+  "response": {
+    "result": {
+      "taxsummary": {
+        "cash_based": true,
+        "currency_code": "USD",
+        "download_token": "tok_sales_tax_summary",
+        "end_date": "2019-05-01",
+        "start_date": "2019-01-01",
+        "taxes": [
+          {
+            "net_tax": {"amount": "-659.42", "code": "USD"},
+            "net_taxable_amount": {"amount": "-4815.57", "code": "USD"},
+            "tax_collected": {"amount": "146.00", "code": "USD"},
+            "tax_name": "HST",
+            "tax_paid": {"amount": "805.42", "code": "USD"},
+            "taxable_amount_collected": {"amount": "1380.00", "code": "USD"},
+            "taxable_amount_paid": {"amount": "6195.57", "code": "USD"}
+          }
+        ],
+        "total_invoiced": {"amount": "9891.00", "code": "USD"}
+      }
+    }
+  }
+}

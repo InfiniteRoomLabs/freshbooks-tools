@@ -1,0 +1,40 @@
+{
+  "response": {
+    "result": {
+      "journal_entry_accounts": [
+        {
+          "account_name": "Cash",
+          "account_number": "1000",
+          "account_type": "asset",
+          "accountid": 545882,
+          "balance": "340.54",
+          "currency_code": "USD",
+          "id": 545882,
+          "sub_accounts": [
+            {
+              "account_sub_name": "Petty Cash",
+              "account_sub_number": "1",
+              "account_type": "asset",
+              "balance": "340.54",
+              "currency_code": "USD",
+              "custom": false,
+              "id": 635972,
+              "parentid": 545882,
+              "sub_accountid": 635972
+            }
+          ]
+        },
+        {
+          "account_name": "Accounts Receivable",
+          "account_number": "1200",
+          "account_type": "asset",
+          "accountid": 545884,
+          "balance": "-500",
+          "currency_code": "USD",
+          "id": 545884,
+          "sub_accounts": []
+        }
+      ]
+    }
+  }
+}

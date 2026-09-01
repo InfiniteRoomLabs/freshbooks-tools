@@ -1,0 +1,16 @@
+{
+  "response": {
+    "result": {
+      "payments_collected": {
+        "clientids": [],
+        "currency_codes": [],
+        "download_token": "tok_payments_collected",
+        "end_date": "2019-04-24",
+        "payment_methods": [],
+        "payments": [],
+        "start_date": "2019-04-24",
+        "totals": []
+      }
+    }
+  }
+}

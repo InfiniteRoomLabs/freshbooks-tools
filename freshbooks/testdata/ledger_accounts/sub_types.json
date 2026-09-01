@@ -1,0 +1,6 @@
+{
+  "data": [
+    {"id": "1", "name": "Cash & Bank", "type": "asset"},
+    {"id": "2", "name": "Current Asset", "type": "asset"}
+  ]
+}
