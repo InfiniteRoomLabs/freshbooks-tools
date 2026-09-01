@@ -147,6 +147,13 @@ func TestInvoicesCreate(t *testing.T) {
 		if !ok || envelope["customerid"] != float64(55001) {
 			t.Fatalf("body = %v", gotBody)
 		}
+		if _, ok := envelope["create_date"]; ok {
+			t.Fatalf("body = %v, want an unset CreateDate omitted rather than sent as null", gotBody)
+		}
+		line := envelope["lines"].([]any)[0].(map[string]any)
+		if _, ok := line["amount"]; ok {
+			t.Fatalf("line = %v, want the server-filled Amount omitted on write", line)
+		}
 		if inv.InvoiceID != 90001 {
 			t.Fatalf("invoice = %+v", inv)
 		}
@@ -280,10 +287,11 @@ func TestInvoicesSend(t *testing.T) {
 func TestInvoicesPDF(t *testing.T) {
 	ctx := context.Background()
 
-	t.Run("[happy] returns the raw, non-JSON body", func(t *testing.T) {
-		var gotPath string
+	t.Run("[happy] returns the raw, non-JSON body and asks for a PDF", func(t *testing.T) {
+		var gotPath, gotAccept string
 		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			gotPath = r.URL.Path
+			gotAccept = r.Header.Get("Accept")
 			w.Header().Set("Content-Type", "application/pdf")
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte("%PDF-1.4 fake pdf bytes"))
@@ -295,6 +303,9 @@ func TestInvoicesPDF(t *testing.T) {
 		if gotPath != "/accounting/account/ACM123/invoices/invoices/90001/pdf" {
 			t.Fatalf("path = %q", gotPath)
 		}
+		if gotAccept != "application/pdf" {
+			t.Fatalf("Accept = %q, want application/pdf", gotAccept)
+		}
 		if string(raw) != "%PDF-1.4 fake pdf bytes" {
 			t.Fatalf("raw = %q", raw)
 		}
@@ -304,6 +315,16 @@ func TestInvoicesPDF(t *testing.T) {
 		c, _ := newTestClient(t, serveFixture(t, http.StatusNotFound, "accounting", "error_404"))
 		if _, err := c.Invoices.PDF(ctx, "ACM123", 1); !errors.Is(err, ErrNotFound) {
 			t.Fatalf("err = %v", err)
+		}
+	})
+
+	t.Run("[sad] a 200 whose body is not a PDF is rejected", func(t *testing.T) {
+		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("<html>please sign in</html>"))
+		}))
+		if _, err := c.Invoices.PDF(ctx, "ACM123", 1); err == nil {
+			t.Fatal("want an error")
 		}
 	})
 }
@@ -366,12 +387,57 @@ func TestInvoicesEnablePaymentOptions(t *testing.T) {
 		}
 	})
 
+	t.Run("[happy] a false toggle survives into the body, not dropped by omitempty", func(t *testing.T) {
+		var gotBody map[string]any
+		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			raw, _ := io.ReadAll(r.Body)
+			_ = json.Unmarshal(raw, &gotBody)
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"payment_options": {}}`))
+		}))
+		req := &PaymentOptionsRequest{GatewayName: "fbpay", HasCreditCard: false, HasACHTransfer: true}
+		if err := c.Invoices.EnablePaymentOptions(ctx, "ACM123", 90001, req); err != nil {
+			t.Fatal(err)
+		}
+		if v, ok := gotBody["has_credit_card"]; !ok || v != false {
+			t.Fatalf("body = %v, want has_credit_card explicitly false", gotBody)
+		}
+	})
+
 	t.Run("[sad] a nil request", func(t *testing.T) {
 		c, _ := newTestClient(t, http.NotFoundHandler())
 		if err := c.Invoices.EnablePaymentOptions(ctx, "ACM123", 1, nil); err == nil {
 			t.Fatal("want an error")
 		}
 	})
+}
+
+func TestInvoicesRejectUnsafeAccountID(t *testing.T) {
+	ctx := context.Background()
+
+	tests := []struct {
+		name string
+		acct AccountID
+	}{
+		{"[sad] a query delimiter", "ACM123?per_page=100"},
+		{"[sad] a path separator", "ACM123/other"},
+		{"[sad] a directory traversal", "ACM123/../.."},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			called := false
+			c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				called = true
+				w.WriteHeader(http.StatusOK)
+			}))
+			if _, err := c.Invoices.Get(ctx, tc.acct, 1); err == nil {
+				t.Fatal("want an error")
+			}
+			if called {
+				t.Fatal("a request was made with an unsafe account id")
+			}
+		})
+	}
 }
 
 func TestInvoicePresentationDefaults(t *testing.T) {

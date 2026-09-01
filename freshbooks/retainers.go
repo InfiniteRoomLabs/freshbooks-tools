@@ -2,6 +2,7 @@ package freshbooks
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 )
@@ -12,6 +13,9 @@ import (
 // batch, retainers live under /comments/business/{businessId}/...,
 // addressed by BusinessID rather than AccountID: FreshBooks' flat,
 // meta-paginated business family, not the enveloped accounting one.
+// BusinessID is a typed int64 whose String() only ever emits decimal
+// digits (types.go), so unlike AccountID it needs no path-segment
+// validation before interpolation.
 
 // Retainer is a recurring minimum-fee arrangement with a client.
 type Retainer struct {
@@ -43,31 +47,24 @@ type retainerListResponse struct {
 	Meta      PageMeta   `json:"meta"`
 }
 
-// RetainerListOptions selects and paginates List. The business family's
-// filter encoding is bare field=value, INFERRED from the FreshBooks docs
-// (see spec section 5.1's STATE AS OF callout); this is the first
-// business-scoped list endpoint this library implements against it.
+// RetainerListOptions selects List. The business family's filter encoding
+// is bare field=value, INFERRED from the FreshBooks docs (see spec section
+// 5.1's STATE AS OF callout); this is the first business-scoped list
+// endpoint this library implements against it.
+//
+// There is no Page/PerPage here: FreshBooks' Postman example response for
+// this endpoint carries no "meta" pagination block, so there is nothing
+// confirmed to paginate against yet. Add them back (and an All iterator)
+// once a live call confirms the block exists.
 type RetainerListOptions struct {
-	Search  Search
-	Page    int
-	PerPage int
+	Search Search
 }
 
 func (o *RetainerListOptions) opts() []RequestOption {
 	if o == nil {
 		return nil
 	}
-	var opts []RequestOption
-	if len(o.Search) > 0 {
-		opts = append(opts, o.Search)
-	}
-	if o.Page > 0 {
-		opts = append(opts, PageNumber(o.Page))
-	}
-	if o.PerPage > 0 {
-		opts = append(opts, PerPage(o.PerPage))
-	}
-	return opts
+	return listOpts(o.Search, 0, 0)
 }
 
 // List returns all retainers for a business. FreshBooks' Postman example
@@ -82,7 +79,7 @@ func (s *RetainersService) List(ctx context.Context, businessID BusinessID, opts
 	if err := s.client.do(ctx, http.MethodGet, retainersPath(businessID), FamilyBusiness, nil, &resp, reqOpts...); err != nil {
 		return nil, err
 	}
-	return &Page[Retainer]{Items: resp.Retainers, Page: resp.Meta.Page, Pages: resp.Meta.Pages, PerPage: resp.Meta.PerPage, Total: resp.Meta.Total}, nil
+	return newPage(resp.Retainers, resp.Meta), nil
 }
 
 // Get fetches one retainer by id.
@@ -96,18 +93,22 @@ func (s *RetainersService) Get(ctx context.Context, businessID BusinessID, id in
 	return resp.Retainer, nil
 }
 
-// RetainerCreateRequest is the payload for Create.
+// RetainerCreateRequest is the payload for Create. Fee and ExcessRate are
+// json.Number rather than float64: FreshBooks sends and accepts them as
+// bare JSON numbers on the wire, but the package avoids binary floating
+// point for money everywhere else (see Money), and a caller building a
+// json.Number from a decimal string keeps that same guarantee here.
 type RetainerCreateRequest struct {
-	ClientUserID          string  `json:"client_user_id"`
-	StartDate             string  `json:"start_date"`
-	NextPeriodStartDate   string  `json:"next_period_start_date,omitempty"`
-	Fee                   float64 `json:"fee"`
-	ExcessRate            float64 `json:"excess_rate,omitempty"`
-	BudgetedTime          int64   `json:"budgeted_time,omitempty"`
-	Active                bool    `json:"active"`
-	Frequency             string  `json:"frequency,omitempty"`
-	NumberRecurring       int     `json:"number_recurring,omitempty"`
-	IsInfinitelyRecurring bool    `json:"is_infinitely_recurring,omitempty"`
+	ClientUserID          string      `json:"client_user_id"`
+	StartDate             string      `json:"start_date"`
+	NextPeriodStartDate   string      `json:"next_period_start_date,omitempty"`
+	Fee                   json.Number `json:"fee"`
+	ExcessRate            json.Number `json:"excess_rate,omitempty"`
+	BudgetedTime          int64       `json:"budgeted_time,omitempty"`
+	Active                bool        `json:"active"`
+	Frequency             string      `json:"frequency,omitempty"`
+	NumberRecurring       int         `json:"number_recurring,omitempty"`
+	IsInfinitelyRecurring bool        `json:"is_infinitely_recurring,omitempty"`
 }
 
 // Create starts a new retainer for a client. FreshBooks allows only one
@@ -125,18 +126,21 @@ func (s *RetainersService) Create(ctx context.Context, businessID BusinessID, re
 	return resp.Retainer, nil
 }
 
-// RetainerUpdateRequest is the payload for Update.
+// RetainerUpdateRequest is the payload for Update. Active is a pointer, like
+// every sibling update struct in this batch: Update is a partial write, and
+// a caller who sets Fee without touching Active must not silently
+// deactivate the retainer by sending an implicit false.
 type RetainerUpdateRequest struct {
-	ClientUserID          string  `json:"client_user_id,omitempty"`
-	StartDate             string  `json:"start_date,omitempty"`
-	NextPeriodStartDate   string  `json:"next_period_start_date,omitempty"`
-	Fee                   float64 `json:"fee,omitempty"`
-	ExcessRate            float64 `json:"excess_rate,omitempty"`
-	BudgetedTime          int64   `json:"budgeted_time,omitempty"`
-	Active                bool    `json:"active"`
-	Frequency             string  `json:"frequency,omitempty"`
-	NumberRecurring       int     `json:"number_recurring,omitempty"`
-	IsInfinitelyRecurring bool    `json:"is_infinitely_recurring,omitempty"`
+	ClientUserID          string      `json:"client_user_id,omitempty"`
+	StartDate             string      `json:"start_date,omitempty"`
+	NextPeriodStartDate   string      `json:"next_period_start_date,omitempty"`
+	Fee                   json.Number `json:"fee,omitempty"`
+	ExcessRate            json.Number `json:"excess_rate,omitempty"`
+	BudgetedTime          int64       `json:"budgeted_time,omitempty"`
+	Active                *bool       `json:"active,omitempty"`
+	Frequency             string      `json:"frequency,omitempty"`
+	NumberRecurring       int         `json:"number_recurring,omitempty"`
+	IsInfinitelyRecurring bool        `json:"is_infinitely_recurring,omitempty"`
 }
 
 // Update replaces a retainer's terms.

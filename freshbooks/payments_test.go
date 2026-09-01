@@ -109,6 +109,9 @@ func TestPaymentsCreate(t *testing.T) {
 		if envelope["invoiceid"] != float64(90001) {
 			t.Fatalf("body = %v", gotBody)
 		}
+		if _, ok := envelope["date"]; ok {
+			t.Fatalf("body = %v, want an unset Date omitted rather than sent as null", gotBody)
+		}
 		if p.ID != 5001 {
 			t.Fatalf("payment = %+v", p)
 		}
@@ -204,18 +207,29 @@ func TestPaymentsCheckoutLinks(t *testing.T) {
 		}
 	})
 
-	t.Run("[edge] Create falls back to the request when the response has no checkout_link key", func(t *testing.T) {
+	t.Run("[happy] Create falls back to a flat (unenveloped) response", func(t *testing.T) {
 		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte(`{}`))
+			_, _ = w.Write([]byte(`{"id": "cl_2", "item_id": "1", "amount": "10", "is_active": true}`))
 		}))
 		link := &CheckoutLink{ItemID: "1", Amount: "10"}
 		got, err := c.Payments.CreateCheckoutLink(ctx, "ACM123", link)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if got != link {
-			t.Fatalf("got = %+v, want the original request echoed back", got)
+		if got.ID != "cl_2" {
+			t.Fatalf("link = %+v", got)
+		}
+	})
+
+	t.Run("[sad] Create errors, rather than echoing the request, when the response has no id in either shape", func(t *testing.T) {
+		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{}`))
+		}))
+		link := &CheckoutLink{ItemID: "1", Amount: "10"}
+		if _, err := c.Payments.CreateCheckoutLink(ctx, "ACM123", link); err == nil {
+			t.Fatal("want an error")
 		}
 	})
 
@@ -231,7 +245,7 @@ func TestPaymentsCheckoutLinks(t *testing.T) {
 		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			gotMethod, gotPath = r.Method, r.URL.Path
 			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte(`{}`))
+			_, _ = w.Write([]byte(`{"checkout_link": {"id": "cl_1", "item_id": "147778", "amount": "100"}}`))
 		}))
 		link := &CheckoutLink{ItemID: "147778", Amount: "100", IsActive: false}
 		if _, err := c.Payments.UpdateCheckoutLink(ctx, "ACM123", "cl_1", link); err != nil {
@@ -283,6 +297,9 @@ func TestPaymentsCheckoutLinks(t *testing.T) {
 		}
 		if gotBody["gateway_name"] != "stripe" {
 			t.Fatalf("body = %v", gotBody)
+		}
+		if gotBody["entity_type"] != "checkout_link" || gotBody["entity_id"] != "cl_1" {
+			t.Fatalf("body = %v, want entity_type/entity_id set from the path argument", gotBody)
 		}
 	})
 

@@ -31,6 +31,32 @@ type PageMeta struct {
 	Total   int `json:"total"`
 }
 
+// listOpts is the option plumbing every resource's list-options struct
+// shares: a filter, a page number, and a page size, each omitted when
+// unset. Every *ListOptions.opts method in the package delegates here so
+// the five (and counting) sibling structs stay in lockstep.
+func listOpts(search Search, page, perPage int) []RequestOption {
+	var opts []RequestOption
+	if len(search) > 0 {
+		opts = append(opts, search)
+	}
+	if page > 0 {
+		opts = append(opts, PageNumber(page))
+	}
+	if perPage > 0 {
+		opts = append(opts, PerPage(perPage))
+	}
+	return opts
+}
+
+// newPage assembles a Page from a decoded list response's items and its
+// pagination block, whichever family the block came from (an embedded
+// PageMeta for the accounting family, a "meta" object for the business
+// family).
+func newPage[T any](items []T, m PageMeta) *Page[T] {
+	return &Page[T]{Items: items, Page: m.Page, Pages: m.Pages, PerPage: m.PerPage, Total: m.Total}
+}
+
 // All walks every page of a list endpoint and yields each item in order. It
 // stops at the first error -- yielding it once, with the zero item -- and at
 // ctx cancellation. Resource services wrap it to provide their own All

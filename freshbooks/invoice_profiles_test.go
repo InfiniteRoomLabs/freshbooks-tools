@@ -110,6 +110,9 @@ func TestInvoiceProfilesCreate(t *testing.T) {
 		if envelope["frequency"] != "m" {
 			t.Fatalf("body = %v", gotBody)
 		}
+		if _, ok := envelope["create_date"]; ok {
+			t.Fatalf("body = %v, want an unset CreateDate omitted rather than sent as null", gotBody)
+		}
 		pf := envelope["project_format"].(map[string]any)
 		if pf["group_by"] != "service" {
 			t.Fatalf("project_format = %v", pf)

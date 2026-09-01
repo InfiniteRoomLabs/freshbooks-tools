@@ -121,29 +121,23 @@ func (o *InvoiceProfileListOptions) opts() []RequestOption {
 	if o == nil {
 		return nil
 	}
-	var opts []RequestOption
-	if len(o.Search) > 0 {
-		opts = append(opts, o.Search)
-	}
-	if o.Page > 0 {
-		opts = append(opts, PageNumber(o.Page))
-	}
-	if o.PerPage > 0 {
-		opts = append(opts, PerPage(o.PerPage))
-	}
-	return opts
+	return listOpts(o.Search, o.Page, o.PerPage)
 }
 
 // List returns one page of invoice profiles.
 //
 // inventory: Invoices/Invoice Recurring Template/List Invoice Profiles
 func (s *InvoiceProfilesService) List(ctx context.Context, acct AccountID, opts *InvoiceProfileListOptions, extra ...RequestOption) (*Page[InvoiceProfile], error) {
-	var resp invoiceProfileListResponse
-	reqOpts := append(opts.opts(), extra...)
-	if err := s.client.do(ctx, http.MethodGet, invoiceProfilesPath(acct), FamilyAccounting, nil, &resp, reqOpts...); err != nil {
+	path, err := invoiceProfilesPath(acct)
+	if err != nil {
 		return nil, err
 	}
-	return &Page[InvoiceProfile]{Items: resp.InvoiceProfiles, Page: resp.Page, Pages: resp.Pages, PerPage: resp.PerPage, Total: resp.Total}, nil
+	var resp invoiceProfileListResponse
+	reqOpts := append(opts.opts(), extra...)
+	if err := s.client.do(ctx, http.MethodGet, path, FamilyAccounting, nil, &resp, reqOpts...); err != nil {
+		return nil, err
+	}
+	return newPage(resp.InvoiceProfiles, resp.PageMeta), nil
 }
 
 // All iterates every invoice profile across every page.
@@ -161,8 +155,12 @@ func (s *InvoiceProfilesService) All(ctx context.Context, acct AccountID, opts *
 //
 // inventory: Invoices/Invoice Recurring Template/Get Single Invoice Profile
 func (s *InvoiceProfilesService) Get(ctx context.Context, acct AccountID, id int64, opts ...RequestOption) (*InvoiceProfile, error) {
+	path, err := invoiceProfilePath(acct, id)
+	if err != nil {
+		return nil, err
+	}
 	var resp invoiceProfileEnvelope
-	if err := s.client.do(ctx, http.MethodGet, invoiceProfilePath(acct, id), FamilyAccounting, nil, &resp, opts...); err != nil {
+	if err := s.client.do(ctx, http.MethodGet, path, FamilyAccounting, nil, &resp, opts...); err != nil {
 		return nil, err
 	}
 	return resp.InvoiceProfile, nil
@@ -171,7 +169,7 @@ func (s *InvoiceProfilesService) Get(ctx context.Context, acct AccountID, id int
 // InvoiceProfileCreateRequest is the payload for Create.
 type InvoiceProfileCreateRequest struct {
 	CustomerID          int64          `json:"customerid"`
-	CreateDate          Date           `json:"create_date,omitempty"`
+	CreateDate          Date           `json:"create_date,omitzero"`
 	Frequency           string         `json:"frequency"`
 	NumberRecurring     int            `json:"numberRecurring"`
 	Lines               []InvoiceLine  `json:"lines,omitempty"`
@@ -201,8 +199,12 @@ func (s *InvoiceProfilesService) Create(ctx context.Context, acct AccountID, req
 	if req == nil {
 		return nil, fmt.Errorf("freshbooks: InvoiceProfiles.Create needs a request")
 	}
+	path, err := invoiceProfilesPath(acct)
+	if err != nil {
+		return nil, err
+	}
 	var resp invoiceProfileEnvelope
-	if err := s.client.do(ctx, http.MethodPost, invoiceProfilesPath(acct), FamilyAccounting, invoiceProfileWriteEnvelope{InvoiceProfile: req}, &resp, opts...); err != nil {
+	if err := s.client.do(ctx, http.MethodPost, path, FamilyAccounting, invoiceProfileWriteEnvelope{InvoiceProfile: req}, &resp, opts...); err != nil {
 		return nil, err
 	}
 	return resp.InvoiceProfile, nil
@@ -224,8 +226,12 @@ func (s *InvoiceProfilesService) Update(ctx context.Context, acct AccountID, id 
 	if req == nil {
 		return nil, fmt.Errorf("freshbooks: InvoiceProfiles.Update needs a request")
 	}
+	path, err := invoiceProfilePath(acct, id)
+	if err != nil {
+		return nil, err
+	}
 	var resp invoiceProfileEnvelope
-	if err := s.client.do(ctx, http.MethodPut, invoiceProfilePath(acct, id), FamilyAccounting, invoiceProfileWriteEnvelope{InvoiceProfile: req}, &resp); err != nil {
+	if err := s.client.do(ctx, http.MethodPut, path, FamilyAccounting, invoiceProfileWriteEnvelope{InvoiceProfile: req}, &resp); err != nil {
 		return nil, err
 	}
 	return resp.InvoiceProfile, nil
@@ -235,7 +241,11 @@ func (s *InvoiceProfilesService) Update(ctx context.Context, acct AccountID, id 
 //
 // inventory: Invoices/Invoice Recurring Template/Delete  Invoice Profile
 func (s *InvoiceProfilesService) Delete(ctx context.Context, acct AccountID, id int64) error {
-	return s.client.do(ctx, http.MethodPut, invoiceProfilePath(acct, id), FamilyAccounting, invoiceProfileWriteEnvelope{InvoiceProfile: map[string]int{"vis_state": int(VisStateDeleted)}}, nil)
+	path, err := invoiceProfilePath(acct, id)
+	if err != nil {
+		return err
+	}
+	return s.client.softDelete(ctx, path, "invoice_profile")
 }
 
 // EnablePaymentOptions turns on FreshBooks Payments for a recurring invoice
@@ -246,14 +256,24 @@ func (s *InvoiceProfilesService) EnablePaymentOptions(ctx context.Context, acct 
 	if req == nil {
 		return fmt.Errorf("freshbooks: InvoiceProfiles.EnablePaymentOptions needs a request")
 	}
+	if err := pathSegment(string(acct)); err != nil {
+		return err
+	}
 	path := fmt.Sprintf("/payments/account/%s/invoice_profile/%d/payment_options", acct, id)
 	return s.client.do(ctx, http.MethodPost, path, FamilyBusiness, req, nil)
 }
 
-func invoiceProfilesPath(acct AccountID) string {
-	return fmt.Sprintf("/accounting/account/%s/invoice_profiles/invoice_profiles", acct)
+func invoiceProfilesPath(acct AccountID) (string, error) {
+	if err := pathSegment(string(acct)); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("/accounting/account/%s/invoice_profiles/invoice_profiles", acct), nil
 }
 
-func invoiceProfilePath(acct AccountID, id int64) string {
-	return fmt.Sprintf("%s/%d", invoiceProfilesPath(acct), id)
+func invoiceProfilePath(acct AccountID, id int64) (string, error) {
+	base, err := invoiceProfilesPath(acct)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s/%d", base, id), nil
 }

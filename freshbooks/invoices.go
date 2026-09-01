@@ -1,6 +1,7 @@
 package freshbooks
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"iter"
@@ -26,7 +27,7 @@ type InvoiceLine struct {
 	// Qty is the quantity billed.
 	Qty float64 `json:"qty,omitempty"`
 	// UnitCost is the price per unit.
-	UnitCost Money `json:"unit_cost,omitempty"`
+	UnitCost Money `json:"unit_cost,omitzero"`
 	// ExpenseID bills a specific expense when Type is 1.
 	ExpenseID int64 `json:"expenseid,omitempty"`
 	// TaxName1, TaxAmount1, TaxName2, TaxAmount2 are the line's up-to-two
@@ -37,7 +38,7 @@ type InvoiceLine struct {
 	TaxAmount2 float64 `json:"taxAmount2,omitempty"`
 	// Amount is the line's computed total; the server fills it, callers
 	// never send it.
-	Amount Money `json:"amount,omitempty"`
+	Amount Money `json:"amount,omitzero"`
 }
 
 // InvoicePresentation controls an invoice's branded appearance: logo,
@@ -159,7 +160,8 @@ type Invoice struct {
 	// Presentation is populated when Include("presentation") is used.
 	Presentation *InvoicePresentation `json:"presentation,omitempty"`
 	// AllowedGateways is populated when Include("allowed_gateways") is
-	// used, or after Invoices.ToggleGateways / Invoices.EnablePaymentOptions.
+	// used, or after Invoices.Update with AllowedGatewayIDs set, or
+	// Invoices.EnablePaymentOptions.
 	AllowedGateways []AllowedGateway `json:"allowed_gateways,omitempty"`
 }
 
@@ -178,7 +180,6 @@ type invoiceListResponse struct {
 // InvoiceListOptions selects and paginates List.
 type InvoiceListOptions struct {
 	Search  Search
-	Sort    string
 	Page    int
 	PerPage int
 }
@@ -187,29 +188,23 @@ func (o *InvoiceListOptions) opts() []RequestOption {
 	if o == nil {
 		return nil
 	}
-	var opts []RequestOption
-	if len(o.Search) > 0 {
-		opts = append(opts, o.Search)
-	}
-	if o.Page > 0 {
-		opts = append(opts, PageNumber(o.Page))
-	}
-	if o.PerPage > 0 {
-		opts = append(opts, PerPage(o.PerPage))
-	}
-	return opts
+	return listOpts(o.Search, o.Page, o.PerPage)
 }
 
 // List returns one page of invoices.
 //
 // inventory: Invoices/List Invoices
 func (s *InvoicesService) List(ctx context.Context, acct AccountID, opts *InvoiceListOptions, extra ...RequestOption) (*Page[Invoice], error) {
-	var resp invoiceListResponse
-	reqOpts := append(opts.opts(), extra...)
-	if err := s.client.do(ctx, http.MethodGet, invoicesPath(acct), FamilyAccounting, nil, &resp, reqOpts...); err != nil {
+	path, err := invoicesPath(acct)
+	if err != nil {
 		return nil, err
 	}
-	return &Page[Invoice]{Items: resp.Invoices, Page: resp.Page, Pages: resp.Pages, PerPage: resp.PerPage, Total: resp.Total}, nil
+	var resp invoiceListResponse
+	reqOpts := append(opts.opts(), extra...)
+	if err := s.client.do(ctx, http.MethodGet, path, FamilyAccounting, nil, &resp, reqOpts...); err != nil {
+		return nil, err
+	}
+	return newPage(resp.Invoices, resp.PageMeta), nil
 }
 
 // All iterates every invoice across every page.
@@ -217,7 +212,7 @@ func (s *InvoicesService) All(ctx context.Context, acct AccountID, opts *Invoice
 	return All(ctx, func(ctx context.Context, page int) (*Page[Invoice], error) {
 		o := InvoiceListOptions{Page: page}
 		if opts != nil {
-			o.Search, o.Sort, o.PerPage = opts.Search, opts.Sort, opts.PerPage
+			o.Search, o.PerPage = opts.Search, opts.PerPage
 		}
 		return s.List(ctx, acct, &o, extra...)
 	})
@@ -230,8 +225,12 @@ func (s *InvoicesService) All(ctx context.Context, acct AccountID, opts *Invoice
 // inventory: Invoices/Single Invoice
 // inventory: Invoices/Single Invoice w/ Logo
 func (s *InvoicesService) Get(ctx context.Context, acct AccountID, id int64, opts ...RequestOption) (*Invoice, error) {
+	path, err := invoicePath(acct, id)
+	if err != nil {
+		return nil, err
+	}
 	var resp invoiceEnvelope
-	if err := s.client.do(ctx, http.MethodGet, invoicePath(acct, id), FamilyAccounting, nil, &resp, opts...); err != nil {
+	if err := s.client.do(ctx, http.MethodGet, path, FamilyAccounting, nil, &resp, opts...); err != nil {
 		return nil, err
 	}
 	return resp.Invoice, nil
@@ -240,7 +239,7 @@ func (s *InvoicesService) Get(ctx context.Context, acct AccountID, id int64, opt
 // InvoiceCreateRequest is the payload for Create.
 type InvoiceCreateRequest struct {
 	CustomerID   int64                `json:"customerid"`
-	CreateDate   Date                 `json:"create_date,omitempty"`
+	CreateDate   Date                 `json:"create_date,omitzero"`
 	Lines        []InvoiceLine        `json:"lines,omitempty"`
 	Presentation *InvoicePresentation `json:"presentation,omitempty"`
 	Notes        string               `json:"notes,omitempty"`
@@ -264,8 +263,12 @@ func (s *InvoicesService) Create(ctx context.Context, acct AccountID, req *Invoi
 	if req == nil {
 		return nil, fmt.Errorf("freshbooks: Invoices.Create needs a request")
 	}
+	path, err := invoicesPath(acct)
+	if err != nil {
+		return nil, err
+	}
 	var resp invoiceEnvelope
-	if err := s.client.do(ctx, http.MethodPost, invoicesPath(acct), FamilyAccounting, invoiceCreateEnvelope{Invoice: req}, &resp, opts...); err != nil {
+	if err := s.client.do(ctx, http.MethodPost, path, FamilyAccounting, invoiceCreateEnvelope{Invoice: req}, &resp, opts...); err != nil {
 		return nil, err
 	}
 	return resp.Invoice, nil
@@ -301,8 +304,12 @@ func (s *InvoicesService) Update(ctx context.Context, acct AccountID, id int64, 
 	if req == nil {
 		return nil, fmt.Errorf("freshbooks: Invoices.Update needs a request")
 	}
+	path, err := invoicePath(acct, id)
+	if err != nil {
+		return nil, err
+	}
 	var resp invoiceEnvelope
-	if err := s.client.do(ctx, http.MethodPut, invoicePath(acct, id), FamilyAccounting, invoiceCreateEnvelope{Invoice: req}, &resp, opts...); err != nil {
+	if err := s.client.do(ctx, http.MethodPut, path, FamilyAccounting, invoiceCreateEnvelope{Invoice: req}, &resp, opts...); err != nil {
 		return nil, err
 	}
 	return resp.Invoice, nil
@@ -313,7 +320,11 @@ func (s *InvoicesService) Update(ctx context.Context, acct AccountID, id int64, 
 //
 // inventory: Invoices/Delete  Invoice
 func (s *InvoicesService) Delete(ctx context.Context, acct AccountID, id int64) error {
-	return s.client.do(ctx, http.MethodPut, invoicePath(acct, id), FamilyAccounting, invoiceCreateEnvelope{Invoice: map[string]int{"vis_state": int(VisStateDeleted)}}, nil)
+	path, err := invoicePath(acct, id)
+	if err != nil {
+		return err
+	}
+	return s.client.softDelete(ctx, path, "invoice")
 }
 
 // InvoiceSendRequest is the payload for Send.
@@ -343,6 +354,10 @@ type invoiceSendBody struct {
 //
 // inventory: Invoices/Send Invoice by Email
 func (s *InvoicesService) Send(ctx context.Context, acct AccountID, id int64, req *InvoiceSendRequest) error {
+	path, err := invoicePath(acct, id)
+	if err != nil {
+		return err
+	}
 	body := invoiceSendBody{ActionEmail: true}
 	if req != nil {
 		body.EmailRecipients = req.EmailRecipients
@@ -350,26 +365,52 @@ func (s *InvoicesService) Send(ctx context.Context, acct AccountID, id int64, re
 			body.InvoiceCustomizedEmail = &invoiceCustomizedEmail{Subject: req.Subject, Body: req.Body}
 		}
 	}
-	return s.client.do(ctx, http.MethodPut, invoicePath(acct, id), FamilyAccounting, invoiceCreateEnvelope{Invoice: body}, nil)
+	return s.client.do(ctx, http.MethodPut, path, FamilyAccounting, invoiceCreateEnvelope{Invoice: body}, nil)
 }
 
+// pdfMagic is the header every PDF file starts with; a body without it is
+// not a PDF regardless of what its status code claimed.
+var pdfMagic = []byte("%PDF-")
+
 // PDF downloads an invoice as a rendered PDF. Unlike every other method in
-// this package, the response is not JSON, so it bypasses the envelope
-// transport and returns the raw bytes.
+// this package, the response is not JSON: it sends Accept: application/pdf
+// (every other method sends application/json) and returns the raw bytes
+// instead of decoding an envelope, but it shares the same
+// resolve/authorize/retry/Retry-After path as every JSON method, and it
+// rejects a 200 response whose body does not start with the PDF magic
+// bytes -- an HTML interstitial or a login redirect page must not be
+// handed to a caller as if it were a PDF.
 //
 // inventory: Invoices/Invoice Links/Downloads/Download Invoice PDF
 func (s *InvoicesService) PDF(ctx context.Context, acct AccountID, id int64) ([]byte, error) {
-	return s.client.fetchRaw(ctx, http.MethodGet, invoicePath(acct, id)+"/pdf", FamilyAccounting)
+	path, err := invoicePath(acct, id)
+	if err != nil {
+		return nil, err
+	}
+	raw, err := s.client.fetchRaw(ctx, http.MethodGet, path+"/pdf", FamilyAccounting, "application/pdf")
+	if err != nil {
+		return nil, err
+	}
+	if !bytes.HasPrefix(raw, pdfMagic) {
+		return nil, fmt.Errorf("freshbooks: PDF response does not start with the PDF magic bytes")
+	}
+	return raw, nil
 }
 
 // InvoiceShareLink is a time-limited public URL for viewing or downloading
-// an invoice without authentication.
+// an invoice without authentication. ShareLink itself is credential-
+// equivalent: anyone holding it can view or download the invoice, so treat
+// it like a secret in logs and default output (a CLI table/JSON dump or an
+// MCP tool result that echoes it by default hands out the same access a
+// bearer token would).
 type InvoiceShareLink struct {
 	ClientID     int64  `json:"clientid"`
 	ResourceType string `json:"resource_type"`
 	ResourceID   string `json:"resourceid"`
-	ShareLink    string `json:"share_link"`
-	ShareMethod  string `json:"share_method"`
+	// ShareLink is the credential-equivalent URL; see the type's doc
+	// comment.
+	ShareLink   string `json:"share_link"`
+	ShareMethod string `json:"share_method"`
 }
 
 type shareLinkEnvelope struct {
@@ -379,16 +420,21 @@ type shareLinkEnvelope struct {
 // ShareLink returns a public share link for a sent invoice, for either a
 // web view or a direct PDF download; FreshBooks' Postman collection lists
 // these as two named requests, but both call the same endpoint with the
-// same share_method value.
+// same share_method value. The returned link is credential-equivalent; see
+// InvoiceShareLink's doc comment.
 //
 // inventory: Invoices/Invoice Links/Downloads/Share Link
 // inventory: Invoices/Invoice Links/Downloads/Share PDF
 func (s *InvoicesService) ShareLink(ctx context.Context, acct AccountID, id int64) (*InvoiceShareLink, error) {
+	base, err := invoicePath(acct, id)
+	if err != nil {
+		return nil, err
+	}
 	var resp shareLinkEnvelope
 	// share_method is a fixed, bare query parameter (not a search[] filter),
 	// so it is easiest to fold straight into the path FreshBooks' Postman
 	// example always sends.
-	path := invoicePath(acct, id) + "/share_link?share_method=share_link"
+	path := base + "/share_link?share_method=share_link"
 	if err := s.client.do(ctx, http.MethodGet, path, FamilyAccounting, nil, &resp); err != nil {
 		return nil, err
 	}
@@ -396,12 +442,14 @@ func (s *InvoicesService) ShareLink(ctx context.Context, acct AccountID, id int6
 }
 
 // PaymentOptionsRequest configures which payment methods FreshBooks Payments
-// accepts for an invoice, invoice profile, or checkout link.
+// accepts for an invoice or invoice profile. Every FreshBooks example sends
+// all three booleans explicitly, including false -- this is a toggle
+// endpoint, so an omitted field means "leave it as it is", not "off".
 type PaymentOptionsRequest struct {
 	GatewayName          string `json:"gateway_name,omitempty"`
-	HasCreditCard        bool   `json:"has_credit_card,omitempty"`
-	HasACHTransfer       bool   `json:"has_ach_transfer,omitempty"`
-	AllowPartialPayments bool   `json:"allow_partial_payments,omitempty"`
+	HasCreditCard        bool   `json:"has_credit_card"`
+	HasACHTransfer       bool   `json:"has_ach_transfer"`
+	AllowPartialPayments bool   `json:"allow_partial_payments"`
 }
 
 // EnablePaymentOptions turns on FreshBooks Payments for an invoice: which
@@ -412,6 +460,9 @@ func (s *InvoicesService) EnablePaymentOptions(ctx context.Context, acct Account
 	if req == nil {
 		return fmt.Errorf("freshbooks: Invoices.EnablePaymentOptions needs a request")
 	}
+	if err := pathSegment(string(acct)); err != nil {
+		return err
+	}
 	path := fmt.Sprintf("/payments/account/%s/invoice/%d/payment_options", acct, id)
 	return s.client.do(ctx, http.MethodPost, path, FamilyBusiness, req, nil)
 }
@@ -421,6 +472,9 @@ func (s *InvoicesService) EnablePaymentOptions(ctx context.Context, acct Account
 //
 // inventory: Invoices/Get default invoice presentation styles
 func (s *InvoicesService) InvoicePresentationDefaults(ctx context.Context, acct AccountID) (*InvoicePresentation, error) {
+	if err := pathSegment(string(acct)); err != nil {
+		return nil, err
+	}
 	var resp struct {
 		Presentation *InvoicePresentation `json:"presentation"`
 	}
@@ -431,37 +485,17 @@ func (s *InvoicesService) InvoicePresentationDefaults(ctx context.Context, acct 
 	return resp.Presentation, nil
 }
 
-func invoicesPath(acct AccountID) string {
-	return fmt.Sprintf("/accounting/account/%s/invoices/invoices", acct)
+func invoicesPath(acct AccountID) (string, error) {
+	if err := pathSegment(string(acct)); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("/accounting/account/%s/invoices/invoices", acct), nil
 }
 
-func invoicePath(acct AccountID, id int64) string {
-	return fmt.Sprintf("%s/%d", invoicesPath(acct), id)
-}
-
-// fetchRaw performs one request and returns the raw response body without
-// envelope unwrapping, for endpoints (PDF downloads) that answer with
-// something other than JSON. It shares the client's authorization, request
-// building, and error decoding with the JSON path, but skips decodeBody.
-func (c *Client) fetchRaw(ctx context.Context, method, path string, fam Family) ([]byte, error) {
-	endpoint, err := c.resolve(path, fam, nil)
+func invoicePath(acct AccountID, id int64) (string, error) {
+	base, err := invoicesPath(acct)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	authorization, err := c.authorization(ctx)
-	if err != nil {
-		return nil, err
-	}
-	req, err := c.newRequest(ctx, method, endpoint, nil, authorization)
-	if err != nil {
-		return nil, err
-	}
-	raw, apiErr, err := c.roundTrip(ctx, req, fam, 1)
-	if err != nil {
-		return nil, err
-	}
-	if apiErr != nil {
-		return nil, apiErr
-	}
-	return raw, nil
+	return fmt.Sprintf("%s/%d", base, id), nil
 }

@@ -128,6 +128,22 @@ func TestItemsCreate(t *testing.T) {
 		}
 	})
 
+	t.Run("[edge] an unset UnitCost is omitted, not sent as an empty Money", func(t *testing.T) {
+		var gotBody map[string]any
+		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			raw, _ := io.ReadAll(r.Body)
+			_ = json.Unmarshal(raw, &gotBody)
+			serveFixture(t, http.StatusOK, "items", "item")(w, r)
+		}))
+		if _, err := c.Items.Create(ctx, "ACM123", &ItemCreateRequest{Name: "Free Sample"}); err != nil {
+			t.Fatal(err)
+		}
+		envelope := gotBody["item"].(map[string]any)
+		if _, ok := envelope["unit_cost"]; ok {
+			t.Fatalf("body = %v, want an unset UnitCost omitted", gotBody)
+		}
+	})
+
 	t.Run("[sad] a nil request", func(t *testing.T) {
 		c, _ := newTestClient(t, http.NotFoundHandler())
 		if _, err := c.Items.Create(ctx, "ACM123", nil); err == nil {

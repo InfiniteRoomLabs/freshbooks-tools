@@ -93,7 +93,7 @@ func TestRetainersCreate(t *testing.T) {
 			_ = json.Unmarshal(raw, &gotBody)
 			serveFixture(t, http.StatusOK, "retainers", "retainer")(w, r)
 		}))
-		req := &RetainerCreateRequest{ClientUserID: "55001", StartDate: "2026-08-05", Fee: 600, ExcessRate: 200, Active: true, Frequency: "m"}
+		req := &RetainerCreateRequest{ClientUserID: "55001", StartDate: "2026-08-05", Fee: json.Number("600"), ExcessRate: json.Number("200"), Active: true, Frequency: "m"}
 		got, err := c.Retainers.Create(ctx, BusinessID(8675309), req)
 		if err != nil {
 			t.Fatal(err)
@@ -133,16 +133,41 @@ func TestRetainersUpdate(t *testing.T) {
 
 	t.Run("[happy] puts the new terms", func(t *testing.T) {
 		var gotMethod string
+		var gotBody map[string]any
 		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			gotMethod = r.Method
+			raw, _ := io.ReadAll(r.Body)
+			_ = json.Unmarshal(raw, &gotBody)
 			serveFixture(t, http.StatusOK, "retainers", "retainer")(w, r)
 		}))
-		req := &RetainerUpdateRequest{Fee: 20, ExcessRate: 700, Active: true}
+		active := true
+		req := &RetainerUpdateRequest{Fee: json.Number("20"), ExcessRate: json.Number("700"), Active: &active}
 		if _, err := c.Retainers.Update(ctx, BusinessID(8675309), 2200, req); err != nil {
 			t.Fatal(err)
 		}
 		if gotMethod != http.MethodPut {
 			t.Fatalf("method = %s", gotMethod)
+		}
+		envelope := gotBody["retainer"].(map[string]any)
+		if envelope["active"] != true {
+			t.Fatalf("body = %v", gotBody)
+		}
+	})
+
+	t.Run("[edge] a partial update (Active unset) does not carry active: false", func(t *testing.T) {
+		var gotBody map[string]any
+		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			raw, _ := io.ReadAll(r.Body)
+			_ = json.Unmarshal(raw, &gotBody)
+			serveFixture(t, http.StatusOK, "retainers", "retainer")(w, r)
+		}))
+		req := &RetainerUpdateRequest{Fee: json.Number("750")}
+		if _, err := c.Retainers.Update(ctx, BusinessID(8675309), 2200, req); err != nil {
+			t.Fatal(err)
+		}
+		envelope := gotBody["retainer"].(map[string]any)
+		if _, ok := envelope["active"]; ok {
+			t.Fatalf("body = %v, want no \"active\" key on a partial update", gotBody)
 		}
 	})
 

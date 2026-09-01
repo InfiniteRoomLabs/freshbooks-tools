@@ -560,3 +560,53 @@ func TestWait(t *testing.T) {
 		}
 	})
 }
+
+func TestPathSegment(t *testing.T) {
+	tests := []struct {
+		name string
+		s    string
+		ok   bool
+	}{
+		{"[happy] a normal account id", "ACM123", true},
+		{"[sad] empty", "", false},
+		{"[sad] a path separator", "ACM123/foo", false},
+		{"[sad] a query delimiter", "ACM123?per_page=100", false},
+		{"[sad] a fragment delimiter", "ACM123#x", false},
+		{"[sad] a single dot", ".", false},
+		{"[sad] a directory traversal", "..", false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := pathSegment(tc.s)
+			if tc.ok && err != nil {
+				t.Fatalf("pathSegment(%q) = %v, want nil", tc.s, err)
+			}
+			if !tc.ok && err == nil {
+				t.Fatalf("pathSegment(%q) = nil, want an error", tc.s)
+			}
+		})
+	}
+}
+
+func TestNoTraversal(t *testing.T) {
+	tests := []struct {
+		name string
+		p    string
+		ok   bool
+	}{
+		{"[happy] a normal path", "/accounting/account/ACM123/invoices/invoices", true},
+		{"[sad] a dot segment", "/accounting/account/./invoices", false},
+		{"[sad] a dot-dot segment", "/accounting/account/../invoices", false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := noTraversal(tc.p)
+			if tc.ok && err != nil {
+				t.Fatalf("noTraversal(%q) = %v, want nil", tc.p, err)
+			}
+			if !tc.ok && err == nil {
+				t.Fatalf("noTraversal(%q) = nil, want an error", tc.p)
+			}
+		})
+	}
+}

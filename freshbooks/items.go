@@ -57,17 +57,7 @@ func (o *ItemListOptions) opts() []RequestOption {
 	if o == nil {
 		return nil
 	}
-	var opts []RequestOption
-	if len(o.Search) > 0 {
-		opts = append(opts, o.Search)
-	}
-	if o.Page > 0 {
-		opts = append(opts, PageNumber(o.Page))
-	}
-	if o.PerPage > 0 {
-		opts = append(opts, PerPage(o.PerPage))
-	}
-	return opts
+	return listOpts(o.Search, o.Page, o.PerPage)
 }
 
 // List returns one page of catalogue items. Filtering by SKU (the Postman
@@ -79,12 +69,16 @@ func (o *ItemListOptions) opts() []RequestOption {
 // inventory: Settings/Items and Services/List Items
 // inventory: Settings/Items and Services/List Items Filtered by SKU
 func (s *ItemsService) List(ctx context.Context, acct AccountID, opts *ItemListOptions, extra ...RequestOption) (*Page[Item], error) {
-	var resp itemListResponse
-	reqOpts := append(opts.opts(), extra...)
-	if err := s.client.do(ctx, http.MethodGet, itemsPath(acct), FamilyAccounting, nil, &resp, reqOpts...); err != nil {
+	path, err := itemsPath(acct)
+	if err != nil {
 		return nil, err
 	}
-	return &Page[Item]{Items: resp.Items, Page: resp.Page, Pages: resp.Pages, PerPage: resp.PerPage, Total: resp.Total}, nil
+	var resp itemListResponse
+	reqOpts := append(opts.opts(), extra...)
+	if err := s.client.do(ctx, http.MethodGet, path, FamilyAccounting, nil, &resp, reqOpts...); err != nil {
+		return nil, err
+	}
+	return newPage(resp.Items, resp.PageMeta), nil
 }
 
 // All iterates every catalogue item across every page.
@@ -103,8 +97,12 @@ func (s *ItemsService) All(ctx context.Context, acct AccountID, opts *ItemListOp
 // inventory: Invoices/Items and Services/Single Item
 // inventory: Settings/Items and Services/Single Item
 func (s *ItemsService) Get(ctx context.Context, acct AccountID, id int64) (*Item, error) {
+	path, err := itemPath(acct, id)
+	if err != nil {
+		return nil, err
+	}
 	var resp itemEnvelope
-	if err := s.client.do(ctx, http.MethodGet, itemPath(acct, id), FamilyAccounting, nil, &resp); err != nil {
+	if err := s.client.do(ctx, http.MethodGet, path, FamilyAccounting, nil, &resp); err != nil {
 		return nil, err
 	}
 	return resp.Item, nil
@@ -117,7 +115,7 @@ type ItemCreateRequest struct {
 	SKU         string `json:"sku,omitempty"`
 	Qty         string `json:"qty,omitempty"`
 	Inventory   string `json:"inventory,omitempty"`
-	UnitCost    Money  `json:"unit_cost,omitempty"`
+	UnitCost    Money  `json:"unit_cost,omitzero"`
 }
 
 // Create adds a new catalogue item.
@@ -128,8 +126,12 @@ func (s *ItemsService) Create(ctx context.Context, acct AccountID, req *ItemCrea
 	if req == nil {
 		return nil, fmt.Errorf("freshbooks: Items.Create needs a request")
 	}
+	path, err := itemsPath(acct)
+	if err != nil {
+		return nil, err
+	}
 	var resp itemEnvelope
-	if err := s.client.do(ctx, http.MethodPost, itemsPath(acct), FamilyAccounting, itemWriteEnvelope{Item: req}, &resp); err != nil {
+	if err := s.client.do(ctx, http.MethodPost, path, FamilyAccounting, itemWriteEnvelope{Item: req}, &resp); err != nil {
 		return nil, err
 	}
 	return resp.Item, nil
@@ -154,8 +156,12 @@ func (s *ItemsService) Update(ctx context.Context, acct AccountID, id int64, req
 	if req == nil {
 		return nil, fmt.Errorf("freshbooks: Items.Update needs a request")
 	}
+	path, err := itemPath(acct, id)
+	if err != nil {
+		return nil, err
+	}
 	var resp itemEnvelope
-	if err := s.client.do(ctx, http.MethodPut, itemPath(acct, id), FamilyAccounting, itemWriteEnvelope{Item: req}, &resp); err != nil {
+	if err := s.client.do(ctx, http.MethodPut, path, FamilyAccounting, itemWriteEnvelope{Item: req}, &resp); err != nil {
 		return nil, err
 	}
 	return resp.Item, nil
@@ -166,13 +172,24 @@ func (s *ItemsService) Update(ctx context.Context, acct AccountID, id int64, req
 // inventory: Invoices/Items and Services/Delete Item
 // inventory: Settings/Items and Services/Delete Item
 func (s *ItemsService) Delete(ctx context.Context, acct AccountID, id int64) error {
-	return s.client.do(ctx, http.MethodPut, itemPath(acct, id), FamilyAccounting, itemWriteEnvelope{Item: map[string]int{"vis_state": int(VisStateDeleted)}}, nil)
+	path, err := itemPath(acct, id)
+	if err != nil {
+		return err
+	}
+	return s.client.softDelete(ctx, path, "item")
 }
 
-func itemsPath(acct AccountID) string {
-	return fmt.Sprintf("/accounting/account/%s/items/items", acct)
+func itemsPath(acct AccountID) (string, error) {
+	if err := pathSegment(string(acct)); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("/accounting/account/%s/items/items", acct), nil
 }
 
-func itemPath(acct AccountID, id int64) string {
-	return fmt.Sprintf("%s/%d", itemsPath(acct), id)
+func itemPath(acct AccountID, id int64) (string, error) {
+	base, err := itemsPath(acct)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s/%d", base, id), nil
 }

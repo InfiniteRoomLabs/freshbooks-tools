@@ -2,6 +2,7 @@ package freshbooks
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"iter"
 	"net/http"
@@ -60,29 +61,23 @@ func (o *PaymentListOptions) opts() []RequestOption {
 	if o == nil {
 		return nil
 	}
-	var opts []RequestOption
-	if len(o.Search) > 0 {
-		opts = append(opts, o.Search)
-	}
-	if o.Page > 0 {
-		opts = append(opts, PageNumber(o.Page))
-	}
-	if o.PerPage > 0 {
-		opts = append(opts, PerPage(o.PerPage))
-	}
-	return opts
+	return listOpts(o.Search, o.Page, o.PerPage)
 }
 
 // List returns one page of payments.
 //
 // inventory: Invoices/Payments/List Payments
 func (s *PaymentsService) List(ctx context.Context, acct AccountID, opts *PaymentListOptions, extra ...RequestOption) (*Page[Payment], error) {
-	var resp paymentListResponse
-	reqOpts := append(opts.opts(), extra...)
-	if err := s.client.do(ctx, http.MethodGet, paymentsPath(acct), FamilyAccounting, nil, &resp, reqOpts...); err != nil {
+	path, err := paymentsPath(acct)
+	if err != nil {
 		return nil, err
 	}
-	return &Page[Payment]{Items: resp.Payments, Page: resp.Page, Pages: resp.Pages, PerPage: resp.PerPage, Total: resp.Total}, nil
+	var resp paymentListResponse
+	reqOpts := append(opts.opts(), extra...)
+	if err := s.client.do(ctx, http.MethodGet, path, FamilyAccounting, nil, &resp, reqOpts...); err != nil {
+		return nil, err
+	}
+	return newPage(resp.Payments, resp.PageMeta), nil
 }
 
 // All iterates every payment across every page.
@@ -100,8 +95,12 @@ func (s *PaymentsService) All(ctx context.Context, acct AccountID, opts *Payment
 //
 // inventory: Invoices/Payments/Single Payment
 func (s *PaymentsService) Get(ctx context.Context, acct AccountID, id int64) (*Payment, error) {
+	path, err := paymentPath(acct, id)
+	if err != nil {
+		return nil, err
+	}
 	var resp paymentEnvelope
-	if err := s.client.do(ctx, http.MethodGet, paymentPath(acct, id), FamilyAccounting, nil, &resp); err != nil {
+	if err := s.client.do(ctx, http.MethodGet, path, FamilyAccounting, nil, &resp); err != nil {
 		return nil, err
 	}
 	return resp.Payment, nil
@@ -111,7 +110,7 @@ func (s *PaymentsService) Get(ctx context.Context, acct AccountID, id int64) (*P
 type PaymentCreateRequest struct {
 	InvoiceID int64  `json:"invoiceid"`
 	Amount    Money  `json:"amount"`
-	Date      Date   `json:"date,omitempty"`
+	Date      Date   `json:"date,omitzero"`
 	Type      string `json:"type,omitempty"`
 	Note      string `json:"note,omitempty"`
 }
@@ -123,8 +122,12 @@ func (s *PaymentsService) Create(ctx context.Context, acct AccountID, req *Payme
 	if req == nil {
 		return nil, fmt.Errorf("freshbooks: Payments.Create needs a request")
 	}
+	path, err := paymentsPath(acct)
+	if err != nil {
+		return nil, err
+	}
 	var resp paymentEnvelope
-	if err := s.client.do(ctx, http.MethodPost, paymentsPath(acct), FamilyAccounting, paymentWriteEnvelope{Payment: req}, &resp); err != nil {
+	if err := s.client.do(ctx, http.MethodPost, path, FamilyAccounting, paymentWriteEnvelope{Payment: req}, &resp); err != nil {
 		return nil, err
 	}
 	return resp.Payment, nil
@@ -146,8 +149,12 @@ func (s *PaymentsService) Update(ctx context.Context, acct AccountID, id int64, 
 	if req == nil {
 		return nil, fmt.Errorf("freshbooks: Payments.Update needs a request")
 	}
+	path, err := paymentPath(acct, id)
+	if err != nil {
+		return nil, err
+	}
 	var resp paymentEnvelope
-	if err := s.client.do(ctx, http.MethodPut, paymentPath(acct, id), FamilyAccounting, paymentWriteEnvelope{Payment: req}, &resp); err != nil {
+	if err := s.client.do(ctx, http.MethodPut, path, FamilyAccounting, paymentWriteEnvelope{Payment: req}, &resp); err != nil {
 		return nil, err
 	}
 	return resp.Payment, nil
@@ -157,15 +164,26 @@ func (s *PaymentsService) Update(ctx context.Context, acct AccountID, id int64, 
 //
 // inventory: Invoices/Payments/Delete Payment
 func (s *PaymentsService) Delete(ctx context.Context, acct AccountID, id int64) error {
-	return s.client.do(ctx, http.MethodPut, paymentPath(acct, id), FamilyAccounting, paymentWriteEnvelope{Payment: map[string]int{"vis_state": int(VisStateDeleted)}}, nil)
+	path, err := paymentPath(acct, id)
+	if err != nil {
+		return err
+	}
+	return s.client.softDelete(ctx, path, "payment")
 }
 
-func paymentsPath(acct AccountID) string {
-	return fmt.Sprintf("/accounting/account/%s/payments/payments", acct)
+func paymentsPath(acct AccountID) (string, error) {
+	if err := pathSegment(string(acct)); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("/accounting/account/%s/payments/payments", acct), nil
 }
 
-func paymentPath(acct AccountID, id int64) string {
-	return fmt.Sprintf("%s/%d", paymentsPath(acct), id)
+func paymentPath(acct AccountID, id int64) (string, error) {
+	base, err := paymentsPath(acct)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s/%d", base, id), nil
 }
 
 // CheckoutLinkTax is one tax line applied to a checkout link's total.
@@ -175,12 +193,13 @@ type CheckoutLinkTax struct {
 }
 
 // CheckoutLink is a FreshBooks Payments hosted checkout page: a link a
-// client can pay through without an invoice. The FreshBooks Postman
-// collection has no captured response example for this resource, so the
-// response is decoded with the same shape as the request; unmarshalled
-// zero fields carry through if the live API responds with a different
-// shape. Confirming this live is future work (see the package doc note in
-// doc.go about INFERRED payments-family facts).
+// client can pay through without an invoice. This is INFERRED, not
+// CONFIRMED: the FreshBooks Postman collection has no captured response
+// example for this resource, and the /api/online-payments docs page
+// documents payment_options but not checkout-link fields. CreateCheckoutLink
+// and UpdateCheckoutLink decode defensively (see decodeCheckoutLink) rather
+// than assuming one response shape; a live-conformance pass should confirm
+// the real shape.
 type CheckoutLink struct {
 	ID               string            `json:"id,omitempty"`
 	ItemID           string            `json:"item_id"`
@@ -198,6 +217,28 @@ type checkoutLinkEnvelope struct {
 	CheckoutLink *CheckoutLink `json:"checkout_link"`
 }
 
+// decodeCheckoutLink tries the enveloped shape ({"checkout_link": {...}})
+// FreshBooks uses for most business-family single-resource responses, then
+// falls back to a flat CheckoutLink object, since no captured example
+// confirms which one this endpoint actually returns. If neither decode
+// yields an id, it returns an error instead of silently handing the caller
+// back their own request -- an empty or malformed response must not be
+// mistaken for success.
+func decodeCheckoutLink(raw json.RawMessage) (*CheckoutLink, error) {
+	if len(raw) == 0 {
+		return nil, fmt.Errorf("freshbooks: checkout link response was empty")
+	}
+	var env checkoutLinkEnvelope
+	if err := json.Unmarshal(raw, &env); err == nil && env.CheckoutLink != nil && env.CheckoutLink.ID != "" {
+		return env.CheckoutLink, nil
+	}
+	var flat CheckoutLink
+	if err := json.Unmarshal(raw, &flat); err == nil && flat.ID != "" {
+		return &flat, nil
+	}
+	return nil, fmt.Errorf("freshbooks: checkout link response did not contain an id in either the enveloped or flat shape")
+}
+
 // CreateCheckoutLink creates a new hosted checkout link. FreshBooks' Postman
 // collection names this "Single Checkout Link" because the response is one
 // link, not a list; it is a create operation.
@@ -207,14 +248,15 @@ func (s *PaymentsService) CreateCheckoutLink(ctx context.Context, acct AccountID
 	if link == nil {
 		return nil, fmt.Errorf("freshbooks: Payments.CreateCheckoutLink needs a checkout link")
 	}
-	var resp checkoutLinkEnvelope
-	if err := s.client.do(ctx, http.MethodPost, checkoutLinksPath(acct), FamilyBusiness, link, &resp); err != nil {
+	path, err := checkoutLinksPath(acct)
+	if err != nil {
 		return nil, err
 	}
-	if resp.CheckoutLink == nil {
-		return link, nil
+	var raw json.RawMessage
+	if err := s.client.do(ctx, http.MethodPost, path, FamilyBusiness, link, &raw); err != nil {
+		return nil, err
 	}
-	return resp.CheckoutLink, nil
+	return decodeCheckoutLink(raw)
 }
 
 // UpdateCheckoutLink changes an existing checkout link.
@@ -224,14 +266,15 @@ func (s *PaymentsService) UpdateCheckoutLink(ctx context.Context, acct AccountID
 	if link == nil {
 		return nil, fmt.Errorf("freshbooks: Payments.UpdateCheckoutLink needs a checkout link")
 	}
-	var resp checkoutLinkEnvelope
-	if err := s.client.do(ctx, http.MethodPut, checkoutLinkPath(acct, id), FamilyBusiness, link, &resp); err != nil {
+	path, err := checkoutLinkPath(acct, id)
+	if err != nil {
 		return nil, err
 	}
-	if resp.CheckoutLink == nil {
-		return link, nil
+	var raw json.RawMessage
+	if err := s.client.do(ctx, http.MethodPut, path, FamilyBusiness, link, &raw); err != nil {
+		return nil, err
 	}
-	return resp.CheckoutLink, nil
+	return decodeCheckoutLink(raw)
 }
 
 // DeleteCheckoutLink permanently removes a checkout link. Unlike invoices
@@ -240,7 +283,26 @@ func (s *PaymentsService) UpdateCheckoutLink(ctx context.Context, acct AccountID
 //
 // inventory: Invoices/Payments/Delete Checkout Link
 func (s *PaymentsService) DeleteCheckoutLink(ctx context.Context, acct AccountID, id string) error {
-	return s.client.do(ctx, http.MethodDelete, checkoutLinkPath(acct, id), FamilyBusiness, nil, nil)
+	path, err := checkoutLinkPath(acct, id)
+	if err != nil {
+		return err
+	}
+	return s.client.do(ctx, http.MethodDelete, path, FamilyBusiness, nil, nil)
+}
+
+// checkoutLinkGatewayRequest is the wire payload for
+// UpdateCheckoutLinkGateway. Unlike PaymentOptionsRequest (used for
+// invoices and invoice profiles), FreshBooks' only captured example for
+// this endpoint also sends entity_type and entity_id identifying which
+// checkout link is being configured; UpdateCheckoutLinkGateway builds this
+// from its id argument rather than asking the caller to repeat it.
+type checkoutLinkGatewayRequest struct {
+	GatewayName          string `json:"gateway_name,omitempty"`
+	HasCreditCard        bool   `json:"has_credit_card"`
+	HasACHTransfer       bool   `json:"has_ach_transfer"`
+	AllowPartialPayments bool   `json:"allow_partial_payments"`
+	EntityType           string `json:"entity_type"`
+	EntityID             string `json:"entity_id"`
 }
 
 // UpdateCheckoutLinkGateway configures which FreshBooks Payments gateway and
@@ -251,14 +313,38 @@ func (s *PaymentsService) UpdateCheckoutLinkGateway(ctx context.Context, acct Ac
 	if req == nil {
 		return fmt.Errorf("freshbooks: Payments.UpdateCheckoutLinkGateway needs a request")
 	}
+	if err := pathSegment(string(acct)); err != nil {
+		return err
+	}
+	if err := pathSegment(id); err != nil {
+		return err
+	}
 	path := fmt.Sprintf("/payments/account/%s/checkout_link/%s/payment_options", acct, id)
-	return s.client.do(ctx, http.MethodPost, path, FamilyBusiness, req, nil)
+	body := checkoutLinkGatewayRequest{
+		GatewayName:          req.GatewayName,
+		HasCreditCard:        req.HasCreditCard,
+		HasACHTransfer:       req.HasACHTransfer,
+		AllowPartialPayments: req.AllowPartialPayments,
+		EntityType:           "checkout_link",
+		EntityID:             id,
+	}
+	return s.client.do(ctx, http.MethodPost, path, FamilyBusiness, body, nil)
 }
 
-func checkoutLinksPath(acct AccountID) string {
-	return fmt.Sprintf("/payments/account/%s/checkout-links", acct)
+func checkoutLinksPath(acct AccountID) (string, error) {
+	if err := pathSegment(string(acct)); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("/payments/account/%s/checkout-links", acct), nil
 }
 
-func checkoutLinkPath(acct AccountID, id string) string {
-	return fmt.Sprintf("%s/%s", checkoutLinksPath(acct), id)
+func checkoutLinkPath(acct AccountID, id string) (string, error) {
+	base, err := checkoutLinksPath(acct)
+	if err != nil {
+		return "", err
+	}
+	if err := pathSegment(id); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s/%s", base, id), nil
 }
