@@ -63,7 +63,7 @@ func TestCallbacksList(t *testing.T) {
 
 	t.Run("[happy] returns subscribed callbacks", func(t *testing.T) {
 		c, _ := newTestClient(t, serveFixture(t, http.StatusOK, "callbacks", "list"))
-		page, err := c.Callbacks.List(ctx, "ACM123")
+		page, err := c.Callbacks.List(ctx, "ACM123", nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -74,12 +74,30 @@ func TestCallbacksList(t *testing.T) {
 
 	t.Run("[edge] no subscriptions yet", func(t *testing.T) {
 		c, _ := newTestClient(t, serveFixture(t, http.StatusOK, "callbacks", "list_empty"))
-		page, err := c.Callbacks.List(ctx, "ACM123")
+		page, err := c.Callbacks.List(ctx, "ACM123", nil)
 		if err != nil {
 			t.Fatal(err)
 		}
 		if len(page.Items) != 0 || page.Total != 0 {
 			t.Fatalf("page = %+v", page)
+		}
+	})
+}
+
+func TestCallbacksAll(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("[happy] walks a single page", func(t *testing.T) {
+		c, _ := newTestClient(t, serveFixture(t, http.StatusOK, "callbacks", "list"))
+		var got []Callback
+		for cb, err := range c.Callbacks.All(ctx, "ACM123", nil) {
+			if err != nil {
+				t.Fatal(err)
+			}
+			got = append(got, cb)
+		}
+		if len(got) != 1 {
+			t.Fatalf("got %d callbacks", len(got))
 		}
 	})
 }
@@ -132,6 +150,9 @@ func TestCallbacksVerify(t *testing.T) {
 		if cb["verifier"] != "the-verifier-code" {
 			t.Fatalf("body = %v", gotBody)
 		}
+		if cb["callback_id"].(float64) != 2001 {
+			t.Fatalf("body = %v, want callback_id present", gotBody)
+		}
 		if !got.Verified {
 			t.Fatalf("got = %+v", got)
 		}
@@ -160,6 +181,9 @@ func TestCallbacksResendVerification(t *testing.T) {
 		if cb["resend"] != true {
 			t.Fatalf("body = %v", gotBody)
 		}
+		if cb["callback_id"].(float64) != 2001 {
+			t.Fatalf("body = %v, want callback_id present", gotBody)
+		}
 	})
 
 	t.Run("[sad] resending for an unknown callback", func(t *testing.T) {
@@ -168,4 +192,44 @@ func TestCallbacksResendVerification(t *testing.T) {
 			t.Fatalf("err = %v", err)
 		}
 	})
+}
+
+func TestCallbacksRejectUnsafeAccountID(t *testing.T) {
+	ctx := context.Background()
+
+	tests := []struct {
+		name string
+		acct AccountID
+	}{
+		{"[sad] a path separator", "a/b"},
+		{"[sad] a query delimiter", "a?b"},
+		{"[sad] a fragment delimiter", "a#b"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			called := false
+			c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				called = true
+				w.WriteHeader(http.StatusOK)
+			}))
+			if _, err := c.Callbacks.Register(ctx, tc.acct, &CallbackRegisterRequest{Event: "invoice.create", URI: "https://example.test"}); err == nil {
+				t.Fatal("want an error")
+			}
+			if _, err := c.Callbacks.List(ctx, tc.acct, nil); err == nil {
+				t.Fatal("want an error")
+			}
+			if err := c.Callbacks.Delete(ctx, tc.acct, 1); err == nil {
+				t.Fatal("want an error")
+			}
+			if _, err := c.Callbacks.Verify(ctx, tc.acct, 1, "x"); err == nil {
+				t.Fatal("want an error")
+			}
+			if err := c.Callbacks.ResendVerification(ctx, tc.acct, 1); err == nil {
+				t.Fatal("want an error")
+			}
+			if called {
+				t.Fatal("a request was made with an unsafe account id")
+			}
+		})
+	}
 }

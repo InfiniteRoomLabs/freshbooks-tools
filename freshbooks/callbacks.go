@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"iter"
 	"net/http"
 	"strconv"
 )
@@ -57,12 +58,22 @@ type callbackEnvelope struct {
 	Callback Callback `json:"callback"`
 }
 
-func callbacksPath(acct AccountID, callbackID *int64) string {
-	path := "/events/account/" + string(acct) + "/events/callbacks"
-	if callbackID != nil {
-		path += "/" + strconv.FormatInt(*callbackID, 10)
+// callbacksPath validates acct and builds the webhook-callbacks collection
+// path.
+func callbacksPath(acct AccountID) (string, error) {
+	if err := pathSegment(string(acct)); err != nil {
+		return "", err
 	}
-	return path
+	return "/events/account/" + string(acct) + "/events/callbacks", nil
+}
+
+// callbackPath validates acct and builds one callback's item path.
+func callbackPath(acct AccountID, callbackID int64) (string, error) {
+	base, err := callbacksPath(acct)
+	if err != nil {
+		return "", err
+	}
+	return base + "/" + strconv.FormatInt(callbackID, 10), nil
 }
 
 // Register subscribes uri to event. FreshBooks marks the new subscription
@@ -73,31 +84,64 @@ func (s *CallbacksService) Register(ctx context.Context, acct AccountID, req *Ca
 	if req == nil {
 		return nil, fmt.Errorf("freshbooks: Callbacks.Register needs a request")
 	}
+	path, err := callbacksPath(acct)
+	if err != nil {
+		return nil, err
+	}
 	body := struct {
 		Callback *CallbackRegisterRequest `json:"callback"`
 	}{req}
 	var resp callbackEnvelope
-	if err := s.client.do(ctx, http.MethodPost, callbacksPath(acct, nil), FamilyAccounting, body, &resp); err != nil {
+	if err := s.client.do(ctx, http.MethodPost, path, FamilyAccounting, body, &resp); err != nil {
 		return nil, err
 	}
 	return &resp.Callback, nil
 }
 
-// List returns acct's webhook subscriptions.
+// CallbackListOptions filters and paginates List.
+type CallbackListOptions struct {
+	Search  Search
+	Page    int
+	PerPage int
+}
+
+func (o *CallbackListOptions) opts() []RequestOption {
+	if o == nil {
+		return nil
+	}
+	return listOpts(o.Search, o.Page, o.PerPage)
+}
+
+// List returns one page of acct's webhook subscriptions.
 //
 // inventory: Webhooks/List Webhook Callbacks
-func (s *CallbacksService) List(ctx context.Context, acct AccountID, opts ...RequestOption) (*Page[Callback], error) {
+func (s *CallbacksService) List(ctx context.Context, acct AccountID, opts *CallbackListOptions, extra ...RequestOption) (*Page[Callback], error) {
+	path, err := callbacksPath(acct)
+	if err != nil {
+		return nil, err
+	}
 	var resp struct {
 		Callbacks []Callback `json:"callbacks"`
 		PageMeta
 	}
-	if err := s.client.do(ctx, http.MethodGet, callbacksPath(acct, nil), FamilyAccounting, nil, &resp, opts...); err != nil {
+	reqOpts := append(opts.opts(), extra...)
+	if err := s.client.do(ctx, http.MethodGet, path, FamilyAccounting, nil, &resp, reqOpts...); err != nil {
 		return nil, err
 	}
-	return &Page[Callback]{
-		Items: resp.Callbacks, Page: resp.Page, Pages: resp.Pages,
-		PerPage: resp.PerPage, Total: resp.Total,
-	}, nil
+	return newPage(resp.Callbacks, resp.PageMeta), nil
+}
+
+// All walks every page of List.
+func (s *CallbacksService) All(ctx context.Context, acct AccountID, opts *CallbackListOptions, extra ...RequestOption) iter.Seq2[Callback, error] {
+	return All(ctx, func(ctx context.Context, page int) (*Page[Callback], error) {
+		o := CallbackListOptions{}
+		if opts != nil {
+			o.Search, o.PerPage = opts.Search, opts.PerPage
+		}
+		o.PerPage = pageSize(o.PerPage)
+		pageOpts := append(append([]RequestOption{}, extra...), PageNumber(page))
+		return s.List(ctx, acct, &o, pageOpts...)
+	})
 }
 
 // Delete removes a webhook subscription. FreshBooks stops delivering to it
@@ -105,7 +149,11 @@ func (s *CallbacksService) List(ctx context.Context, acct AccountID, opts ...Req
 //
 // inventory: Webhooks/Delete Webhook Callback
 func (s *CallbacksService) Delete(ctx context.Context, acct AccountID, callbackID int64) error {
-	return s.client.do(ctx, http.MethodDelete, callbacksPath(acct, &callbackID), FamilyAccounting, nil, nil)
+	path, err := callbackPath(acct, callbackID)
+	if err != nil {
+		return err
+	}
+	return s.client.do(ctx, http.MethodDelete, path, FamilyAccounting, nil, nil)
 }
 
 // Verify completes the verification handshake for a callback, using the
@@ -114,14 +162,20 @@ func (s *CallbacksService) Delete(ctx context.Context, acct AccountID, callbackI
 //
 // inventory: Webhooks/Verify Webhook Callback
 func (s *CallbacksService) Verify(ctx context.Context, acct AccountID, callbackID int64, verifier string) (*Callback, error) {
+	path, err := callbackPath(acct, callbackID)
+	if err != nil {
+		return nil, err
+	}
 	body := struct {
 		Callback struct {
-			Verifier string `json:"verifier"`
+			CallbackID int64  `json:"callback_id"`
+			Verifier   string `json:"verifier"`
 		} `json:"callback"`
 	}{}
+	body.Callback.CallbackID = callbackID
 	body.Callback.Verifier = verifier
 	var resp callbackEnvelope
-	if err := s.client.do(ctx, http.MethodPut, callbacksPath(acct, &callbackID), FamilyAccounting, body, &resp); err != nil {
+	if err := s.client.do(ctx, http.MethodPut, path, FamilyAccounting, body, &resp); err != nil {
 		return nil, err
 	}
 	return &resp.Callback, nil
@@ -134,11 +188,17 @@ func (s *CallbacksService) Verify(ctx context.Context, acct AccountID, callbackI
 //
 // inventory: Webhooks/Resend Verification Code
 func (s *CallbacksService) ResendVerification(ctx context.Context, acct AccountID, callbackID int64) error {
+	path, err := callbackPath(acct, callbackID)
+	if err != nil {
+		return err
+	}
 	body := struct {
 		Callback struct {
-			Resend bool `json:"resend"`
+			CallbackID int64 `json:"callback_id"`
+			Resend     bool  `json:"resend"`
 		} `json:"callback"`
 	}{}
+	body.Callback.CallbackID = callbackID
 	body.Callback.Resend = true
-	return s.client.do(ctx, http.MethodPut, callbacksPath(acct, &callbackID), FamilyAccounting, body, nil)
+	return s.client.do(ctx, http.MethodPut, path, FamilyAccounting, body, nil)
 }

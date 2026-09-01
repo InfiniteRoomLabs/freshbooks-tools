@@ -4,68 +4,34 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"net"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
-
-	"github.com/InfiniteRoomLabs/freshbooks-tools/freshbooks/auth"
 )
-
-// newHostOverrideClient returns a client whose base URL is a host distinct
-// from tokenizationHost, with a transport that dials srv regardless of
-// which host a request's URL names. This proves FBPayTokenize/
-// StripeTokenize actually override the destination host rather than
-// falling back to the client's own base host.
-func newHostOverrideClient(t *testing.T, srv *httptest.Server) *Client {
-	t.Helper()
-	tr := &http.Transport{
-		DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
-			var d net.Dialer
-			return d.DialContext(ctx, network, srv.Listener.Addr().String())
-		},
-	}
-	c, err := NewClient(
-		WithBaseURL("http://api.freshbooks.test"),
-		WithHTTPClient(&http.Client{Transport: tr}),
-		WithTokenSource(auth.StaticTokenSource("test-access-token")),
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return c
-}
 
 func TestPaymentOptionsFBPayTokenize(t *testing.T) {
 	ctx := context.Background()
 
-	t.Run("[happy] posts to the tokenization host, not the API base URL", func(t *testing.T) {
-		var gotHost, gotPath string
-		var gotBody map[string]any
-		tokenizeSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			gotHost, gotPath = r.Host, r.URL.Path
-			raw, _ := io.ReadAll(r.Body)
-			_ = json.Unmarshal(raw, &gotBody)
-			serveFixture(t, http.StatusCreated, "payment_options", "fbpay_tokenize")(w, r)
-		}))
-		defer tokenizeSrv.Close()
+	t.Run("[happy] posts to the tokenization host over https, not the API base URL", func(t *testing.T) {
+		rt := &recordingRoundTripper{resp: `{"cc_token": "1122334455"}`, status: http.StatusCreated}
+		c := newRecordingClient(t, "http://api.freshbooks.test", rt)
 
-		c := newHostOverrideClient(t, tokenizeSrv)
 		got, err := c.PaymentOptions.FBPayTokenize(ctx, &FBPayTokenizeRequest{
-			Name: "John Johnston", CardNumber: "4500123456789012", ExpiryMonth: "10", ExpiryYear: "2024",
+			Name: "John Johnston", CardNumber: "4111111111111111", ExpiryMonth: "10", ExpiryYear: "2024",
 		})
 		if err != nil {
 			t.Fatal(err)
 		}
-		if gotPath != "/gateway/fbpay/tokenize" {
-			t.Fatalf("path = %q", gotPath)
+		if rt.req.URL.Path != "/gateway/fbpay/tokenize" {
+			t.Fatalf("path = %q", rt.req.URL.Path)
 		}
-		if gotHost != tokenizationHost {
-			t.Fatalf("host = %q, want %q", gotHost, tokenizationHost)
+		if rt.req.URL.Host != tokenizationHost || rt.req.URL.Scheme != "https" {
+			t.Fatalf("url = %q, want https://%s", rt.req.URL, tokenizationHost)
 		}
+		var gotBody map[string]any
+		_ = json.NewDecoder(rt.req.Body).Decode(&gotBody)
 		ccInfo := gotBody["cc_info"].(map[string]any)
-		if ccInfo["card_number"] != "4500123456789012" {
+		if ccInfo["card_number"] != "4111111111111111" {
 			t.Fatalf("body = %v", gotBody)
 		}
 		if got != "1122334455" {
@@ -85,23 +51,22 @@ func TestPaymentOptionsStripeTokenize(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("[happy] posts api_key alongside cc_info and returns raw JSON", func(t *testing.T) {
-		var gotBody map[string]any
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			raw, _ := io.ReadAll(r.Body)
-			_ = json.Unmarshal(raw, &gotBody)
-			_, _ = io.WriteString(w, `{"id": "pm_example", "object": "payment_method"}`)
-		}))
-		defer srv.Close()
+		rt := &recordingRoundTripper{resp: `{"id": "pm_example", "object": "payment_method"}`}
+		c := newRecordingClient(t, "http://api.freshbooks.test", rt)
 
-		c := newHostOverrideClient(t, srv)
 		raw, err := c.PaymentOptions.StripeTokenize(ctx, &StripeTokenizeRequest{
-			Name: "Mush Parker", CardNumber: "450001234567809012", APIKey: "pk_live_example",
+			Name: "Mush Parker", CardNumber: "4242424242424242", APIKey: "pk_test_example",
 		})
 		if err != nil {
 			t.Fatal(err)
 		}
-		if gotBody["api_key"] != "pk_live_example" {
+		var gotBody map[string]any
+		_ = json.NewDecoder(rt.req.Body).Decode(&gotBody)
+		if gotBody["api_key"] != "pk_test_example" {
 			t.Fatalf("body = %v", gotBody)
+		}
+		if _, dup := gotBody["cc_info"].(map[string]any)["api_key"]; dup {
+			t.Fatal("api_key was sent twice: once at the top level and once inside cc_info")
 		}
 		if !strings.Contains(string(raw), "pm_example") {
 			t.Fatalf("raw = %s", raw)
@@ -142,6 +107,20 @@ func TestPaymentOptionsStripeCreateSetupIntent(t *testing.T) {
 			t.Fatalf("raw = %s", raw)
 		}
 	})
+
+	t.Run("[sad] an unsafe account id", func(t *testing.T) {
+		called := false
+		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			called = true
+			w.WriteHeader(http.StatusOK)
+		}))
+		if _, err := c.PaymentOptions.StripeCreateSetupIntent(ctx, "a/b", "pm_x"); err == nil {
+			t.Fatal("want an error")
+		}
+		if called {
+			t.Fatal("a request was made with an unsafe account id")
+		}
+	})
 }
 
 func TestPaymentOptionsSaveCreditCard(t *testing.T) {
@@ -180,6 +159,44 @@ func TestPaymentOptionsSaveCreditCard(t *testing.T) {
 		c, _ := newTestClient(t, http.NotFoundHandler())
 		if _, err := c.PaymentOptions.SaveCreditCard(ctx, "ACM123", nil); err == nil {
 			t.Fatal("want an error")
+		}
+	})
+
+	t.Run("[sad] an unsafe account id", func(t *testing.T) {
+		called := false
+		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			called = true
+			w.WriteHeader(http.StatusOK)
+		}))
+		if _, err := c.PaymentOptions.SaveCreditCard(ctx, "a/b", &SaveCreditCardRequest{}); err == nil {
+			t.Fatal("want an error")
+		}
+		if called {
+			t.Fatal("a request was made with an unsafe account id")
+		}
+	})
+}
+
+func TestTokenizeRequestStringRedacted(t *testing.T) {
+	t.Run("[happy] FBPayTokenizeRequest.String never prints the card number or CVV", func(t *testing.T) {
+		req := FBPayTokenizeRequest{Name: "Sam Owner", CardNumber: "4111111111111111", CVV: "123"}
+		s := req.String()
+		if strings.Contains(s, "4111111111111111") || strings.Contains(s, "123") {
+			t.Fatalf("card data leaked into String(): %s", s)
+		}
+		if !strings.Contains(s, "redacted") {
+			t.Fatalf("String() = %q, want it to say redacted", s)
+		}
+	})
+
+	t.Run("[happy] StripeTokenizeRequest.String never prints the card number or API key", func(t *testing.T) {
+		req := StripeTokenizeRequest{Name: "Sam Owner", CardNumber: "4242424242424242", APIKey: "pk_test_example"}
+		s := req.String()
+		if strings.Contains(s, "4242424242424242") || strings.Contains(s, "pk_test_example") {
+			t.Fatalf("card data leaked into String(): %s", s)
+		}
+		if !strings.Contains(s, "redacted") {
+			t.Fatalf("String() = %q, want it to say redacted", s)
 		}
 	})
 }

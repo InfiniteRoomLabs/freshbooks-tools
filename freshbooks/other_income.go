@@ -3,6 +3,7 @@ package freshbooks
 import (
 	"context"
 	"fmt"
+	"iter"
 	"net/http"
 	"strconv"
 )
@@ -62,16 +63,25 @@ type OtherIncomeCreateRequest struct {
 	Taxes []OtherIncomeTax `json:"taxes,omitempty"`
 }
 
-// OtherIncomeUpdateRequest is the payload for OtherIncomeService.Update. All
-// fields are optional; FreshBooks merges them onto the existing record.
+// OtherIncomeUpdateRequest is the payload for OtherIncomeService.Update. Every
+// clearable scalar field is a pointer, one consistent partial-update
+// convention: a nil field is left alone, a non-nil field (including a
+// pointer to "") is sent and overwrites the existing value.
 type OtherIncomeUpdateRequest struct {
-	Amount       *Money           `json:"amount,omitempty"`
-	CategoryName string           `json:"category_name,omitempty"`
-	Date         string           `json:"date,omitempty"`
-	Note         *string          `json:"note,omitempty"`
-	PaymentType  string           `json:"payment_type,omitempty"`
-	Source       string           `json:"source,omitempty"`
-	Taxes        []OtherIncomeTax `json:"taxes,omitempty"`
+	// Amount replaces the income amount when set.
+	Amount *Money `json:"amount,omitempty"`
+	// CategoryName replaces the income's category when set.
+	CategoryName *string `json:"category_name,omitempty"`
+	// Date replaces the income date ("YYYY-MM-DD") when set.
+	Date *string `json:"date,omitempty"`
+	// Note replaces the free-text description when set.
+	Note *string `json:"note,omitempty"`
+	// PaymentType replaces how the payment was received when set.
+	PaymentType *string `json:"payment_type,omitempty"`
+	// Source replaces where the income came from when set.
+	Source *string `json:"source,omitempty"`
+	// Taxes replaces the tax lines when set.
+	Taxes []OtherIncomeTax `json:"taxes,omitempty"`
 	// VisState is set by Delete to soft-delete the record; leave nil for a
 	// plain field update.
 	VisState *VisState `json:"vis_state,omitempty"`
@@ -83,15 +93,23 @@ type otherIncomeEnvelope struct {
 	OtherIncome OtherIncome `json:"other_income"`
 }
 
-// otherIncomePath builds the collection or item path for acct. Postman
-// lists these operations twice, under Accounting/Other Income and
-// Invoices/Other Income; both sets of names map to the methods below.
-func otherIncomePath(acct AccountID, incomeID *int64) string {
-	path := "/accounting/account/" + string(acct) + "/other_incomes/other_incomes"
-	if incomeID != nil {
-		path += "/" + strconv.FormatInt(*incomeID, 10)
+// otherIncomePath validates acct and builds the other-income collection
+// path. Postman lists these operations twice, under Accounting/Other Income
+// and Invoices/Other Income; both sets of names map to the methods below.
+func otherIncomePath(acct AccountID) (string, error) {
+	if err := pathSegment(string(acct)); err != nil {
+		return "", err
 	}
-	return path
+	return "/accounting/account/" + string(acct) + "/other_incomes/other_incomes", nil
+}
+
+// otherIncomeItemPath validates acct and builds one record's item path.
+func otherIncomeItemPath(acct AccountID, incomeID int64) (string, error) {
+	base, err := otherIncomePath(acct)
+	if err != nil {
+		return "", err
+	}
+	return base + "/" + strconv.FormatInt(incomeID, 10), nil
 }
 
 // Create records a new other-income entry.
@@ -102,32 +120,65 @@ func (s *OtherIncomeService) Create(ctx context.Context, acct AccountID, req *Ot
 	if req == nil {
 		return nil, fmt.Errorf("freshbooks: OtherIncome.Create needs a request")
 	}
+	path, err := otherIncomePath(acct)
+	if err != nil {
+		return nil, err
+	}
 	body := struct {
 		OtherIncome *OtherIncomeCreateRequest `json:"other_income"`
 	}{req}
 	var resp otherIncomeEnvelope
-	if err := s.client.do(ctx, http.MethodPost, otherIncomePath(acct, nil), FamilyAccounting, body, &resp); err != nil {
+	if err := s.client.do(ctx, http.MethodPost, path, FamilyAccounting, body, &resp); err != nil {
 		return nil, err
 	}
 	return &resp.OtherIncome, nil
 }
 
-// List returns acct's other-income records, newest activity first.
+// OtherIncomeListOptions filters and paginates List.
+type OtherIncomeListOptions struct {
+	Search  Search
+	Page    int
+	PerPage int
+}
+
+func (o *OtherIncomeListOptions) opts() []RequestOption {
+	if o == nil {
+		return nil
+	}
+	return listOpts(o.Search, o.Page, o.PerPage)
+}
+
+// List returns one page of acct's other-income records.
 //
 // inventory: Accounting/Other Income/List Other Income
 // inventory: Invoices/Other Income/List Other Income
-func (s *OtherIncomeService) List(ctx context.Context, acct AccountID, opts ...RequestOption) (*Page[OtherIncome], error) {
+func (s *OtherIncomeService) List(ctx context.Context, acct AccountID, opts *OtherIncomeListOptions, extra ...RequestOption) (*Page[OtherIncome], error) {
+	path, err := otherIncomePath(acct)
+	if err != nil {
+		return nil, err
+	}
 	var resp struct {
 		OtherIncome []OtherIncome `json:"other_income"`
 		PageMeta
 	}
-	if err := s.client.do(ctx, http.MethodGet, otherIncomePath(acct, nil), FamilyAccounting, nil, &resp, opts...); err != nil {
+	reqOpts := append(opts.opts(), extra...)
+	if err := s.client.do(ctx, http.MethodGet, path, FamilyAccounting, nil, &resp, reqOpts...); err != nil {
 		return nil, err
 	}
-	return &Page[OtherIncome]{
-		Items: resp.OtherIncome, Page: resp.Page, Pages: resp.Pages,
-		PerPage: resp.PerPage, Total: resp.Total,
-	}, nil
+	return newPage(resp.OtherIncome, resp.PageMeta), nil
+}
+
+// All walks every page of List.
+func (s *OtherIncomeService) All(ctx context.Context, acct AccountID, opts *OtherIncomeListOptions, extra ...RequestOption) iter.Seq2[OtherIncome, error] {
+	return All(ctx, func(ctx context.Context, page int) (*Page[OtherIncome], error) {
+		o := OtherIncomeListOptions{}
+		if opts != nil {
+			o.Search, o.PerPage = opts.Search, opts.PerPage
+		}
+		o.PerPage = pageSize(o.PerPage)
+		pageOpts := append(append([]RequestOption{}, extra...), PageNumber(page))
+		return s.List(ctx, acct, &o, pageOpts...)
+	})
 }
 
 // Update changes fields on an existing other-income record.
@@ -138,11 +189,15 @@ func (s *OtherIncomeService) Update(ctx context.Context, acct AccountID, incomeI
 	if req == nil {
 		return nil, fmt.Errorf("freshbooks: OtherIncome.Update needs a request")
 	}
+	path, err := otherIncomeItemPath(acct, incomeID)
+	if err != nil {
+		return nil, err
+	}
 	body := struct {
 		OtherIncome *OtherIncomeUpdateRequest `json:"other_income"`
 	}{req}
 	var resp otherIncomeEnvelope
-	if err := s.client.do(ctx, http.MethodPut, otherIncomePath(acct, &incomeID), FamilyAccounting, body, &resp); err != nil {
+	if err := s.client.do(ctx, http.MethodPut, path, FamilyAccounting, body, &resp); err != nil {
 		return nil, err
 	}
 	return &resp.OtherIncome, nil
@@ -151,7 +206,9 @@ func (s *OtherIncomeService) Update(ctx context.Context, acct AccountID, incomeI
 // Delete soft-deletes an other-income record. FreshBooks has no DELETE verb
 // for this resource; deletion is a PUT that sets vis_state to
 // VisStateDeleted, the same endpoint Update uses for a field change --
-// Delete just supplies a canned body.
+// Delete just supplies a canned body. It stays on Update rather than the
+// shared softDelete helper because the API returns the updated record and
+// softDelete discards it.
 //
 // inventory: Accounting/Other Income/Delete Single Other Income
 // inventory: Invoices/Other Income/Delete Single Other Income

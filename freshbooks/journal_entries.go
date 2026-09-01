@@ -8,8 +8,10 @@ import (
 
 // JournalEntryDetail is one debit or credit line of a journal entry.
 type JournalEntryDetail struct {
-	// SubAccountID identifies the sub-account this line posts to.
-	SubAccountID int64 `json:"sub_accountid"`
+	// SubAccountID identifies the sub-account this line posts to. The
+	// captured request body sends it as a quoted string, unlike the
+	// response's unquoted numeric form (see JournalEntryDetailResult).
+	SubAccountID string `json:"sub_accountid"`
 	// Debit is the debit amount as a decimal string, empty when this line
 	// is a credit.
 	Debit string `json:"debit,omitempty"`
@@ -59,47 +61,69 @@ type JournalEntry struct {
 	Details         []JournalEntryDetailResult `json:"details"`
 }
 
+// JournalEntryDetailAccount is the ledger account a JournalEntryDetailEntry
+// posts against.
+type JournalEntryDetailAccount struct {
+	ID                 int64  `json:"id"`
+	AccountID          int64  `json:"accountid"`
+	AccountName        string `json:"account_name"`
+	AccountNumber      string `json:"account_number"`
+	AccountType        string `json:"account_type"`
+	AccountingSystemID string `json:"accounting_systemid"`
+}
+
+// JournalEntryDetailSubAccount is the sub-account a JournalEntryDetailEntry
+// posts against.
+type JournalEntryDetailSubAccount struct {
+	ID                 int64  `json:"id"`
+	SubAccountID       int64  `json:"sub_accountid"`
+	ParentID           int64  `json:"parentid"`
+	AccountSubName     string `json:"account_sub_name"`
+	AccountSubNumber   string `json:"account_sub_number"`
+	AccountingSystemID string `json:"accounting_systemid"`
+}
+
+// JournalEntryDetailSource identifies the transaction that produced a
+// JournalEntryDetailEntry: at most one of ExpenseID, IncomeID, InvoiceID,
+// PaymentID, or CreditID is set, depending on what generated the posting.
+type JournalEntryDetailSource struct {
+	ID                 int64  `json:"id"`
+	EntryID            int64  `json:"entryid"`
+	AccountingSystemID string `json:"accounting_systemid"`
+	ClientID           *int64 `json:"clientid"`
+	CreditID           *int64 `json:"creditid"`
+	ExpenseID          *int64 `json:"expenseid"`
+	IncomeID           *int64 `json:"incomeid"`
+	InvoiceID          *int64 `json:"invoiceid"`
+	PaymentID          *int64 `json:"paymentid"`
+}
+
 // JournalEntryDetailEntry is one row of JournalEntriesService.Details: a
 // posted debit or credit with the account, sub-account, and source
 // transaction it belongs to.
 type JournalEntryDetailEntry struct {
-	ID                 int64  `json:"id"`
-	DetailID           int64  `json:"detailid"`
-	Name               string `json:"name"`
-	Description        string `json:"description"`
-	DetailType         string `json:"detail_type"`
-	UserEnteredDate    string `json:"user_entered_date"`
-	AccountingSystemID string `json:"accounting_systemid"`
-	Debit              *Money `json:"debit"`
-	Credit             *Money `json:"credit"`
-	Balance            Money  `json:"balance"`
-	Account            struct {
-		ID                 int64  `json:"id"`
-		AccountID          int64  `json:"accountid"`
-		AccountName        string `json:"account_name"`
-		AccountNumber      string `json:"account_number"`
-		AccountType        string `json:"account_type"`
-		AccountingSystemID string `json:"accounting_systemid"`
-	} `json:"account"`
-	SubAccount struct {
-		ID                 int64  `json:"id"`
-		SubAccountID       int64  `json:"sub_accountid"`
-		ParentID           int64  `json:"parentid"`
-		AccountSubName     string `json:"account_sub_name"`
-		AccountSubNumber   string `json:"account_sub_number"`
-		AccountingSystemID string `json:"accounting_systemid"`
-	} `json:"sub_account"`
-	Entry struct {
-		ID                 int64  `json:"id"`
-		EntryID            int64  `json:"entryid"`
-		AccountingSystemID string `json:"accounting_systemid"`
-		ClientID           *int64 `json:"clientid"`
-		CreditID           *int64 `json:"creditid"`
-		ExpenseID          *int64 `json:"expenseid"`
-		IncomeID           *int64 `json:"incomeid"`
-		InvoiceID          *int64 `json:"invoiceid"`
-		PaymentID          *int64 `json:"paymentid"`
-	} `json:"entry"`
+	ID                 int64                        `json:"id"`
+	DetailID           int64                        `json:"detailid"`
+	Name               string                       `json:"name"`
+	Description        string                       `json:"description"`
+	DetailType         string                       `json:"detail_type"`
+	UserEnteredDate    string                       `json:"user_entered_date"`
+	AccountingSystemID string                       `json:"accounting_systemid"`
+	Debit              *Money                       `json:"debit"`
+	Credit             *Money                       `json:"credit"`
+	Balance            Money                        `json:"balance"`
+	Account            JournalEntryDetailAccount    `json:"account"`
+	SubAccount         JournalEntryDetailSubAccount `json:"sub_account"`
+	Entry              JournalEntryDetailSource     `json:"entry"`
+}
+
+// journalEntriesPath validates acct and builds the journal-entries
+// collection path.
+func journalEntriesPath(acct AccountID) (string, error) {
+	if err := pathSegment(string(acct)); err != nil {
+		return "", err
+	}
+	return "/accounting/account/" + string(acct) + "/journal_entries", nil
 }
 
 // Create posts a new, balanced journal entry.
@@ -113,14 +137,17 @@ func (s *JournalEntriesService) Create(ctx context.Context, acct AccountID, req 
 	if req == nil {
 		return nil, fmt.Errorf("freshbooks: JournalEntries.Create needs a request")
 	}
-	path := "/accounting/account/" + string(acct) + "/journal_entries/journal_entries"
+	base, err := journalEntriesPath(acct)
+	if err != nil {
+		return nil, err
+	}
 	body := struct {
 		JournalEntry *JournalEntryCreateRequest `json:"journal_entry"`
 	}{req}
 	var resp struct {
 		JournalEntry JournalEntry `json:"journal_entry"`
 	}
-	if err := s.client.do(ctx, http.MethodPost, path, FamilyAccounting, body, &resp); err != nil {
+	if err := s.client.do(ctx, http.MethodPost, base+"/journal_entries", FamilyAccounting, body, &resp); err != nil {
 		return nil, err
 	}
 	return &resp.JournalEntry, nil
@@ -130,11 +157,14 @@ func (s *JournalEntriesService) Create(ctx context.Context, acct AccountID, req 
 //
 // inventory: Accounting/Journal Entries/Journal Entry Details
 func (s *JournalEntriesService) Details(ctx context.Context, acct AccountID, opts ...RequestOption) ([]JournalEntryDetailEntry, error) {
-	path := "/accounting/account/" + string(acct) + "/journal_entries/journal_entry_details"
+	base, err := journalEntriesPath(acct)
+	if err != nil {
+		return nil, err
+	}
 	var resp struct {
 		JournalEntryDetails []JournalEntryDetailEntry `json:"journal_entry_details"`
 	}
-	if err := s.client.do(ctx, http.MethodGet, path, FamilyAccounting, nil, &resp, opts...); err != nil {
+	if err := s.client.do(ctx, http.MethodGet, base+"/journal_entry_details", FamilyAccounting, nil, &resp, opts...); err != nil {
 		return nil, err
 	}
 	return resp.JournalEntryDetails, nil
@@ -175,6 +205,9 @@ type JournalEntryAccount struct {
 // inventory: Accounting/Journal Entries/Accounts
 // inventory: Reports/General Ledger
 func (s *JournalEntryAccountsService) List(ctx context.Context, acct AccountID, opts ...RequestOption) ([]JournalEntryAccount, error) {
+	if err := pathSegment(string(acct)); err != nil {
+		return nil, err
+	}
 	path := "/accounting/account/" + string(acct) + "/journal_entry_accounts/journal_entry_accounts"
 	var resp struct {
 		JournalEntryAccounts []JournalEntryAccount `json:"journal_entry_accounts"`

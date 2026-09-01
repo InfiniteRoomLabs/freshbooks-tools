@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
+	"strconv"
 	"time"
 )
 
@@ -13,12 +14,36 @@ import (
 // evidenced parameters takes none -- use (*Client).Do for anything past
 // what is modeled here.
 
-// reportPath appends q to path as a query string, when q carries anything.
-func reportPath(path string, q url.Values) string {
-	if len(q) == 0 {
-		return path
+// reportPath validates acct and builds one accounting report's request
+// path, appending q as a query string when non-empty.
+func reportPath(acct AccountID, name string, q url.Values) (string, error) {
+	if err := pathSegment(string(acct)); err != nil {
+		return "", err
 	}
-	return path + "?" + q.Encode()
+	path := "/accounting/account/" + string(acct) + "/reports/accounting/" + name
+	if len(q) == 0 {
+		return path, nil
+	}
+	return path + "?" + q.Encode(), nil
+}
+
+// get fetches one accounting report named name for acct into out, applying
+// q as its query string.
+func (s *ReportsService) get(ctx context.Context, acct AccountID, name string, q url.Values, out any) error {
+	path, err := reportPath(acct, name, q)
+	if err != nil {
+		return err
+	}
+	return s.client.do(ctx, http.MethodGet, path, FamilyAccounting, nil, out)
+}
+
+// setNonEmpty adds every pair with a non-empty value to q.
+func setNonEmpty(q url.Values, pairs map[string]string) {
+	for k, v := range pairs {
+		if v != "" {
+			q.Set(k, v)
+		}
+	}
 }
 
 // DatedBalance is one balance figure as of a specific date, the unit the
@@ -64,11 +89,10 @@ type AccountsAgingReport struct {
 //
 // inventory: Reports/Accounts Aging
 func (s *ReportsService) AccountsAging(ctx context.Context, acct AccountID) (*AccountsAgingReport, error) {
-	path := "/accounting/account/" + string(acct) + "/reports/accounting/accounts_aging"
 	var resp struct {
 		AccountsAging AccountsAgingReport `json:"accounts_aging"`
 	}
-	if err := s.client.do(ctx, http.MethodGet, path, FamilyAccounting, nil, &resp); err != nil {
+	if err := s.get(ctx, acct, "accounts_aging", nil, &resp); err != nil {
 		return nil, err
 	}
 	return &resp.AccountsAging, nil
@@ -91,9 +115,7 @@ func (o *BalanceSheetOptions) values() url.Values {
 	for _, d := range o.Dates {
 		q.Add("dates[]", d)
 	}
-	if o.CurrencyCode != "" {
-		q.Set("currency_code", o.CurrencyCode)
-	}
+	setNonEmpty(q, map[string]string{"currency_code": o.CurrencyCode})
 	return q
 }
 
@@ -139,11 +161,10 @@ type BalanceSheetReport struct {
 //
 // inventory: Reports/Balance Sheet
 func (s *ReportsService) BalanceSheet(ctx context.Context, acct AccountID, opts *BalanceSheetOptions) (*BalanceSheetReport, error) {
-	path := reportPath("/accounting/account/"+string(acct)+"/reports/accounting/balance_sheet", opts.values())
 	var resp struct {
 		BalanceSheet BalanceSheetReport `json:"balance_sheet"`
 	}
-	if err := s.client.do(ctx, http.MethodGet, path, FamilyAccounting, nil, &resp); err != nil {
+	if err := s.get(ctx, acct, "balance_sheet", opts.values(), &resp); err != nil {
 		return nil, err
 	}
 	return &resp.BalanceSheet, nil
@@ -162,15 +183,9 @@ func (o *BankReconciliationSummaryOptions) values() url.Values {
 	if o == nil {
 		return q
 	}
-	if o.CurrencyCode != "" {
-		q.Set("currency_code", o.CurrencyCode)
-	}
-	if o.Date != "" {
-		q.Set("date", o.Date)
-	}
-	if o.BankAccountID != "" {
-		q.Set("bank_accountid", o.BankAccountID)
-	}
+	setNonEmpty(q, map[string]string{
+		"currency_code": o.CurrencyCode, "date": o.Date, "bank_accountid": o.BankAccountID,
+	})
 	return q
 }
 
@@ -182,11 +197,10 @@ func (o *BankReconciliationSummaryOptions) values() url.Values {
 //
 // inventory: Reports/Bank Reconciliation Summary
 func (s *ReportsService) BankReconciliationSummary(ctx context.Context, acct AccountID, opts *BankReconciliationSummaryOptions) (raw json.RawMessage, err error) {
-	path := reportPath("/accounting/account/"+string(acct)+"/reports/accounting/bank_reconciliation_summary", opts.values())
 	var resp struct {
 		BankReconciliationSummary json.RawMessage `json:"bank_reconciliation_summary"`
 	}
-	if err := s.client.do(ctx, http.MethodGet, path, FamilyAccounting, nil, &resp); err != nil {
+	if err := s.get(ctx, acct, "bank_reconciliation_summary", opts.values(), &resp); err != nil {
 		return nil, err
 	}
 	return resp.BankReconciliationSummary, nil
@@ -206,18 +220,9 @@ func (o *ClientAccountStatementOptions) values() url.Values {
 	if o == nil {
 		return q
 	}
-	if o.StartDate != "" {
-		q.Set("start_date", o.StartDate)
-	}
-	if o.EndDate != "" {
-		q.Set("end_date", o.EndDate)
-	}
-	if o.ClientID != "" {
-		q.Set("clientid", o.ClientID)
-	}
-	if o.CurrencyCode != "" {
-		q.Set("currency_code", o.CurrencyCode)
-	}
+	setNonEmpty(q, map[string]string{
+		"start_date": o.StartDate, "end_date": o.EndDate, "clientid": o.ClientID, "currency_code": o.CurrencyCode,
+	})
 	return q
 }
 
@@ -227,25 +232,33 @@ func (o *ClientAccountStatementOptions) values() url.Values {
 //
 // inventory: Reports/Client Account Statement
 func (s *ReportsService) ClientAccountStatement(ctx context.Context, acct AccountID, opts *ClientAccountStatementOptions) (raw json.RawMessage, err error) {
-	path := reportPath("/accounting/account/"+string(acct)+"/reports/accounting/account_statement", opts.values())
 	var resp struct {
 		AccountStatement json.RawMessage `json:"account_statement"`
 	}
-	if err := s.client.do(ctx, http.MethodGet, path, FamilyAccounting, nil, &resp); err != nil {
+	if err := s.get(ctx, acct, "account_statement", opts.values(), &resp); err != nil {
 		return nil, err
 	}
 	return resp.AccountStatement, nil
 }
 
-// DownloadCSV fetches a report's CSV export by the download token embedded
-// in that report's DownloadToken field. The response is a CSV file, not
-// JSON, so it bypasses envelope unwrapping entirely; the caller decides
-// what to do with the bytes (write to disk, parse, etc).
+// DownloadInvoiceDetailsCSV fetches the invoice-details report's CSV export
+// by the download token embedded in InvoiceDetailsReport.DownloadToken. The
+// response is a CSV file, not JSON, so it asks for text/csv and bypasses
+// envelope unwrapping entirely; the caller decides what to do with the
+// bytes (write to disk, parse, etc). Named for the file it fetches --
+// /invoice_details.csv is hard-coded in the URL, so this method cannot
+// download any other report's export.
 //
 // inventory: Reports/Download CSV Report
-func (s *ReportsService) DownloadCSV(ctx context.Context, acct AccountID, downloadToken string) ([]byte, error) {
+func (s *ReportsService) DownloadInvoiceDetailsCSV(ctx context.Context, acct AccountID, downloadToken string) ([]byte, error) {
+	if err := pathSegment(string(acct)); err != nil {
+		return nil, err
+	}
+	if err := pathSegment(downloadToken); err != nil {
+		return nil, err
+	}
 	path := "/accounting/account/" + string(acct) + "/links/reports/" + downloadToken + "/invoice_details.csv"
-	return s.client.doRaw(ctx, http.MethodGet, path, FamilyAccounting)
+	return s.client.fetchRaw(ctx, http.MethodGet, path, FamilyAccounting, "text/csv")
 }
 
 // ExpenseDetails returns the expense-details report for acct. The Postman
@@ -258,11 +271,10 @@ func (s *ReportsService) DownloadCSV(ctx context.Context, acct AccountID, downlo
 //
 // inventory: Reports/Expense Details
 func (s *ReportsService) ExpenseDetails(ctx context.Context, acct AccountID) (raw json.RawMessage, err error) {
-	path := "/accounting/account/" + string(acct) + "/reports/accounting/expense_details"
 	var resp struct {
 		ExpenseDetails json.RawMessage `json:"expense_details"`
 	}
-	if err := s.client.do(ctx, http.MethodGet, path, FamilyAccounting, nil, &resp); err != nil {
+	if err := s.get(ctx, acct, "expense_details", nil, &resp); err != nil {
 		return nil, err
 	}
 	return resp.ExpenseDetails, nil
@@ -279,27 +291,27 @@ type ReportSummary struct {
 // InvoiceDetailsReport is the invoice-details report: every invoice in the
 // period plus an outstanding/paid/total summary.
 type InvoiceDetailsReport struct {
-	ClientIDs     []int64       `json:"clientids"`
-	CompanyName   string        `json:"company_name"`
-	CurrencyCode  string        `json:"currency_code"`
-	DateType      string        `json:"date_type"`
-	DownloadToken string        `json:"download_token"`
-	EndDate       string        `json:"end_date"`
-	StartDate     string        `json:"start_date"`
-	StatusIDs     []string      `json:"statusids"`
-	Summary       ReportSummary `json:"summary"`
-	SummaryOnly   bool          `json:"summary_only"`
+	ClientIDs     []int64           `json:"clientids"`
+	Clients       []json.RawMessage `json:"clients"`
+	CompanyName   string            `json:"company_name"`
+	CurrencyCode  string            `json:"currency_code"`
+	DateType      string            `json:"date_type"`
+	DownloadToken string            `json:"download_token"`
+	EndDate       string            `json:"end_date"`
+	StartDate     string            `json:"start_date"`
+	StatusIDs     []string          `json:"statusids"`
+	Summary       ReportSummary     `json:"summary"`
+	SummaryOnly   bool              `json:"summary_only"`
 }
 
 // InvoiceDetails returns the invoice-details report for acct.
 //
 // inventory: Reports/Invoice Details
 func (s *ReportsService) InvoiceDetails(ctx context.Context, acct AccountID) (*InvoiceDetailsReport, error) {
-	path := "/accounting/account/" + string(acct) + "/reports/accounting/invoice_details"
 	var resp struct {
 		InvoiceDetails InvoiceDetailsReport `json:"invoice_details"`
 	}
-	if err := s.client.do(ctx, http.MethodGet, path, FamilyAccounting, nil, &resp); err != nil {
+	if err := s.get(ctx, acct, "invoice_details", nil, &resp); err != nil {
 		return nil, err
 	}
 	return &resp.InvoiceDetails, nil
@@ -322,14 +334,10 @@ func (o *ItemSalesOptions) values() url.Values {
 	if o == nil {
 		return q
 	}
-	for k, v := range map[string]string{
+	setNonEmpty(q, map[string]string{
 		"start_date": o.StartDate, "end_date": o.EndDate, "currency_code": o.CurrencyCode,
 		"clientids": o.ClientIDs, "item_names": o.ItemNames, "statusids": o.StatusIDs,
-	} {
-		if v != "" {
-			q.Set(k, v)
-		}
-	}
+	})
 	return q
 }
 
@@ -373,11 +381,10 @@ type ItemSalesReport struct {
 //
 // inventory: Reports/Item Sales
 func (s *ReportsService) ItemSales(ctx context.Context, acct AccountID, opts *ItemSalesOptions) (*ItemSalesReport, error) {
-	path := reportPath("/accounting/account/"+string(acct)+"/reports/accounting/item_sales", opts.values())
 	var resp struct {
 		ItemSales ItemSalesReport `json:"item_sales"`
 	}
-	if err := s.client.do(ctx, http.MethodGet, path, FamilyAccounting, nil, &resp); err != nil {
+	if err := s.get(ctx, acct, "item_sales", opts.values(), &resp); err != nil {
 		return nil, err
 	}
 	return &resp.ItemSales, nil
@@ -401,11 +408,10 @@ type PaymentsCollectedReport struct {
 //
 // inventory: Reports/Payments Collected
 func (s *ReportsService) PaymentsCollected(ctx context.Context, acct AccountID) (*PaymentsCollectedReport, error) {
-	path := "/accounting/account/" + string(acct) + "/reports/accounting/payments_collected"
 	var resp struct {
 		PaymentsCollected PaymentsCollectedReport `json:"payments_collected"`
 	}
-	if err := s.client.do(ctx, http.MethodGet, path, FamilyAccounting, nil, &resp); err != nil {
+	if err := s.get(ctx, acct, "payments_collected", nil, &resp); err != nil {
 		return nil, err
 	}
 	return &resp.PaymentsCollected, nil
@@ -442,11 +448,10 @@ type ProfitLossReport struct {
 //
 // inventory: Reports/Profit/Loss Report
 func (s *ReportsService) ProfitLoss(ctx context.Context, acct AccountID) (*ProfitLossReport, error) {
-	path := "/accounting/account/" + string(acct) + "/reports/accounting/profitloss_entity"
 	var resp struct {
 		ProfitLoss ProfitLossReport `json:"profitloss"`
 	}
-	if err := s.client.do(ctx, http.MethodGet, path, FamilyAccounting, nil, &resp); err != nil {
+	if err := s.get(ctx, acct, "profitloss_entity", nil, &resp); err != nil {
 		return nil, err
 	}
 	return &resp.ProfitLoss, nil
@@ -460,9 +465,10 @@ type RevenueByClientOptions struct {
 
 func (o *RevenueByClientOptions) values() url.Values {
 	q := url.Values{}
-	if o != nil && o.SalesType != "" {
-		q.Set("sales_type", o.SalesType)
+	if o == nil {
+		return q
 	}
+	setNonEmpty(q, map[string]string{"sales_type": o.SalesType})
 	return q
 }
 
@@ -485,11 +491,10 @@ type RevenueByClientReport struct {
 //
 // inventory: Reports/Revenue By Client
 func (s *ReportsService) RevenueByClient(ctx context.Context, acct AccountID, opts *RevenueByClientOptions) (*RevenueByClientReport, error) {
-	path := reportPath("/accounting/account/"+string(acct)+"/reports/accounting/revenue_by_client", opts.values())
 	var resp struct {
 		RevenueByClient RevenueByClientReport `json:"revenue_by_client"`
 	}
-	if err := s.client.do(ctx, http.MethodGet, path, FamilyAccounting, nil, &resp); err != nil {
+	if err := s.get(ctx, acct, "revenue_by_client", opts.values(), &resp); err != nil {
 		return nil, err
 	}
 	return &resp.RevenueByClient, nil
@@ -510,26 +515,13 @@ func (o *SalesTaxSummaryOptions) values() url.Values {
 	if o == nil {
 		return q
 	}
-	if o.StartDate != "" {
-		q.Set("start_date", o.StartDate)
-	}
-	if o.EndDate != "" {
-		q.Set("end_date", o.EndDate)
-	}
-	if o.CurrencyCode != "" {
-		q.Set("currency_code", o.CurrencyCode)
-	}
+	setNonEmpty(q, map[string]string{
+		"start_date": o.StartDate, "end_date": o.EndDate, "currency_code": o.CurrencyCode,
+	})
 	if o.CashBased != nil {
-		q.Set("cash_based", boolQuery(*o.CashBased))
+		q.Set("cash_based", strconv.FormatBool(*o.CashBased))
 	}
 	return q
-}
-
-func boolQuery(b bool) string {
-	if b {
-		return "true"
-	}
-	return "false"
 }
 
 // SalesTaxSummaryLine is one tax's collected/paid/net breakdown within a
@@ -559,11 +551,10 @@ type SalesTaxSummaryReport struct {
 //
 // inventory: Reports/Sales Tax Summary
 func (s *ReportsService) SalesTaxSummary(ctx context.Context, acct AccountID, opts *SalesTaxSummaryOptions) (*SalesTaxSummaryReport, error) {
-	path := reportPath("/accounting/account/"+string(acct)+"/reports/accounting/taxsummary", opts.values())
 	var resp struct {
 		TaxSummary SalesTaxSummaryReport `json:"taxsummary"`
 	}
-	if err := s.client.do(ctx, http.MethodGet, path, FamilyAccounting, nil, &resp); err != nil {
+	if err := s.get(ctx, acct, "taxsummary", opts.values(), &resp); err != nil {
 		return nil, err
 	}
 	return &resp.TaxSummary, nil
@@ -581,15 +572,9 @@ func (o *TrialBalanceOptions) values() url.Values {
 	if o == nil {
 		return q
 	}
-	if o.StartDate != "" {
-		q.Set("start_date", o.StartDate)
-	}
-	if o.EndDate != "" {
-		q.Set("end_date", o.EndDate)
-	}
-	if o.CurrencyCode != "" {
-		q.Set("currency_code", o.CurrencyCode)
-	}
+	setNonEmpty(q, map[string]string{
+		"start_date": o.StartDate, "end_date": o.EndDate, "currency_code": o.CurrencyCode,
+	})
 	return q
 }
 
@@ -616,47 +601,53 @@ type TrialBalanceReport struct {
 //
 // inventory: Reports/Trial Balance
 func (s *ReportsService) TrialBalance(ctx context.Context, acct AccountID, opts *TrialBalanceOptions) (*TrialBalanceReport, error) {
-	path := reportPath("/accounting/account/"+string(acct)+"/reports/accounting/trial_balance", opts.values())
 	var resp struct {
 		TrialBalance TrialBalanceReport `json:"trial_balance"`
 	}
-	if err := s.client.do(ctx, http.MethodGet, path, FamilyAccounting, nil, &resp); err != nil {
+	if err := s.get(ctx, acct, "trial_balance", opts.values(), &resp); err != nil {
 		return nil, err
 	}
 	return &resp.TrialBalance, nil
 }
 
-// TimeEntryAbility is one action ("can_edit", "can_delete", ...) and
-// whether the caller is allowed to take it.
-type TimeEntryAbility struct {
-	Name  string `json:"name"`
-	Value bool   `json:"value"`
-}
-
 // TimeEntryAbilities lists what the caller may do with one time entry.
 type TimeEntryAbilities struct {
-	TimeEntryID int64              `json:"time_entry_id"`
-	Abilities   []TimeEntryAbility `json:"abilities"`
+	TimeEntryID int64     `json:"time_entry_id"`
+	Abilities   []Ability `json:"abilities"`
 }
 
 // TimeEntryDetailEntry is one logged time entry within a
 // TimeEntryDetailsReport.
 type TimeEntryDetailEntry struct {
-	ID         int64     `json:"id"`
-	IdentityID int64     `json:"identity_id"`
-	StartedAt  time.Time `json:"started_at"`
-	CreatedAt  time.Time `json:"created_at"`
-	Duration   int64     `json:"duration"`
-	ClientID   int64     `json:"client_id"`
-	ProjectID  int64     `json:"project_id"`
-	TaskID     *int64    `json:"task_id"`
-	ServiceID  *int64    `json:"service_id"`
-	Note       string    `json:"note"`
-	Active     bool      `json:"active"`
-	Billable   bool      `json:"billable"`
-	Billed     bool      `json:"billed"`
-	Internal   bool      `json:"internal"`
-	RetainerID *int64    `json:"retainer_id"`
+	ID         int64 `json:"id"`
+	IdentityID int64 `json:"identity_id"`
+	// Timer is the entry's running-timer state, null when the entry was
+	// not logged with the timer. Left undecoded: the captured example is
+	// always null, so its populated shape is unconfirmed.
+	Timer     json.RawMessage `json:"timer"`
+	IsLogged  bool            `json:"is_logged"`
+	StartedAt time.Time       `json:"started_at"`
+	CreatedAt time.Time       `json:"created_at"`
+	Duration  int64           `json:"duration"`
+	ClientID  int64           `json:"client_id"`
+	ProjectID int64           `json:"project_id"`
+	// PendingClient, PendingProject, and PendingTask hold a not-yet-synced
+	// client/project/task when the entry was logged offline; always null
+	// in the captured example, left undecoded.
+	PendingClient  json.RawMessage `json:"pending_client"`
+	PendingProject json.RawMessage `json:"pending_project"`
+	PendingTask    json.RawMessage `json:"pending_task"`
+	TaskID         *int64          `json:"task_id"`
+	ServiceID      *int64          `json:"service_id"`
+	Note           string          `json:"note"`
+	Active         bool            `json:"active"`
+	Billable       bool            `json:"billable"`
+	Billed         bool            `json:"billed"`
+	Internal       bool            `json:"internal"`
+	RetainerID     *int64          `json:"retainer_id"`
+	// Highlight marks a search-matched substring in Note; always null in
+	// the captured example, left undecoded.
+	Highlight json.RawMessage `json:"highlight"`
 }
 
 // TimeEntryDetailsReport is the time-entry-details report: logged time

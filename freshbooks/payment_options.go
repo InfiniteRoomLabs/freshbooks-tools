@@ -14,6 +14,12 @@ import (
 const tokenizationHost = "paid.freshbooks.com"
 
 // FBPayTokenizeRequest is the payload for PaymentOptionsService.FBPayTokenize.
+//
+// This struct carries PCI-sensitive data (a full card number and CVV) in
+// the clear. Never log it, persist it, or embed it in an error: %v and
+// %+v render String below, which redacts both, but a caller that formats
+// individual fields (fmt.Sprintf("%s", req.CardNumber)) bypasses that.
+// Discard the value once FBPayTokenize returns.
 type FBPayTokenizeRequest struct {
 	Name        string `json:"name"`
 	CardNumber  string `json:"card_number"`
@@ -25,15 +31,34 @@ type FBPayTokenizeRequest struct {
 	Country     string `json:"country"`
 }
 
+// String renders the request with the card number and CVV redacted.
+func (r FBPayTokenizeRequest) String() string {
+	return fmt.Sprintf("freshbooks.FBPayTokenizeRequest{Name: %q, CardNumber: redacted, CVV: redacted, ExpiryMonth: %q, ExpiryYear: %q}",
+		r.Name, r.ExpiryMonth, r.ExpiryYear)
+}
+
 // StripeTokenizeRequest is the payload for PaymentOptionsService.StripeTokenize.
+//
+// This struct carries PCI-sensitive data (a full card number) and a Stripe
+// API key in the clear. See FBPayTokenizeRequest's doc comment: the same
+// handling rules apply.
 type StripeTokenizeRequest struct {
 	Name        string `json:"name"`
 	CardNumber  string `json:"card_number"`
 	ExpiryMonth string `json:"expiry_month"`
 	ExpiryYear  string `json:"expiry_year"`
 	// APIKey is the Stripe publishable key from GatewaysService.Get's
-	// StripeConnection.PublishableKey.
-	APIKey string `json:"api_key"`
+	// StripeConnection.PublishableKey. Tagged json:"-": the captured
+	// request body sends it once, at the top level of the request (see
+	// StripeTokenize), not nested inside cc_info alongside these other
+	// fields.
+	APIKey string `json:"-"`
+}
+
+// String renders the request with the card number and API key redacted.
+func (r StripeTokenizeRequest) String() string {
+	return fmt.Sprintf("freshbooks.StripeTokenizeRequest{Name: %q, CardNumber: redacted, ExpiryMonth: %q, ExpiryYear: %q, APIKey: redacted}",
+		r.Name, r.ExpiryMonth, r.ExpiryYear)
 }
 
 // CreditCardAccess controls where a saved credit card may be used.
@@ -60,8 +85,10 @@ type CreditCardToken struct {
 	PaymentMethodID string `json:"payment_method_id,omitempty"`
 	// GatewayName is "fbpay" or "stripe".
 	GatewayName string `json:"gateway_name"`
-	// IsPrimary marks this token as the card's default charge method.
-	IsPrimary bool `json:"is_primary,omitempty"`
+	// IsPrimary marks this token as the card's default charge method. Not
+	// omitempty: false is a meaningful, explicit choice for a toggle like
+	// this, not an absent value.
+	IsPrimary bool `json:"is_primary"`
 }
 
 // SaveCreditCardRequest is the payload for PaymentOptionsService.SaveCreditCard.
@@ -150,11 +177,14 @@ func (s *PaymentOptionsService) StripeTokenize(ctx context.Context, req *StripeT
 //
 // inventory: Tokenization/2. [STRIPE] - Create Setup Intent Using Payment Method Key
 func (s *PaymentOptionsService) StripeCreateSetupIntent(ctx context.Context, acct AccountID, paymentMethod string) (raw json.RawMessage, err error) {
+	if err := pathSegment(string(acct)); err != nil {
+		return nil, err
+	}
 	path := "/payments/account/" + string(acct) + "/gateway/stripe/credit-card/token"
 	body := struct {
 		PaymentMethod string `json:"payment_method"`
 	}{paymentMethod}
-	if err := s.client.do(ctx, http.MethodPost, path, familyForPath(path), body, &raw); err != nil {
+	if err := s.client.do(ctx, http.MethodPost, path, FamilyBusiness, body, &raw); err != nil {
 		return nil, err
 	}
 	return raw, nil
@@ -171,6 +201,9 @@ func (s *PaymentOptionsService) SaveCreditCard(ctx context.Context, acct Account
 	if req == nil {
 		return nil, fmt.Errorf("freshbooks: PaymentOptions.SaveCreditCard needs a request")
 	}
+	if err := pathSegment(string(acct)); err != nil {
+		return nil, err
+	}
 	path := "/payments/account/" + string(acct) + "/credit-card"
 	body := struct {
 		CreditCard *SaveCreditCardRequest `json:"credit_card"`
@@ -178,7 +211,7 @@ func (s *PaymentOptionsService) SaveCreditCard(ctx context.Context, acct Account
 	var resp struct {
 		CreditCard SavedCreditCard `json:"credit_card"`
 	}
-	if err := s.client.do(ctx, http.MethodPost, path, familyForPath(path), body, &resp); err != nil {
+	if err := s.client.do(ctx, http.MethodPost, path, FamilyBusiness, body, &resp); err != nil {
 		return nil, err
 	}
 	return &resp.CreditCard, nil

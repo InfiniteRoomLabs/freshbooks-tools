@@ -24,8 +24,8 @@ func TestJournalEntriesCreate(t *testing.T) {
 
 		got, err := c.JournalEntries.Create(ctx, "ACM123", &JournalEntryCreateRequest{
 			Details: []JournalEntryDetail{
-				{SubAccountID: 635974, Debit: "200"},
-				{SubAccountID: 635976, Credit: "200"},
+				{SubAccountID: "635974", Debit: "200"},
+				{SubAccountID: "635976", Credit: "200"},
 			},
 			CurrencyCode:    "USD",
 			Name:            "JournalEntry",
@@ -40,6 +40,13 @@ func TestJournalEntriesCreate(t *testing.T) {
 		entry, ok := gotBody["journal_entry"].(map[string]any)
 		if !ok || entry["currency_code"] != "USD" {
 			t.Fatalf("body = %v", gotBody)
+		}
+		details, ok := entry["details"].([]any)
+		if !ok || len(details) != 2 {
+			t.Fatalf("body = %v", gotBody)
+		}
+		if first := details[0].(map[string]any); first["sub_accountid"] != "635974" {
+			t.Fatalf("sub_accountid was not sent as a quoted string: %v", first["sub_accountid"])
 		}
 		if got.EntryID != 629310 || len(got.Details) != 2 {
 			t.Fatalf("got = %+v", got)
@@ -124,4 +131,38 @@ func TestJournalEntryAccountsList(t *testing.T) {
 			t.Fatalf("got = %+v", got[1])
 		}
 	})
+}
+
+func TestJournalEntriesRejectUnsafeAccountID(t *testing.T) {
+	ctx := context.Background()
+
+	tests := []struct {
+		name string
+		acct AccountID
+	}{
+		{"[sad] a path separator", "a/b"},
+		{"[sad] a query delimiter", "a?b"},
+		{"[sad] a fragment delimiter", "a#b"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			called := false
+			c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				called = true
+				w.WriteHeader(http.StatusOK)
+			}))
+			if _, err := c.JournalEntries.Details(ctx, tc.acct); err == nil {
+				t.Fatal("want an error")
+			}
+			if _, err := c.JournalEntries.Create(ctx, tc.acct, &JournalEntryCreateRequest{Name: "x"}); err == nil {
+				t.Fatal("want an error")
+			}
+			if _, err := c.JournalEntryAccounts.List(ctx, tc.acct); err == nil {
+				t.Fatal("want an error")
+			}
+			if called {
+				t.Fatal("a request was made with an unsafe account id")
+			}
+		})
+	}
 }

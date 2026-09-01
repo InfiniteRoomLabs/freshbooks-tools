@@ -2,6 +2,7 @@ package freshbooks
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -75,6 +76,10 @@ type LedgerAccountUpdateRequest struct {
 	// ParentAccount is the parent account's UUID, or nil to leave it
 	// top-level.
 	ParentAccount *string `json:"parent_account"`
+	// SubAccounts lists the UUIDs of this account's children. The captured
+	// request body always sends this key (empty array when there are none),
+	// matching the full-replace shape the rest of this struct follows.
+	SubAccounts []string `json:"sub_accounts"`
 }
 
 // ledgerAccountEnvelope is the flat {"data": ...} shape every ledger-account
@@ -83,22 +88,26 @@ type ledgerAccountEnvelope struct {
 	Data LedgerAccount `json:"data"`
 }
 
-// LedgerAccountSubType is one entry in the sub-type taxonomy a ledger
-// account's SubType is chosen from.
-//
-// The taxonomy endpoints (Types, SubTypes, SubType) carry no example
-// response in the Postman collection and no public FreshBooks docs page.
-// This shape is INFERRED from the "type" and "sub_type" strings ledger
-// accounts themselves return, not from an observed response; treat it as
-// provisional until a live call confirms it.
-type LedgerAccountSubType struct {
-	// ID identifies the sub-type, addressable via SubType.
-	ID string `json:"id"`
-	// Name is the sub-type's display name, e.g. "Cash & Bank".
-	Name string `json:"name"`
-	// Type is the parent account type this sub-type belongs to, e.g.
-	// "asset".
-	Type string `json:"type"`
+// ledgerAccountsPath validates biz and builds the chart-of-accounts
+// collection path.
+func ledgerAccountsPath(biz BusinessUUID) (string, error) {
+	if err := pathSegment(string(biz)); err != nil {
+		return "", err
+	}
+	return "/accounting/businesses/" + string(biz) + "/ledger_accounts/accounts", nil
+}
+
+// ledgerAccountPath validates biz and accountUUID and builds one account's
+// item path.
+func ledgerAccountPath(biz BusinessUUID, accountUUID string) (string, error) {
+	base, err := ledgerAccountsPath(biz)
+	if err != nil {
+		return "", err
+	}
+	if err := pathSegment(accountUUID); err != nil {
+		return "", err
+	}
+	return base + "/" + accountUUID, nil
 }
 
 // Create adds a ledger account to biz's chart of accounts.
@@ -108,9 +117,12 @@ func (s *LedgerAccountsService) Create(ctx context.Context, biz BusinessUUID, re
 	if req == nil {
 		return nil, fmt.Errorf("freshbooks: LedgerAccounts.Create needs a request")
 	}
-	path := "/accounting/businesses/" + string(biz) + "/ledger_accounts/accounts"
+	path, err := ledgerAccountsPath(biz)
+	if err != nil {
+		return nil, err
+	}
 	var resp ledgerAccountEnvelope
-	if err := s.client.do(ctx, http.MethodPost, path, familyForPath(path), req, &resp); err != nil {
+	if err := s.client.do(ctx, http.MethodPost, path, FamilyBusiness, req, &resp); err != nil {
 		return nil, err
 	}
 	return &resp.Data, nil
@@ -121,11 +133,14 @@ func (s *LedgerAccountsService) Create(ctx context.Context, biz BusinessUUID, re
 //
 // inventory: Accounting/Accounts/List Accounts
 func (s *LedgerAccountsService) List(ctx context.Context, biz BusinessUUID) ([]LedgerAccount, error) {
-	path := "/accounting/businesses/" + string(biz) + "/ledger_accounts/accounts"
+	path, err := ledgerAccountsPath(biz)
+	if err != nil {
+		return nil, err
+	}
 	var resp struct {
 		Data []LedgerAccount `json:"data"`
 	}
-	if err := s.client.do(ctx, http.MethodGet, path, familyForPath(path), nil, &resp); err != nil {
+	if err := s.client.do(ctx, http.MethodGet, path, FamilyBusiness, nil, &resp); err != nil {
 		return nil, err
 	}
 	return resp.Data, nil
@@ -135,9 +150,12 @@ func (s *LedgerAccountsService) List(ctx context.Context, biz BusinessUUID) ([]L
 //
 // inventory: Accounting/Accounts/Single Account
 func (s *LedgerAccountsService) Get(ctx context.Context, biz BusinessUUID, accountUUID string) (*LedgerAccount, error) {
-	path := "/accounting/businesses/" + string(biz) + "/ledger_accounts/accounts/" + accountUUID
+	path, err := ledgerAccountPath(biz, accountUUID)
+	if err != nil {
+		return nil, err
+	}
 	var resp ledgerAccountEnvelope
-	if err := s.client.do(ctx, http.MethodGet, path, familyForPath(path), nil, &resp); err != nil {
+	if err := s.client.do(ctx, http.MethodGet, path, FamilyBusiness, nil, &resp); err != nil {
 		return nil, err
 	}
 	return &resp.Data, nil
@@ -150,60 +168,66 @@ func (s *LedgerAccountsService) Update(ctx context.Context, biz BusinessUUID, ac
 	if req == nil {
 		return nil, fmt.Errorf("freshbooks: LedgerAccounts.Update needs a request")
 	}
-	path := "/accounting/businesses/" + string(biz) + "/ledger_accounts/accounts/" + accountUUID
+	path, err := ledgerAccountPath(biz, accountUUID)
+	if err != nil {
+		return nil, err
+	}
 	var resp ledgerAccountEnvelope
-	if err := s.client.do(ctx, http.MethodPut, path, familyForPath(path), req, &resp); err != nil {
+	if err := s.client.do(ctx, http.MethodPut, path, FamilyBusiness, req, &resp); err != nil {
 		return nil, err
 	}
 	return &resp.Data, nil
 }
 
 // Types returns the account-type taxonomy (e.g. "asset", "liability")
-// ledger accounts choose their Type from. The endpoint takes no scope ID.
-//
-// INFERRED shape: see LedgerAccountSubType's doc comment.
+// ledger accounts choose their Type from, unparsed. The endpoint takes no
+// scope ID and carries no example response in the Postman collection and no
+// public FreshBooks docs page, so this batch's zero-evidence policy
+// applies: raw is the "data" key's payload, undecoded, for the caller to
+// unmarshal once a shape is confirmed live.
 //
 // inventory: Accounting/Accounts/List Account types
-func (s *LedgerAccountsService) Types(ctx context.Context) ([]string, error) {
+func (s *LedgerAccountsService) Types(ctx context.Context) (raw json.RawMessage, err error) {
 	const path = "/accounting/ledger_accounts/types"
 	var resp struct {
-		Data []string `json:"data"`
+		Data json.RawMessage `json:"data"`
 	}
-	if err := s.client.do(ctx, http.MethodGet, path, familyForPath(path), nil, &resp); err != nil {
+	if err := s.client.do(ctx, http.MethodGet, path, FamilyBusiness, nil, &resp); err != nil {
 		return nil, err
 	}
 	return resp.Data, nil
 }
 
 // SubTypes returns the sub-type taxonomy ledger accounts choose their
-// SubType from. The endpoint takes no scope ID.
-//
-// INFERRED shape: see LedgerAccountSubType's doc comment.
+// SubType from, unparsed. See Types for why: no scope ID, no evidence for
+// the payload shape.
 //
 // inventory: Accounting/Accounts/List Sub types
-func (s *LedgerAccountsService) SubTypes(ctx context.Context) ([]LedgerAccountSubType, error) {
+func (s *LedgerAccountsService) SubTypes(ctx context.Context) (raw json.RawMessage, err error) {
 	const path = "/accounting/ledger_accounts/sub_types"
 	var resp struct {
-		Data []LedgerAccountSubType `json:"data"`
+		Data json.RawMessage `json:"data"`
 	}
-	if err := s.client.do(ctx, http.MethodGet, path, familyForPath(path), nil, &resp); err != nil {
+	if err := s.client.do(ctx, http.MethodGet, path, FamilyBusiness, nil, &resp); err != nil {
 		return nil, err
 	}
 	return resp.Data, nil
 }
 
-// SubType returns one sub-type by ID.
-//
-// INFERRED shape: see LedgerAccountSubType's doc comment.
+// SubType returns one sub-type by ID, unparsed. See Types for why: no
+// evidence for the payload shape.
 //
 // inventory: Accounting/Accounts/Single Sub type
-func (s *LedgerAccountsService) SubType(ctx context.Context, id string) (*LedgerAccountSubType, error) {
-	path := "/accounting/ledger_accounts/sub_types/" + id
-	var resp struct {
-		Data LedgerAccountSubType `json:"data"`
-	}
-	if err := s.client.do(ctx, http.MethodGet, path, familyForPath(path), nil, &resp); err != nil {
+func (s *LedgerAccountsService) SubType(ctx context.Context, id string) (raw json.RawMessage, err error) {
+	if err := pathSegment(id); err != nil {
 		return nil, err
 	}
-	return &resp.Data, nil
+	path := "/accounting/ledger_accounts/sub_types/" + id
+	var resp struct {
+		Data json.RawMessage `json:"data"`
+	}
+	if err := s.client.do(ctx, http.MethodGet, path, FamilyBusiness, nil, &resp); err != nil {
+		return nil, err
+	}
+	return resp.Data, nil
 }

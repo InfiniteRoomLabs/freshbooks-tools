@@ -121,22 +121,25 @@ func TestReportsUnknownShapeReports(t *testing.T) {
 	})
 }
 
-func TestReportsDownloadCSV(t *testing.T) {
+func TestReportsDownloadInvoiceDetailsCSV(t *testing.T) {
 	ctx := context.Background()
 
-	t.Run("[happy] returns the CSV bytes unparsed, bypassing envelope unwrap", func(t *testing.T) {
-		var gotPath string
+	t.Run("[happy] asks for text/csv and returns the bytes unparsed, bypassing envelope unwrap", func(t *testing.T) {
+		var gotPath, gotAccept string
 		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			gotPath = r.URL.Path
+			gotPath, gotAccept = r.URL.Path, r.Header.Get("Accept")
 			w.Header().Set("Content-Type", "text/csv")
 			_, _ = io.WriteString(w, "invoice_number,amount\n0000005,2800.00\n")
 		}))
-		got, err := c.Reports.DownloadCSV(ctx, "ACM123", "tok_invoice_details")
+		got, err := c.Reports.DownloadInvoiceDetailsCSV(ctx, "ACM123", "tok_invoice_details")
 		if err != nil {
 			t.Fatal(err)
 		}
 		if gotPath != "/accounting/account/ACM123/links/reports/tok_invoice_details/invoice_details.csv" {
 			t.Fatalf("path = %q", gotPath)
+		}
+		if gotAccept != "text/csv" {
+			t.Fatalf("Accept = %q, want text/csv", gotAccept)
 		}
 		if string(got) != "invoice_number,amount\n0000005,2800.00\n" {
 			t.Fatalf("got = %q", got)
@@ -145,8 +148,25 @@ func TestReportsDownloadCSV(t *testing.T) {
 
 	t.Run("[sad] an expired token", func(t *testing.T) {
 		c, _ := newTestClient(t, serveFixture(t, http.StatusNotFound, "accounting", "error_404"))
-		if _, err := c.Reports.DownloadCSV(ctx, "ACM123", "expired"); !errors.Is(err, ErrNotFound) {
+		if _, err := c.Reports.DownloadInvoiceDetailsCSV(ctx, "ACM123", "expired"); !errors.Is(err, ErrNotFound) {
 			t.Fatalf("err = %v", err)
+		}
+	})
+
+	t.Run("[sad] an unsafe account id or download token", func(t *testing.T) {
+		called := false
+		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			called = true
+			w.WriteHeader(http.StatusOK)
+		}))
+		if _, err := c.Reports.DownloadInvoiceDetailsCSV(ctx, "a/b", "tok"); err == nil {
+			t.Fatal("want an error")
+		}
+		if _, err := c.Reports.DownloadInvoiceDetailsCSV(ctx, "ACM123", "tok/../.."); err == nil {
+			t.Fatal("want an error")
+		}
+		if called {
+			t.Fatal("a request was made with an unsafe segment")
 		}
 	})
 }
@@ -315,6 +335,9 @@ func TestReportsTimeEntryDetails(t *testing.T) {
 		if len(got.TimeEntries) != 1 || got.TimeEntries[0].Duration != 7200 {
 			t.Fatalf("got = %+v", got.TimeEntries)
 		}
+		if !got.TimeEntries[0].IsLogged {
+			t.Fatalf("is_logged did not decode: %+v", got.TimeEntries[0])
+		}
 		if got.Meta.Total != 9 || got.Meta.PerPage != 30 {
 			t.Fatalf("meta = %+v", got.Meta)
 		}
@@ -322,4 +345,38 @@ func TestReportsTimeEntryDetails(t *testing.T) {
 			t.Fatalf("abilities = %+v", got.Abilities)
 		}
 	})
+}
+
+func TestReportsRejectUnsafeAccountID(t *testing.T) {
+	ctx := context.Background()
+
+	tests := []struct {
+		name string
+		acct AccountID
+	}{
+		{"[sad] a path separator", "a/b"},
+		{"[sad] a query delimiter", "a?b"},
+		{"[sad] a fragment delimiter", "a#b"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			called := false
+			c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				called = true
+				w.WriteHeader(http.StatusOK)
+			}))
+			if _, err := c.Reports.AccountsAging(ctx, tc.acct); err == nil {
+				t.Fatal("want an error")
+			}
+			if _, err := c.Reports.BalanceSheet(ctx, tc.acct, nil); err == nil {
+				t.Fatal("want an error")
+			}
+			if _, err := c.Reports.TrialBalance(ctx, tc.acct, nil); err == nil {
+				t.Fatal("want an error")
+			}
+			if called {
+				t.Fatal("a request was made with an unsafe account id")
+			}
+		})
+	}
 }

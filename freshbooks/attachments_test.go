@@ -52,4 +52,18 @@ func TestAttachmentsUploadExpenseReceipt(t *testing.T) {
 			t.Fatalf("err = %v", err)
 		}
 	})
+
+	t.Run("[sad] an unsafe account id", func(t *testing.T) {
+		called := false
+		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			called = true
+			w.WriteHeader(http.StatusOK)
+		}))
+		if _, err := c.Attachments.UploadExpenseReceipt(ctx, "a/b", "x.jpg", strings.NewReader("x")); err == nil {
+			t.Fatal("want an error")
+		}
+		if called {
+			t.Fatal("a request was made with an unsafe account id")
+		}
+	})
 }

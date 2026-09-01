@@ -43,6 +43,9 @@ func TestImagesUpload(t *testing.T) {
 		if got.JWT == "" || got.Filename == "" {
 			t.Fatalf("got = %+v", got)
 		}
+		if got.Link == "" {
+			t.Fatalf("Link was not decoded from the sibling key: %+v", got)
+		}
 	})
 
 	t.Run("[sad] the server rejects the file", func(t *testing.T) {
@@ -53,6 +56,20 @@ func TestImagesUpload(t *testing.T) {
 		_, err := c.Images.Upload(ctx, "ACM123", "x.jpg", strings.NewReader("x"))
 		if err == nil {
 			t.Fatal("want an error")
+		}
+	})
+
+	t.Run("[sad] an unsafe account id", func(t *testing.T) {
+		called := false
+		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			called = true
+			w.WriteHeader(http.StatusOK)
+		}))
+		if _, err := c.Images.Upload(ctx, "a/b", "x.jpg", strings.NewReader("x")); err == nil {
+			t.Fatal("want an error")
+		}
+		if called {
+			t.Fatal("a request was made with an unsafe account id")
 		}
 	})
 }

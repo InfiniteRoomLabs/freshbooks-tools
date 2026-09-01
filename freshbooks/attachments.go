@@ -33,11 +33,14 @@ type UploadedAttachment struct {
 //
 // inventory: Uploader/Upload Expense Receipt
 func (s *AttachmentsService) UploadExpenseReceipt(ctx context.Context, acct AccountID, filename string, r io.Reader) (*UploadedAttachment, error) {
+	if err := pathSegment(string(acct)); err != nil {
+		return nil, err
+	}
 	path := "/uploads/account/" + string(acct) + "/attachments"
 	var resp struct {
 		Attachment UploadedAttachment `json:"attachment"`
 	}
-	if err := s.client.doMultipart(ctx, http.MethodPost, path, FamilyBusiness, "content", filename, r, nil, &resp); err != nil {
+	if err := s.client.doMultipart(ctx, http.MethodPost, path, FamilyBusiness, "content", filename, r, &resp); err != nil {
 		return nil, err
 	}
 	return &resp.Attachment, nil

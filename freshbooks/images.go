@@ -17,6 +17,23 @@ type UploadedImage struct {
 	PublicID string `json:"public_id"`
 	// Filename is the storage filename FreshBooks assigned.
 	Filename string `json:"filename"`
+	// Link is a direct URL to the stored image. The API returns it as a
+	// sibling of the "image" object, not nested inside it; Upload and
+	// UploadWithoutAccount copy it in after decoding.
+	Link string `json:"-"`
+}
+
+// imageUploadResponse is the {"image": {...}, "link": "..."} shape both
+// upload endpoints answer with: link sits beside image, not inside it.
+type imageUploadResponse struct {
+	Image UploadedImage `json:"image"`
+	Link  string        `json:"link"`
+}
+
+func (r imageUploadResponse) result() *UploadedImage {
+	img := r.Image
+	img.Link = r.Link
+	return &img
 }
 
 // Upload sends r's contents (up to the transport's upload size bound) to
@@ -27,14 +44,15 @@ type UploadedImage struct {
 // inventory: Invoices/Upload Logo/Upload Logo
 // inventory: Expenses/Upload Expense Receipt Image/Upload Receipt Image
 func (s *ImagesService) Upload(ctx context.Context, acct AccountID, filename string, r io.Reader) (*UploadedImage, error) {
-	path := "/uploads/account/" + string(acct) + "/images"
-	var resp struct {
-		Image UploadedImage `json:"image"`
-	}
-	if err := s.client.doMultipart(ctx, http.MethodPost, path, FamilyBusiness, "content", filename, r, nil, &resp); err != nil {
+	if err := pathSegment(string(acct)); err != nil {
 		return nil, err
 	}
-	return &resp.Image, nil
+	path := "/uploads/account/" + string(acct) + "/images"
+	var resp imageUploadResponse
+	if err := s.client.doMultipart(ctx, http.MethodPost, path, FamilyBusiness, "content", filename, r, &resp); err != nil {
+		return nil, err
+	}
+	return resp.result(), nil
 }
 
 // UploadWithoutAccount uploads an image with no account scope, used for
@@ -44,11 +62,9 @@ func (s *ImagesService) Upload(ctx context.Context, acct AccountID, filename str
 // inventory: Settings/Developer/Upload App Logo
 func (s *ImagesService) UploadWithoutAccount(ctx context.Context, filename string, r io.Reader) (*UploadedImage, error) {
 	const path = "/uploads/images"
-	var resp struct {
-		Image UploadedImage `json:"image"`
-	}
-	if err := s.client.doMultipart(ctx, http.MethodPost, path, FamilyBusiness, "content", filename, r, nil, &resp); err != nil {
+	var resp imageUploadResponse
+	if err := s.client.doMultipart(ctx, http.MethodPost, path, FamilyBusiness, "content", filename, r, &resp); err != nil {
 		return nil, err
 	}
-	return &resp.Image, nil
+	return resp.result(), nil
 }

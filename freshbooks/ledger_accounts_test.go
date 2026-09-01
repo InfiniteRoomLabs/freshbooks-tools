@@ -101,20 +101,27 @@ func TestLedgerAccountsGet(t *testing.T) {
 func TestLedgerAccountsUpdate(t *testing.T) {
 	ctx := context.Background()
 
-	t.Run("[happy] puts the full account and decodes the result", func(t *testing.T) {
+	t.Run("[happy] puts the full account, including sub_accounts, and decodes the result", func(t *testing.T) {
 		var gotMethod string
+		var gotBody map[string]any
 		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			gotMethod = r.Method
+			raw, _ := io.ReadAll(r.Body)
+			_ = json.Unmarshal(raw, &gotBody)
 			serveFixture(t, http.StatusOK, "ledger_accounts", "update")(w, r)
 		}))
 		got, err := c.LedgerAccounts.Update(ctx, testBusinessUUID, "12e355dd-eb0f-40a6-bedb-5b1e1cf38be6", &LedgerAccountUpdateRequest{
 			UUID: "12e355dd-eb0f-40a6-bedb-5b1e1cf38be6", Name: "Store Cash", Number: "1001", Type: "asset", SubType: "Cash & Bank",
+			SubAccounts: []string{},
 		})
 		if err != nil {
 			t.Fatal(err)
 		}
 		if gotMethod != http.MethodPut {
 			t.Fatalf("method = %q", gotMethod)
+		}
+		if _, ok := gotBody["sub_accounts"]; !ok {
+			t.Fatalf("body = %v, want sub_accounts present", gotBody)
 		}
 		if got.Number != "1001" {
 			t.Fatalf("got = %+v", got)
@@ -132,7 +139,7 @@ func TestLedgerAccountsUpdate(t *testing.T) {
 func TestLedgerAccountsTaxonomy(t *testing.T) {
 	ctx := context.Background()
 
-	t.Run("[happy] Types has no scope ID in its path", func(t *testing.T) {
+	t.Run("[happy] Types has no scope ID in its path and returns the payload unparsed", func(t *testing.T) {
 		var gotPath string
 		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			gotPath = r.URL.Path
@@ -145,23 +152,31 @@ func TestLedgerAccountsTaxonomy(t *testing.T) {
 		if gotPath != "/accounting/ledger_accounts/types" {
 			t.Fatalf("path = %q", gotPath)
 		}
-		if len(got) != 5 || got[0] != "asset" {
-			t.Fatalf("got = %v", got)
+		var types []string
+		if err := json.Unmarshal(got, &types); err != nil {
+			t.Fatal(err)
+		}
+		if len(types) != 5 || types[0] != "asset" {
+			t.Fatalf("got = %v", types)
 		}
 	})
 
-	t.Run("[happy] SubTypes", func(t *testing.T) {
+	t.Run("[happy] SubTypes returns the payload unparsed", func(t *testing.T) {
 		c, _ := newTestClient(t, serveFixture(t, http.StatusOK, "ledger_accounts", "sub_types"))
 		got, err := c.LedgerAccounts.SubTypes(ctx)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(got) != 2 || got[0].Name != "Cash & Bank" || got[0].Type != "asset" {
-			t.Fatalf("got = %+v", got)
+		var subTypes []map[string]string
+		if err := json.Unmarshal(got, &subTypes); err != nil {
+			t.Fatal(err)
+		}
+		if len(subTypes) != 2 || subTypes[0]["name"] != "Cash & Bank" || subTypes[0]["type"] != "asset" {
+			t.Fatalf("got = %+v", subTypes)
 		}
 	})
 
-	t.Run("[happy] SubType by id", func(t *testing.T) {
+	t.Run("[happy] SubType by id returns the payload unparsed", func(t *testing.T) {
 		var gotPath string
 		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			gotPath = r.URL.Path
@@ -174,8 +189,57 @@ func TestLedgerAccountsTaxonomy(t *testing.T) {
 		if gotPath != "/accounting/ledger_accounts/sub_types/1" {
 			t.Fatalf("path = %q", gotPath)
 		}
-		if got.ID != "1" {
-			t.Fatalf("got = %+v", got)
+		var subType map[string]string
+		if err := json.Unmarshal(got, &subType); err != nil {
+			t.Fatal(err)
+		}
+		if subType["id"] != "1" {
+			t.Fatalf("got = %+v", subType)
 		}
 	})
+
+	t.Run("[sad] SubType rejects an unsafe id", func(t *testing.T) {
+		called := false
+		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			called = true
+			w.WriteHeader(http.StatusOK)
+		}))
+		if _, err := c.LedgerAccounts.SubType(ctx, "a/b"); err == nil {
+			t.Fatal("want an error")
+		}
+		if called {
+			t.Fatal("a request was made with an unsafe id")
+		}
+	})
+}
+
+func TestLedgerAccountsRejectUnsafeSegments(t *testing.T) {
+	ctx := context.Background()
+
+	tests := []struct {
+		name string
+		biz  BusinessUUID
+		id   string
+	}{
+		{"[sad] a path separator in the business UUID", "a/b", "x"},
+		{"[sad] a query delimiter in the business UUID", "a?b", "x"},
+		{"[sad] a fragment delimiter in the business UUID", "a#b", "x"},
+		{"[sad] a path separator in the account UUID", testBusinessUUID, "a/b"},
+		{"[sad] a query delimiter in the account UUID", testBusinessUUID, "a?b"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			called := false
+			c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				called = true
+				w.WriteHeader(http.StatusOK)
+			}))
+			if _, err := c.LedgerAccounts.Get(ctx, tc.biz, tc.id); err == nil {
+				t.Fatal("want an error")
+			}
+			if called {
+				t.Fatal("a request was made with an unsafe segment")
+			}
+		})
+	}
 }

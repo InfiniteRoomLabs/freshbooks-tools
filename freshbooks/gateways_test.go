@@ -29,8 +29,11 @@ func TestGatewaysGet(t *testing.T) {
 		if conn.FBPay == nil || conn.FBPay.State != "active" || conn.FBPay.Pricing.PercentNonAmex != "2.90" {
 			t.Fatalf("fbpay = %+v", conn.FBPay)
 		}
-		if conn.Stripe == nil || conn.Stripe.PublishableKey != "pk_live_example" {
+		if conn.Stripe == nil || conn.Stripe.PublishableKey != "pk_test_example" {
 			t.Fatalf("stripe = %+v", conn.Stripe)
+		}
+		if conn.FBPay.BankInfo.BankName == "" || conn.FBPay.BankInfo.LastPaymentAmount != "1240.79" {
+			t.Fatalf("bank_info = %+v", conn.FBPay.BankInfo)
 		}
 	})
 
@@ -54,6 +57,20 @@ func TestGatewaysGet(t *testing.T) {
 		}))
 		if _, err := c.Gateways.Get(ctx, "ACM123"); err == nil {
 			t.Fatal("want an error")
+		}
+	})
+
+	t.Run("[sad] an unsafe account id", func(t *testing.T) {
+		called := false
+		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			called = true
+			w.WriteHeader(http.StatusOK)
+		}))
+		if _, err := c.Gateways.Get(ctx, "a/b"); err == nil {
+			t.Fatal("want an error")
+		}
+		if called {
+			t.Fatal("a request was made with an unsafe account id")
 		}
 	})
 }

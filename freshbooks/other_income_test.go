@@ -53,7 +53,7 @@ func TestOtherIncomeList(t *testing.T) {
 	c, _ := newTestClient(t, serveFixture(t, http.StatusOK, "other_income", "list"))
 
 	t.Run("[happy] returns a paginated page", func(t *testing.T) {
-		page, err := c.OtherIncome.List(ctx, "ACM123")
+		page, err := c.OtherIncome.List(ctx, "ACM123", nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -63,12 +63,44 @@ func TestOtherIncomeList(t *testing.T) {
 	})
 
 	t.Run("[edge] a null note and payment_type", func(t *testing.T) {
-		page, err := c.OtherIncome.List(ctx, "ACM123")
+		page, err := c.OtherIncome.List(ctx, "ACM123", nil)
 		if err != nil {
 			t.Fatal(err)
 		}
 		if page.Items[1].Note != "" || page.Items[1].PaymentType != "" {
 			t.Fatalf("got = %+v", page.Items[1])
+		}
+	})
+
+	t.Run("[happy] a Search filter is applied", func(t *testing.T) {
+		var gotQuery string
+		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			gotQuery = r.URL.RawQuery
+			serveFixture(t, http.StatusOK, "other_income", "list")(w, r)
+		}))
+		if _, err := c.OtherIncome.List(ctx, "ACM123", &OtherIncomeListOptions{Search: Search{"category_name": "online_sales"}}); err != nil {
+			t.Fatal(err)
+		}
+		if gotQuery != "search%5Bcategory_name%5D=online_sales" {
+			t.Fatalf("query = %q", gotQuery)
+		}
+	})
+}
+
+func TestOtherIncomeAll(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("[happy] walks a single page", func(t *testing.T) {
+		c, _ := newTestClient(t, serveFixture(t, http.StatusOK, "other_income", "list"))
+		var got []OtherIncome
+		for income, err := range c.OtherIncome.All(ctx, "ACM123", nil) {
+			if err != nil {
+				t.Fatal(err)
+			}
+			got = append(got, income)
+		}
+		if len(got) != 2 {
+			t.Fatalf("got %d records", len(got))
 		}
 	})
 }
@@ -82,7 +114,8 @@ func TestOtherIncomeUpdate(t *testing.T) {
 			gotPath, gotMethod = r.URL.Path, r.Method
 			serveFixture(t, http.StatusOK, "other_income", "update")(w, r)
 		}))
-		got, err := c.OtherIncome.Update(ctx, "ACM123", 2122, &OtherIncomeUpdateRequest{Source: "Squarespace Site"})
+		source := "Squarespace Site"
+		got, err := c.OtherIncome.Update(ctx, "ACM123", 2122, &OtherIncomeUpdateRequest{Source: &source})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -137,4 +170,38 @@ func TestOtherIncomeDelete(t *testing.T) {
 			t.Fatalf("err = %v", err)
 		}
 	})
+}
+
+func TestOtherIncomeRejectUnsafeAccountID(t *testing.T) {
+	ctx := context.Background()
+
+	tests := []struct {
+		name string
+		acct AccountID
+	}{
+		{"[sad] a path separator", "a/b"},
+		{"[sad] a query delimiter", "a?b"},
+		{"[sad] a fragment delimiter", "a#b"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			called := false
+			c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				called = true
+				w.WriteHeader(http.StatusOK)
+			}))
+			if _, err := c.OtherIncome.Create(ctx, tc.acct, &OtherIncomeCreateRequest{}); err == nil {
+				t.Fatal("want an error")
+			}
+			if _, err := c.OtherIncome.List(ctx, tc.acct, nil); err == nil {
+				t.Fatal("want an error")
+			}
+			if _, err := c.OtherIncome.Update(ctx, tc.acct, 1, &OtherIncomeUpdateRequest{}); err == nil {
+				t.Fatal("want an error")
+			}
+			if called {
+				t.Fatal("a request was made with an unsafe account id")
+			}
+		})
+	}
 }

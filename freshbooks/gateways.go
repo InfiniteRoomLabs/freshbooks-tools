@@ -2,19 +2,43 @@ package freshbooks
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 )
 
 // GatewayPricing is one gateway connection's per-transaction fee schedule.
+// The ACH/promo fields are pointers because the captured example carries
+// them as null; their populated type is INFERRED from sibling fields
+// (amounts as decimal strings, tier ids as ints), not observed live.
 type GatewayPricing struct {
-	TierID                 int    `json:"tier_id"`
-	PercentACH             string `json:"percent_ach"`
-	PercentNonAmex         string `json:"percent_non_amex"`
-	PercentNonAmexWithCard string `json:"percent_non_amex_with_card"`
-	PercentAmex            string `json:"percent_amex"`
-	PercentAmexWithCard    string `json:"percent_amex_with_card"`
-	PercentVirtualTerminal string `json:"percent_virtual_terminal"`
-	PerTransactionFee      string `json:"per_transaction_fee"`
+	TierID                 int     `json:"tier_id"`
+	PercentACH             string  `json:"percent_ach"`
+	PercentNonAmex         string  `json:"percent_non_amex"`
+	PercentNonAmexWithCard string  `json:"percent_non_amex_with_card"`
+	PercentAmex            string  `json:"percent_amex"`
+	PercentAmexWithCard    string  `json:"percent_amex_with_card"`
+	PercentVirtualTerminal string  `json:"percent_virtual_terminal"`
+	ACHTier1               *string `json:"ach_tier_1"`
+	ACHTier2               *string `json:"ach_tier_2"`
+	ACHTier3               *string `json:"ach_tier_3"`
+	PerTransactionFee      string  `json:"per_transaction_fee"`
+	DefaultPricingTierID   *int    `json:"default_pricing_tier_id"`
+	PromoExpiryDate        *string `json:"promo_expiry_date"`
+	MaxACHFee              *string `json:"max_ach_fee"`
+}
+
+// BankInfo is an FBPay connection's payout banking details.
+type BankInfo struct {
+	TotalPayout                string            `json:"total_payout"`
+	NextPayoutDate             *string           `json:"next_payout_date"`
+	BankName                   string            `json:"bank_name"`
+	LastPaymentDate            string            `json:"last_payment_date"`
+	LastPaymentAmount          string            `json:"last_payment_amount"`
+	WithdrawalPeriod           string            `json:"withdrawal_period"`
+	WithdrawalType             string            `json:"withdrawal_type"`
+	WithdrawalSchedule         []json.RawMessage `json:"withdrawal_schedule"`
+	IncomingPendingAmount      string            `json:"incoming_pending_amount"`
+	OutgoingWithdrawalSchedule []json.RawMessage `json:"outgoing_withdrawal_schedule"`
 }
 
 // FBPayConnection is the account's FreshBooks Payments (WePay) gateway
@@ -28,6 +52,7 @@ type FBPayConnection struct {
 	TOSAccepted         bool           `json:"tos_accepted"`
 	State               string         `json:"state"`
 	Email               string         `json:"email"`
+	BankInfo            BankInfo       `json:"bank_info"`
 	ManageAccountURL    string         `json:"manage_account_url"`
 	Currencies          []string       `json:"currencies"`
 	Country             string         `json:"country"`
@@ -62,11 +87,14 @@ type GatewayConnection struct {
 // inventory: Settings/Businesses/Gateway Details
 // inventory: Settings/Gateways/List Gateways
 func (s *GatewaysService) Get(ctx context.Context, acct AccountID) ([]GatewayConnection, error) {
+	if err := pathSegment(string(acct)); err != nil {
+		return nil, err
+	}
 	path := "/payments/account/" + string(acct) + "/gateway"
 	var resp struct {
 		GatewayConnections []GatewayConnection `json:"gateway_connections"`
 	}
-	if err := s.client.do(ctx, http.MethodGet, path, familyForPath(path), nil, &resp); err != nil {
+	if err := s.client.do(ctx, http.MethodGet, path, FamilyBusiness, nil, &resp); err != nil {
 		return nil, err
 	}
 	return resp.GatewayConnections, nil

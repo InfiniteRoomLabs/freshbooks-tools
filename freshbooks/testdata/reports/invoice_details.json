@@ -3,6 +3,7 @@
     "result": {
       "invoice_details": {
         "clientids": [],
+        "clients": [],
         "company_name": "Postman Sandbox",
         "currency_code": "USD",
         "date_type": "issue",
