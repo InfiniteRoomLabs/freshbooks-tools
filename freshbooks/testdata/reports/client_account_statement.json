@@ -1,0 +1,9 @@
+{
+  "response": {
+    "result": {
+      "account_statement": {
+        "note": "shape unknown -- no Postman example exists for this report"
+      }
+    }
+  }
+}

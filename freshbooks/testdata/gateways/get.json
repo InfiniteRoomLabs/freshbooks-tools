@@ -1,0 +1,59 @@
+{
+  "gateway_connections": [
+    {
+      "fbpay": {
+        "id": "fbpay-connection-id",
+        "account_id": "45435345345",
+        "visa_debit_accepted": true,
+        "pricing": {
+          "tier_id": 105,
+          "percent_ach": "0.00",
+          "percent_non_amex": "2.90",
+          "percent_non_amex_with_card": "2.70",
+          "percent_amex": "3.50",
+          "percent_amex_with_card": "3.40",
+          "percent_virtual_terminal": "3.50",
+          "ach_tier_1": null,
+          "ach_tier_2": null,
+          "ach_tier_3": null,
+          "per_transaction_fee": "0.30",
+          "default_pricing_tier_id": null,
+          "promo_expiry_date": null,
+          "max_ach_fee": null
+        },
+        "bank_transfer_enabled": false,
+        "tos_accepted": true,
+        "state": "active",
+        "email": "owner@example.test",
+        "bank_info": {
+          "total_payout": "0",
+          "next_payout_date": null,
+          "bank_name": "Example Bank XXXXXX2020",
+          "last_payment_date": "2026-06-10T22:47:54Z",
+          "last_payment_amount": "1240.79",
+          "withdrawal_period": "daily",
+          "withdrawal_type": "ach",
+          "withdrawal_schedule": [],
+          "incoming_pending_amount": "0",
+          "outgoing_withdrawal_schedule": []
+        },
+        "manage_account_url": "https://wepay.example.test/account/15524535345",
+        "currencies": ["CAD"],
+        "country": "CA",
+        "action_reasons": []
+      },
+      "stripe": {
+        "id": "stripe-connection-id",
+        "gateway_user_id": "acct_example",
+        "user_state": "registered",
+        "email": "owner@example.test",
+        "country": "CA",
+        "currencies": ["CAD", "USD"],
+        "publishable_key": "pk_test_example",
+        "bank_transfer_enabled": false,
+        "max_ach_fee": 5000
+      },
+      "paypal": null
+    }
+  ]
+}

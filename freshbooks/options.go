@@ -43,6 +43,12 @@ func WithHTTPClient(hc *http.Client) Option {
 
 // WithBaseURL points the client at a different API root -- a fixture server
 // in tests, or a sandbox. The URL must be absolute.
+//
+// It does not reach every request: PaymentOptionsService's raw-card
+// tokenization methods (FBPayTokenize, StripeTokenize) always post to
+// FreshBooks' real paid.freshbooks.com over https, regardless of this
+// option, because that host and scheme are hard requirements for handling
+// card data safely, not configurable API routing.
 func WithBaseURL(raw string) Option {
 	return func(c *Client) error {
 		u, err := url.Parse(raw)

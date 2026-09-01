@@ -1,0 +1,33 @@
+{
+  "response": {
+    "result": {
+      "accounts_aging": {
+        "accounts": [
+          {
+            "0-30": {"amount": "3830.00", "code": "USD"},
+            "31-60": {"amount": "0.00", "code": "USD"},
+            "61-90": {"amount": "0.00", "code": "USD"},
+            "91+": {"amount": "0.00", "code": "USD"},
+            "email": "first@company.example",
+            "fname": "Nicolas",
+            "lname": "one",
+            "organization": "first company",
+            "total": {"amount": "3830.00", "code": "USD"},
+            "userid": 31006
+          }
+        ],
+        "company_name": "Postman Sandbox",
+        "currency_code": "USD",
+        "download_token": "tok_accounts_aging",
+        "end_date": "2019-05-08",
+        "totals": {
+          "0-30": {"amount": "4278.48", "code": "USD"},
+          "31-60": {"amount": "0.00", "code": "USD"},
+          "61-90": {"amount": "0.00", "code": "USD"},
+          "91+": {"amount": "0.00", "code": "USD"},
+          "total": {"amount": "4278.48", "code": "USD"}
+        }
+      }
+    }
+  }
+}

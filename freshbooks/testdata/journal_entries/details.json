@@ -1,0 +1,47 @@
+{
+  "response": {
+    "result": {
+      "journal_entry_details": [
+        {
+          "account": {
+            "account_name": "Operating Expenses",
+            "account_number": "6000",
+            "account_type": "expense",
+            "accountid": 545908,
+            "accounting_systemid": "wkMd2g",
+            "id": 545908
+          },
+          "accounting_systemid": "wkMd2g",
+          "balance": {"amount": "70.56", "code": "USD"},
+          "credit": null,
+          "debit": {"amount": "70.56", "code": "USD"},
+          "description": "Purchased Gasoline for deliveries",
+          "detail_type": "expense",
+          "detailid": 1305458,
+          "entry": {
+            "accounting_systemid": "wkMd2g",
+            "clientid": null,
+            "creditid": null,
+            "entryid": 625716,
+            "expenseid": 1825568,
+            "id": 625716,
+            "incomeid": null,
+            "invoiceid": null,
+            "paymentid": null
+          },
+          "id": 1305458,
+          "name": "Expense",
+          "sub_account": {
+            "account_sub_name": "Car & Truck Expenses",
+            "account_sub_number": "3",
+            "accounting_systemid": "wkMd2g",
+            "id": 849638,
+            "parentid": 545908,
+            "sub_accountid": 849638
+          },
+          "user_entered_date": "2019-04-24"
+        }
+      ]
+    }
+  }
+}

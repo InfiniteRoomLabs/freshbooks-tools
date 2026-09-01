@@ -1,0 +1,9 @@
+{
+  "response": {
+    "result": {
+      "expense_details": {
+        "note": "shape unknown -- Postman collection has no example and the docs page describes a different, business_uuid-scoped endpoint"
+      }
+    }
+  }
+}

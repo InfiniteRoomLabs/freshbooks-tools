@@ -1,0 +1,9 @@
+{
+  "response": {
+    "result": {
+      "bank_reconciliation_summary": {
+        "note": "shape unknown -- no Postman example or docs page exists for this report"
+      }
+    }
+  }
+}

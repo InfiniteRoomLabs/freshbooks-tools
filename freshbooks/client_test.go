@@ -238,18 +238,25 @@ func TestRetryPolicyDelay(t *testing.T) {
 
 func TestFamilyForPath(t *testing.T) {
 	tests := map[string]Family{
-		"/accounting/account/ACM123/users/clients":             FamilyAccounting,
-		"/accounting/businesses/uuid/ledger_accounts/accounts": FamilyAccounting,
-		"/auth/api/v1/users/me":                                FamilyAuth,
-		"/projects/business/1/projects":                        FamilyBusiness,
-		"/timetracking/business/1/time_entries":                FamilyBusiness,
-		// Account-scoped, and the Postman example response is the
-		// accounting envelope. INFERRED; Phase 2 confirms it live.
+		"/accounting/account/ACM123/users/clients": FamilyAccounting,
+		"/auth/api/v1/users/me":                    FamilyAuth,
+		"/projects/business/1/projects":            FamilyBusiness,
+		"/timetracking/business/1/time_entries":    FamilyBusiness,
+		// The ledger-accounts endpoints answer a flat {"data": ...} body,
+		// not the accounting envelope, despite living under /accounting/.
+		// Docs-confirmed 2026-09-01 (Phase 2 batch d) against the Postman
+		// "List Accounts"/"Single Account" examples; not yet live.
+		"/accounting/businesses/uuid/ledger_accounts/accounts": FamilyBusiness,
+		"/accounting/ledger_accounts/types":                    FamilyBusiness,
+		// Account-scoped, and the Postman example response is the full
+		// accounting envelope. Docs-confirmed 2026-09-01 (Phase 2 batch d);
+		// not yet live.
 		"/events/account/ACM123/events/callbacks": FamilyAccounting,
-		// Not yet verified either way; both default to business until a
-		// Phase 2 batch touches them.
-		"/payments/account/ACM123/payments/checkout_links": FamilyBusiness,
-		"/uploads/account/ACM123/attachments":              FamilyBusiness,
+		// Flat bodies, no envelope. Docs-confirmed 2026-09-01 (Phase 2
+		// batch d) against the Postman "Get Publishable Key" and "Upload
+		// Logo or Proposal Image" examples; not yet live.
+		"/payments/account/ACM123/gateway":    FamilyBusiness,
+		"/uploads/account/ACM123/attachments": FamilyBusiness,
 	}
 	for path, want := range tests {
 		if got := familyForPath(path); got != want {

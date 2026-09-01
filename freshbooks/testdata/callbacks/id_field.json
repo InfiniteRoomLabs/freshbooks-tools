@@ -1,0 +1,12 @@
+{
+  "response": {
+    "result": {
+      "callback": {
+        "id": 2002,
+        "event": "estimate.create",
+        "uri": "https://example.test/webhooks/estimates",
+        "verified": false
+      }
+    }
+  }
+}

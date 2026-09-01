@@ -1,0 +1,59 @@
+{
+  "response": {
+    "result": {
+      "balance_sheet": {
+        "assets_total": [
+          {"balance": {"amount": "-1380.98", "code": "USD"}, "date": "2019-04-19"},
+          {"balance": {"amount": "10345.56", "code": "USD"}, "date": "2019-04-25"}
+        ],
+        "company_name": "Postman Sandbox",
+        "currency_code": "USD",
+        "data": [
+          {
+            "account_type": "asset",
+            "accounts": [
+              {
+                "account_name": "Cash",
+                "account_number": "1000",
+                "balances": [
+                  {"balance": {"amount": "5744.02", "code": "USD"}, "date": "2019-04-19"},
+                  {"balance": {"amount": "6310.56", "code": "USD"}, "date": "2019-04-25"}
+                ],
+                "sub_accounts": [
+                  {
+                    "balances": [
+                      {"balance": {"amount": "5744.02", "code": "USD"}, "date": "2019-04-19"},
+                      {"balance": {"amount": "6310.56", "code": "USD"}, "date": "2019-04-25"}
+                    ],
+                    "sub_account_name": "Petty Cash",
+                    "sub_account_number": "1"
+                  }
+                ]
+              }
+            ],
+            "balances": [
+              {"balance": {"amount": "-1380.98", "code": "USD"}, "date": "2019-04-19"},
+              {"balance": {"amount": "10345.56", "code": "USD"}, "date": "2019-04-25"}
+            ],
+            "category": "current"
+          },
+          {
+            "account_type": "equity",
+            "accounts": [],
+            "balances": [
+              {"balance": {"amount": "-4705.98", "code": "USD"}, "date": "2019-04-19"},
+              {"balance": {"amount": "7014.56", "code": "USD"}, "date": "2019-04-25"}
+            ],
+            "category": null
+          }
+        ],
+        "dates": ["2019-04-19", "2019-04-25"],
+        "download_token": "tok_balance_sheet",
+        "liabilities_and_equity_total": [
+          {"balance": {"amount": "-1380.98", "code": "USD"}, "date": "2019-04-19"},
+          {"balance": {"amount": "10345.56", "code": "USD"}, "date": "2019-04-25"}
+        ]
+      }
+    }
+  }
+}

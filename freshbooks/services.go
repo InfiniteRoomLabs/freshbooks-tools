@@ -20,19 +20,23 @@ type ItemsService struct{ client *Client }
 // BillableItemsService is the billable-items resource.
 type BillableItemsService struct{ client *Client }
 
-// OtherIncomeService is the other-income resource.
+// OtherIncomeService manages other-income records: non-invoice income
+// tracked for accounting and reporting. See other_income.go.
 type OtherIncomeService struct{ client *Client }
 
-// JournalEntriesService is the journal-entries resource.
+// JournalEntriesService manages journal entries: manual debit/credit
+// postings to the ledger. See journal_entries.go.
 type JournalEntriesService struct{ client *Client }
 
-// JournalEntryAccountsService is the journal-entry-accounts resource.
+// JournalEntryAccountsService reads the general-ledger view. See
+// journal_entries.go.
 type JournalEntryAccountsService struct{ client *Client }
 
-// LedgerAccountsService is the chart-of-accounts resource.
+// LedgerAccountsService manages a business's chart of accounts and its type
+// taxonomy. See ledger_accounts.go.
 type LedgerAccountsService struct{ client *Client }
 
-// ReportsService is the reporting resource.
+// ReportsService reads the accounting reports. See reports.go.
 type ReportsService struct{ client *Client }
 
 // SystemsService is the account-system-settings resource.
@@ -62,20 +66,24 @@ type TeamMembersService struct{ client *Client }
 // RetainersService is the retainers resource.
 type RetainersService struct{ client *Client }
 
-// CallbacksService is the webhook-callbacks resource.
+// CallbacksService manages webhook subscriptions. See callbacks.go.
 type CallbacksService struct{ client *Client }
 
-// AttachmentsService is the file-uploads resource.
+// AttachmentsService uploads expense-receipt attachments. See attachments.go.
 type AttachmentsService struct{ client *Client }
 
-// ImagesService is the image-uploads resource.
+// ImagesService uploads logo and proposal images. See images.go.
 type ImagesService struct{ client *Client }
 
-// GatewaysService is the payment-gateways resource.
+// GatewaysService reads the account's connected payment gateways. See
+// gateways.go.
 type GatewaysService struct{ client *Client }
 
 // CheckoutLinksService is the checkout-links resource.
 type CheckoutLinksService struct{ client *Client }
 
-// PaymentOptionsService is the invoice-payment-options resource.
+// PaymentOptionsService tokenizes raw cards and saves them for future
+// charges. See payment_options.go. (Tokenization has no dedicated
+// CheckoutLinks-shaped operations in this batch's scope; every
+// Tokenization endpoint maps to either this service or GatewaysService.)
 type PaymentOptionsService struct{ client *Client }
