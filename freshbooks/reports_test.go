@@ -258,8 +258,8 @@ func TestReportsItemSales(t *testing.T) {
 		if got.Total == nil || got.Total.Amount != "23320.00" || got.TotalDiscount == nil || got.TotalDiscount.Amount != "0.00" {
 			t.Fatalf("totals = %+v / %+v", got.Total, got.TotalDiscount)
 		}
-		if got.TotalQty != 20 {
-			t.Fatalf("TotalQty = %d, want the report-level bare number", got.TotalQty)
+		if got.TotalQty != "20" {
+			t.Fatalf("TotalQty = %q, want the captured decimal string", got.TotalQty)
 		}
 		if got.StartDate != "2019-01-01" || len(got.StatusIDs) != 0 {
 			t.Fatalf("StartDate/StatusIDs = %q / %v", got.StartDate, got.StatusIDs)

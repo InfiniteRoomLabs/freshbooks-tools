@@ -451,10 +451,9 @@ type ItemSalesReport struct {
 	// capture).
 	Total         *Money `json:"total"`
 	TotalDiscount *Money `json:"total_discount"`
-	// TotalQty is the report-level item count, a bare number in the
-	// capture -- unlike ItemSale.TotalQty, which is a per-item decimal
-	// string, so it needs its own type rather than reusing that field's.
-	TotalQty int `json:"total_qty"`
+	// TotalQty is the report-level item count, a decimal string in the
+	// capture -- the same shape as ItemSale.TotalQty, the per-item count.
+	TotalQty string `json:"total_qty"`
 }
 
 // ItemSales returns the item-sales report for acct.
