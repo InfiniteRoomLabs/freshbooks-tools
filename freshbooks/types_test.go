@@ -118,6 +118,7 @@ func TestDateTimeJSON(t *testing.T) {
 		{"[happy] RFC 3339", `"2026-08-22T04:31:37Z"`, RFC3339Layout, time.Date(2026, 8, 22, 4, 31, 37, 0, time.UTC)},
 		{"[happy] accounting timestamp", `"2026-08-22 17:21:32"`, DateTimeLayout, time.Date(2026, 8, 22, 17, 21, 32, 0, time.UTC)},
 		{"[happy] bare date", `"2026-08-22"`, DateLayout, time.Date(2026, 8, 22, 0, 0, 0, 0, time.UTC)},
+		{"[happy] zoneless RFC 3339 shape (Projects/Time Tracking)", `"2019-04-19T18:25:00"`, noZoneLayout, time.Date(2019, 4, 19, 18, 25, 0, 0, time.UTC)},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
