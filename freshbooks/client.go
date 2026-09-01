@@ -206,13 +206,37 @@ func familyForPath(path string) Family {
 	switch {
 	case strings.HasPrefix(path, "/auth/"):
 		return FamilyAuth
+	case strings.HasPrefix(path, "/accounting/ledger_accounts/"), strings.HasPrefix(path, "/accounting/businesses/"):
+		// The ledger-accounts endpoints (chart of accounts + its type
+		// taxonomy) return a flat {"data": ...} body, not the accounting
+		// envelope, despite living under /accounting/ -- this case must be
+		// checked before the general /accounting/ one below. Confirmed
+		// against the Postman "List Accounts", "Single Account", and
+		// "Create Account" examples (2026-09-01, Phase 2 batch d); no live
+		// confirmation yet.
+		return FamilyBusiness
 	case strings.HasPrefix(path, "/accounting/"):
 		return FamilyAccounting
 	case strings.HasPrefix(path, "/events/"):
-		// Webhook callbacks are account_id-scoped and the collection's
-		// example response is the accounting envelope. INFERRED from the
-		// Postman example only; Phase 2's Callbacks batch confirms live.
+		// Webhook callbacks are account_id-scoped and return the full
+		// accounting envelope ({"response":{"result":{"callbacks":[...],
+		// "page":...}}}), confirmed against the Postman "List Webhook
+		// Callbacks" example (2026-09-01, Phase 2 batch d). Still no live
+		// confirmation.
 		return FamilyAccounting
+	case strings.HasPrefix(path, "/uploads/"):
+		// Upload responses are flat ({"image": {...}}, {"attachment":
+		// {...}}), no envelope. Confirmed against the Postman "Upload Logo
+		// or Proposal Image" example and the FreshBooks expense-attachments
+		// docs page (2026-09-01, Phase 2 batch d). No live confirmation yet.
+		return FamilyBusiness
+	case strings.HasPrefix(path, "/payments/"):
+		// Gateway-connection and card-tokenization responses are flat
+		// ({"gateway_connections": [...]}, {"credit_card": {...}}), no
+		// envelope. Confirmed against the Postman "Get Publishable Key" and
+		// "Create Setup Intent" examples (2026-09-01, Phase 2 batch d). No
+		// live confirmation yet.
+		return FamilyBusiness
 	default:
 		return FamilyBusiness
 	}

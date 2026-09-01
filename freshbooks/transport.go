@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"strings"
@@ -17,6 +18,12 @@ import (
 // FreshBooks list responses are measured in kilobytes; anything past this is
 // a runaway server, and reading it would be an easy memory-exhaustion vector.
 const maxResponseBytes = 10 << 20
+
+// maxUploadBytes bounds the file this client will read into a multipart
+// upload. FreshBooks logo, proposal, and receipt images are a few MB at
+// most; anything past this is almost certainly the wrong reader handed to
+// the wrong method, not a legitimate upload.
+const maxUploadBytes = 10 << 20
 
 // retryableStatuses are the HTTP statuses worth trying again: the documented
 // rate limit plus the transient gateway failures.
@@ -39,28 +46,136 @@ func (c *Client) Do(ctx context.Context, method, path string, body, out any) err
 	return c.do(ctx, method, path, familyForPath(path), body, out)
 }
 
-// do is the single request path. Every service method funnels through it.
+// do is the single JSON request path. Every generated service method funnels
+// through it.
 func (c *Client) do(ctx context.Context, method, path string, fam Family, body, out any, opts ...RequestOption) error {
 	endpoint, err := c.resolve(path, fam, opts)
 	if err != nil {
 		return err
 	}
 
-	var payload []byte
-	if body != nil {
-		payload, err = json.Marshal(body)
-		if err != nil {
-			return fmt.Errorf("freshbooks: encoding the request body: %w", err)
-		}
+	payload, err := marshalBody(body)
+	if err != nil {
+		return err
 	}
 
-	raw, err := c.attemptLoop(ctx, fam, func(ctx context.Context, authorization string) (*http.Request, error) {
-		return c.newRequest(ctx, method, endpoint, payload, authorization)
+	return c.send(ctx, fam, out, func(authorization string) (*http.Request, error) {
+		return c.newRequest(ctx, method, endpoint, payload, "application/json", authorization)
 	})
+}
+
+// doOnHost is like do but resolves against host instead of the client's
+// configured base URL, keeping the base URL's scheme. FreshBooks card
+// tokenization posts to paid.freshbooks.com, a different host from the
+// accounting/business API root; every other family stays on the client's
+// configured host.
+func (c *Client) doOnHost(ctx context.Context, method, host, path string, fam Family, body, out any) error {
+	u := *c.baseURL
+	u.Host = host
+	u.Path = path
+	endpoint := u.String()
+
+	payload, err := marshalBody(body)
+	if err != nil {
+		return err
+	}
+
+	return c.send(ctx, fam, out, func(authorization string) (*http.Request, error) {
+		return c.newRequest(ctx, method, endpoint, payload, "application/json", authorization)
+	})
+}
+
+// doRaw issues a request and returns the response body exactly as the server
+// sent it, bypassing envelope unwrapping and JSON decoding. Used for
+// endpoints that answer with a file -- e.g. Reports.DownloadCSV -- rather
+// than a JSON payload.
+func (c *Client) doRaw(ctx context.Context, method, path string, fam Family) ([]byte, error) {
+	return c.fetchRaw(ctx, method, path, fam, "")
+}
+
+// doMultipart issues a multipart/form-data request: one file part named
+// fileField, plus optional plain fields, following do()'s auth/retry/error
+// path. Used by the /uploads/ endpoints, which take a file instead of a JSON
+// body.
+//
+// The multipart body is built once, up front, into a byte slice: a
+// multipart.Writer cannot be rewound, but the bytes backing it can be
+// replayed on every retry attempt, exactly like do()'s JSON payload.
+func (c *Client) doMultipart(ctx context.Context, method, path string, fam Family, fileField, filename string, r io.Reader, fields map[string]string, out any) error {
+	endpoint, err := c.resolve(path, fam, nil)
+	if err != nil {
+		return err
+	}
+
+	payload, contentType, err := buildMultipartBody(fileField, filename, r, fields)
+	if err != nil {
+		return err
+	}
+
+	return c.send(ctx, fam, out, func(authorization string) (*http.Request, error) {
+		return c.newRequest(ctx, method, endpoint, payload, contentType, authorization)
+	})
+}
+
+// marshalBody JSON-encodes body, or returns a nil payload when body is nil.
+func marshalBody(body any) ([]byte, error) {
+	if body == nil {
+		return nil, nil
+	}
+	payload, err := json.Marshal(body)
+	if err != nil {
+		return nil, fmt.Errorf("freshbooks: encoding the request body: %w", err)
+	}
+	return payload, nil
+}
+
+// buildMultipartBody writes one file part and any plain fields into a
+// multipart/form-data body, bounding the file at maxUploadBytes.
+func buildMultipartBody(fileField, filename string, r io.Reader, fields map[string]string) (payload []byte, contentType string, err error) {
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+
+	fw, err := mw.CreateFormFile(fileField, filename)
+	if err != nil {
+		return nil, "", fmt.Errorf("freshbooks: building the upload: %w", err)
+	}
+	n, err := io.Copy(fw, io.LimitReader(r, maxUploadBytes+1))
+	if err != nil {
+		return nil, "", fmt.Errorf("freshbooks: reading the upload: %w", err)
+	}
+	if n > maxUploadBytes {
+		return nil, "", fmt.Errorf("freshbooks: upload exceeds the %d byte limit", maxUploadBytes)
+	}
+	for k, v := range fields {
+		if err := mw.WriteField(k, v); err != nil {
+			return nil, "", fmt.Errorf("freshbooks: building the upload: %w", err)
+		}
+	}
+	if err := mw.Close(); err != nil {
+		return nil, "", fmt.Errorf("freshbooks: building the upload: %w", err)
+	}
+	return buf.Bytes(), mw.FormDataContentType(), nil
+}
+
+// send runs build through the retry loop and decodes the winning response
+// into out. do, doOnHost, and doMultipart all funnel through it; only how
+// the request body is built differs between them.
+func (c *Client) send(ctx context.Context, fam Family, out any, build func(authorization string) (*http.Request, error)) error {
+	raw, err := c.sendRaw(ctx, fam, build)
 	if err != nil {
 		return err
 	}
 	return decodeBody(raw, fam, out)
+}
+
+// sendRaw is send without envelope unwrapping or JSON decoding: it hands
+// back the winning response body exactly as the server sent it. It adapts
+// build onto attemptLoop, the one retry/backoff/Retry-After path every
+// request in the package shares.
+func (c *Client) sendRaw(ctx context.Context, fam Family, build func(authorization string) (*http.Request, error)) ([]byte, error) {
+	return c.attemptLoop(ctx, fam, func(_ context.Context, authorization string) (*http.Request, error) {
+		return build(authorization)
+	})
 }
 
 // fetchRaw performs a request through the same resolve/authorize/retry path
@@ -75,7 +190,7 @@ func (c *Client) fetchRaw(ctx context.Context, method, path string, fam Family, 
 		return nil, err
 	}
 	return c.attemptLoop(ctx, fam, func(ctx context.Context, authorization string) (*http.Request, error) {
-		req, err := c.newRequest(ctx, method, endpoint, nil, authorization)
+		req, err := c.newRequest(ctx, method, endpoint, nil, "", authorization)
 		if err != nil {
 			return nil, err
 		}
@@ -263,8 +378,10 @@ func (c *Client) authorization(ctx context.Context) (string, error) {
 }
 
 // newRequest builds one attempt's request, including a fresh body reader so
-// a retry can replay it.
-func (c *Client) newRequest(ctx context.Context, method, endpoint string, payload []byte, authorization string) (*http.Request, error) {
+// a retry can replay it. contentType is only set when payload is non-nil; an
+// empty contentType with a non-nil payload (doRaw's GET) sends no body and
+// no Content-Type.
+func (c *Client) newRequest(ctx context.Context, method, endpoint string, payload []byte, contentType, authorization string) (*http.Request, error) {
 	var reader io.Reader
 	if payload != nil {
 		reader = bytes.NewReader(payload)
@@ -274,7 +391,9 @@ func (c *Client) newRequest(ctx context.Context, method, endpoint string, payloa
 		return nil, fmt.Errorf("freshbooks: building the request: %w", err)
 	}
 	if payload != nil {
-		req.Header.Set("Content-Type", "application/json")
+		if contentType != "" {
+			req.Header.Set("Content-Type", contentType)
+		}
 		req.ContentLength = int64(len(payload))
 	}
 	req.Header.Set("Accept", "application/json")
