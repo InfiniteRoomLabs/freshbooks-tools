@@ -66,6 +66,12 @@ Verified 2026-08-22 against https://www.freshbooks.com/api/authentication, the P
 - Money is `{"amount": "100.00", "code": "USD"}` (string decimal). Dates appear as `YYYY-MM-DD`, `YYYY-MM-DD HH:MM:SS` (account-local, no zone) in accounting, and RFC 3339 in business-scoped APIs.
 - Rate limits are undocumented; 429 carries `Retry-After`.
 
+> **STATE AS OF 2026-09-01 (Phase 2 batch a, QA pass):** three docs-vs-Postman conflicts found while implementing the Invoices/Payments/Retainers batch, all resolved docs-wins per this section's own rule:
+>
+> - **Payment-options body.** The `/api/online-payments` docs page's only worked example for `POST /payments/account/{account_id}/invoice/{invoiceId}/payment_options` sends `entity_id` (a bare JSON number, the invoice id) and `entity_type` (`"invoice"`) alongside the gateway booleans; the Postman example for the same endpoint (`Invoices/Enable Payment Options On Invoice`) omits both. The library now always sends them, built from the path argument, for both the invoice and invoice-profile variants (the latter's `entity_type` value, `"invoice_profile"`, has no docs or Postman example and is INFERRED by analogy). The response echoes `entity_id` back quoted as a string, so a caller must not reuse the request type to decode it.
+> - **Invoice delete verb.** The `/api/invoices` docs page's "Delete Invoice" example is `DELETE` with a `{"invoice":{"vis_state":1}}` body; the Postman collection captures `PUT` with the identical body. The library keeps `PUT`: a `DELETE` carrying a body is unusual, Postman is captured live traffic rather than prose, and `Items`/`Payments` (documented and captured consistently) both genuinely use `PUT` for the same soft-delete shape. Flagged for the live-conformance pass rather than changed on docs-prose alone.
+> - **`entity_type` singular vs. the field table's plural.** The `/api/online-payments` field-description table glosses `entity_type` as `Eg. "invoices"` (plural), but every request, response, and query example on the same page uses the singular `"invoice"`. The library sends the singular form, matching the examples over the table gloss.
+
 Anything above marked as inferred from examples must be confirmed against the live API during phase 1 and recorded with a `STATE AS OF` callout if wrong (section 9.6).
 
 ## 4. Repository layout

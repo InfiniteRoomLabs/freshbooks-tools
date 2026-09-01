@@ -54,36 +54,74 @@ func (c *Client) do(ctx context.Context, method, path string, fam Family, body, 
 		}
 	}
 
-	// The access token is resolved once for the whole request, not per
-	// attempt: retries happen seconds apart, and a 401 is never retried, so
-	// re-resolving would only risk spending a rotating refresh token again.
-	authorization, err := c.authorization(ctx)
+	raw, err := c.attemptLoop(ctx, fam, func(ctx context.Context, authorization string) (*http.Request, error) {
+		return c.newRequest(ctx, method, endpoint, payload, authorization)
+	})
 	if err != nil {
 		return err
+	}
+	return decodeBody(raw, fam, out)
+}
+
+// fetchRaw performs a request through the same resolve/authorize/retry path
+// as do, but returns the response body untouched instead of decoding an
+// envelope -- for endpoints (invoice PDF downloads) that answer with
+// something other than JSON. accept overrides the Accept header do always
+// sends as "application/json"; pass "" to keep that default. fetchRaw takes
+// no request body and no query options: today's only caller is a GET.
+func (c *Client) fetchRaw(ctx context.Context, method, path string, fam Family, accept string) ([]byte, error) {
+	endpoint, err := c.resolve(path, fam, nil)
+	if err != nil {
+		return nil, err
+	}
+	return c.attemptLoop(ctx, fam, func(ctx context.Context, authorization string) (*http.Request, error) {
+		req, err := c.newRequest(ctx, method, endpoint, nil, authorization)
+		if err != nil {
+			return nil, err
+		}
+		if accept != "" {
+			req.Header.Set("Accept", accept)
+		}
+		return req, nil
+	})
+}
+
+// attemptLoop is the retry loop do and fetchRaw share: resolve and encode
+// happen once outside it (the access token is resolved once for the whole
+// request too -- retries happen seconds apart, and a 401 is never retried,
+// so re-resolving would only risk spending a rotating refresh token again),
+// then newReq builds one attempt's request and attemptLoop drives the
+// retry/backoff/Retry-After handling around it. Every caller therefore gets
+// identical 429/502/503/504 handling regardless of what it does with the
+// successful response body.
+func (c *Client) attemptLoop(ctx context.Context, fam Family, newReq func(ctx context.Context, authorization string) (*http.Request, error)) ([]byte, error) {
+	authorization, err := c.authorization(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	var lastErr error
 	attempts := max(c.retry.MaxAttempts, 1)
 	for attempt := 1; attempt <= attempts; attempt++ {
-		req, err := c.newRequest(ctx, method, endpoint, payload, authorization)
+		req, err := newReq(ctx, authorization)
 		if err != nil {
 			// A malformed method or URL fails identically every time.
-			return err
+			return nil, err
 		}
 		raw, apiErr, err := c.roundTrip(ctx, req, fam, attempt)
 		switch {
 		case err != nil:
 			lastErr = err
 			if !isRetryableTransportError(err) {
-				return err
+				return nil, err
 			}
 		case apiErr != nil:
 			lastErr = apiErr
 			if !retryableStatuses[apiErr.StatusCode] {
-				return apiErr
+				return nil, apiErr
 			}
 		default:
-			return decodeBody(raw, fam, out)
+			return raw, nil
 		}
 
 		if attempt == attempts {
@@ -95,10 +133,19 @@ func (c *Client) do(ctx context.Context, method, path string, fam Family, body, 
 			retryAfter = e.RetryAfter()
 		}
 		if err := c.wait(ctx, c.retry.delay(attempt, retryAfter)); err != nil {
-			return err
+			return nil, err
 		}
 	}
-	return lastErr
+	return nil, lastErr
+}
+
+// softDelete performs the accounting family's delete, which is not an HTTP
+// DELETE: FreshBooks has no hard delete for these resources, so this is a
+// PUT that sets vis_state on the resource, wrapped in that resource's own
+// body key. key is the singular JSON key, e.g. "invoice".
+func (c *Client) softDelete(ctx context.Context, path, key string) error {
+	body := map[string]any{key: map[string]int{"vis_state": int(VisStateDeleted)}}
+	return c.do(ctx, http.MethodPut, path, FamilyAccounting, body, nil)
 }
 
 // resolve builds the absolute request URL, applying the family's query
@@ -111,6 +158,9 @@ func (c *Client) resolve(path string, fam Family, opts []RequestOption) (string,
 	if ref.IsAbs() {
 		return "", fmt.Errorf("freshbooks: request path %q must be relative to the API base", path)
 	}
+	if err := noTraversal(ref.Path); err != nil {
+		return "", err
+	}
 
 	u := *c.baseURL
 	u.Path = c.baseURL.Path + "/" + strings.TrimPrefix(ref.Path, "/")
@@ -121,6 +171,42 @@ func (c *Client) resolve(path string, fam Family, opts []RequestOption) (string,
 	}
 	u.RawQuery = q.Encode()
 	return u.String(), nil
+}
+
+// noTraversal rejects a "." or ".." path segment anywhere in p. It is a
+// defense-in-depth backstop behind pathSegment: every *Path builder
+// validates its caller-supplied identifiers (AccountID, checkout-link ids)
+// before interpolation, but this guard catches anything that reaches
+// resolve some other way.
+func noTraversal(p string) error {
+	for _, seg := range strings.Split(p, "/") {
+		if seg == "." || seg == ".." {
+			return fmt.Errorf("freshbooks: request path %q contains a directory traversal segment", p)
+		}
+	}
+	return nil
+}
+
+// pathSegment validates a caller-supplied identifier (an AccountID, a
+// checkout-link id, ...) before a *Path builder interpolates it into a
+// request path. These values come from callers today, and once the CLI and
+// MCP server exist will also arrive from flags, config files, and
+// model-authored tool inputs -- so a segment carrying a slash, a
+// query/fragment delimiter, or a ".." traversal must never reach url.Parse
+// silently. Escaping it at the call site does not help: resolve re-decodes
+// the path through url.Parse and rebuilds it from the decoded form, which
+// undoes any percent-encoding done here.
+func pathSegment(s string) error {
+	if s == "" {
+		return fmt.Errorf("freshbooks: a path segment cannot be empty")
+	}
+	if strings.ContainsAny(s, "/?#") {
+		return fmt.Errorf("freshbooks: path segment %q contains a reserved character", s)
+	}
+	if s == "." || s == ".." {
+		return fmt.Errorf("freshbooks: path segment %q is a directory traversal", s)
+	}
+	return nil
 }
 
 // roundTrip performs one HTTP round trip. Exactly one of the three results

@@ -1,0 +1,68 @@
+{
+  "response": {
+    "result": {
+      "invoices": [
+        {
+          "accountid": "ACM123",
+          "amount": {
+            "amount": "180.00",
+            "code": "USD"
+          },
+          "create_date": "2026-08-20",
+          "customerid": 55001,
+          "discount_total": {
+            "amount": "0.00",
+            "code": "USD"
+          },
+          "display_status": "draft",
+          "id": 90001,
+          "invoice_number": "0000001",
+          "invoiceid": 90001,
+          "organization": "Example Signs Co",
+          "outstanding": {
+            "amount": "180.00",
+            "code": "USD"
+          },
+          "paid": {
+            "amount": "0.00",
+            "code": "USD"
+          },
+          "status": 1,
+          "vis_state": 0
+        },
+        {
+          "accountid": "ACM123",
+          "amount": {
+            "amount": "50.00",
+            "code": "USD"
+          },
+          "create_date": "2026-08-18",
+          "customerid": 55002,
+          "discount_total": {
+            "amount": "0.00",
+            "code": "USD"
+          },
+          "display_status": "sent",
+          "id": 90002,
+          "invoice_number": "0000002",
+          "invoiceid": 90002,
+          "organization": "Trailhead Gear",
+          "outstanding": {
+            "amount": "50.00",
+            "code": "USD"
+          },
+          "paid": {
+            "amount": "0.00",
+            "code": "USD"
+          },
+          "status": 2,
+          "vis_state": 0
+        }
+      ],
+      "page": 1,
+      "pages": 1,
+      "per_page": 15,
+      "total": 2
+    }
+  }
+}

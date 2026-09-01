@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `InvoicesService` (`List`, `All`, `Get`, `Create`, `Update`, `Delete`,
+  `Send`, `PDF` (raw bytes over the shared retry/backoff transport, not a
+  separate one-shot fetch), `ShareLink`, `EnablePaymentOptions`,
+  `InvoicePresentationDefaults`), `InvoiceProfilesService` (recurring invoice
+  templates: `List`, `All`, `Get`, `Create`, `Update`, `Delete`,
+  `EnablePaymentOptions`), `ItemsService` (catalogue items, shared by the
+  `Invoices/Items and Services` and `Settings/Items and Services` Postman
+  folders), `PaymentsService` (invoice payments plus FreshBooks Payments
+  checkout links: `CreateCheckoutLink`, `UpdateCheckoutLink`,
+  `DeleteCheckoutLink`, `UpdateCheckoutLinkGateway`), and `RetainersService`
+  (business-scoped recurring minimum-fee arrangements: `List`, `Get`,
+  `Create`, `Update`, `Delete`, `Undelete`) -- Phase 2 batch a, 51 inventory
+  entries.
+- Transport: `(*Client).softDelete` for the accounting family's
+  vis_state-PUT soft delete, and a `pathSegment`/`noTraversal` guard that
+  rejects a caller-supplied path segment (an `AccountID`, a checkout-link
+  id) carrying a slash, `?`, `#`, or a `.`/`..` traversal before it reaches
+  the request path.
 - Core client: `Client` with all 36 resource services declared as fields,
   `NewClient` and the `With*` options (`WithTokenSource`, `WithHTTPClient`,
   `WithBaseURL`, `WithUserAgent`, `WithLogger`, `WithRetry`, `WithClock`),
@@ -39,6 +57,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `InvoiceListOptions` no longer declares a `Sort` field that `List`/`All`
+  never encoded; pass `Sort(field, dir)` through the `extra ...RequestOption`
+  variadic instead. `RetainerListOptions` no longer declares `Page`/`PerPage`:
+  FreshBooks' captured example response for that endpoint carries no `meta`
+  pagination block to page against.
+- Six write-path struct fields (`Money`/`Date` values on `InvoiceLine`,
+  `InvoiceCreateRequest`, `InvoiceProfileCreateRequest`,
+  `PaymentCreateRequest`, `ItemCreateRequest`) used `omitempty`, which is a
+  no-op on a struct; an unset field serialized as `null` or an empty
+  `Money{}` instead of being omitted. Switched to `omitzero`.
+  `PaymentOptionsRequest`'s three booleans lost their `omitempty` for the
+  opposite reason: it silently dropped an explicit `false`, so a caller
+  could not turn a payment method off.
+- `RetainerUpdateRequest.Active` is now `*bool`; a partial update that only
+  set `Fee` was posting an implicit `active: false` and deactivating the
+  retainer.
+- `Payments.UpdateCheckoutLinkGateway` now sends `entity_type`/`entity_id`,
+  the only body fields FreshBooks documents for that endpoint, derived from
+  the id argument instead of being silently omitted.
+- `Payments.CreateCheckoutLink`/`UpdateCheckoutLink` decode the enveloped
+  shape, then a flat object, and return an error if neither yields an id,
+  instead of echoing the caller's own request back as if it were the
+  server's answer.
 - `auth.Token.String` now takes a value receiver, so `%v` on a `Token` value
   (or on a struct that embeds one) redacts the credentials instead of
   printing them.

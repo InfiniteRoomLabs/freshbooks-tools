@@ -1,0 +1,45 @@
+{
+  "response": {
+    "result": {
+      "invoice_profile": {
+        "accounting_systemid": "ACM123",
+        "amount": {
+          "amount": "0.00",
+          "code": "USD"
+        },
+        "auto_bill": false,
+        "create_date": "2026-08-25",
+        "currency_code": "USD",
+        "customerid": 55001,
+        "discount_total": {
+          "amount": "0.00",
+          "code": "USD"
+        },
+        "discount_value": "0",
+        "disable": false,
+        "ext_archive": null,
+        "fname": "Alex",
+        "frequency": "m",
+        "id": 700,
+        "include_unbilled_time": false,
+        "language": "en",
+        "lname": "Example",
+        "notes": "",
+        "numberRecurring": 3,
+        "occurrences_to_date": 0,
+        "organization": "Example Signs Co",
+        "ownerid": 1,
+        "payment_details": "",
+        "profileid": 700,
+        "require_auto_bill": false,
+        "send_email": true,
+        "send_gmail": false,
+        "total_accrued_revenue": null,
+        "updated": "2026-08-25 14:17:14",
+        "vat_name": "",
+        "vat_number": "",
+        "vis_state": 0
+      }
+    }
+  }
+}

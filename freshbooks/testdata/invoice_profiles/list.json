@@ -1,0 +1,28 @@
+{
+  "response": {
+    "result": {
+      "invoice_profiles": [
+        {
+          "accounting_systemid": "ACM123",
+          "amount": {
+            "amount": "0.00",
+            "code": "USD"
+          },
+          "create_date": "2026-08-25",
+          "customerid": 55001,
+          "disable": false,
+          "frequency": "m",
+          "id": 700,
+          "numberRecurring": 3,
+          "organization": "Example Signs Co",
+          "profileid": 700,
+          "vis_state": 0
+        }
+      ],
+      "page": 1,
+      "pages": 1,
+      "per_page": 15,
+      "total": 1
+    }
+  }
+}

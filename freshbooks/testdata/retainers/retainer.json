@@ -1,0 +1,17 @@
+{
+  "retainer": {
+    "id": 2200,
+    "business_id": 8675309,
+    "system_id": 4200001,
+    "invoice_profile_id": null,
+    "client_user_id": 55001,
+    "start_date": "2026-08-05",
+    "next_period_start_date": "2026-08-03",
+    "fee": "600.00",
+    "excess_rate": "200.00",
+    "budgeted_time": 144000,
+    "active": true,
+    "created_at": "2026-08-03T18:11:26",
+    "updated_at": "2026-08-03T18:11:26"
+  }
+}

@@ -1,0 +1,75 @@
+{
+  "response": {
+    "result": {
+      "invoice": {
+        "accountid": "ACM123",
+        "accounting_systemid": "ACM123",
+        "address": "",
+        "amount": {
+          "amount": "180.00",
+          "code": "USD"
+        },
+        "auto_bill": false,
+        "autobill_status": null,
+        "basecampid": 0,
+        "city": "",
+        "code": "",
+        "country": "Canada",
+        "create_date": "2026-08-20",
+        "created_at": "2026-08-24 14:06:53",
+        "currency_code": "USD",
+        "current_organization": "Example Signs Co",
+        "customerid": 55001,
+        "deposit_percentage": null,
+        "deposit_status": "none",
+        "discount_total": {
+          "amount": "0.00",
+          "code": "USD"
+        },
+        "discount_value": "0",
+        "display_status": "draft",
+        "dispute_status": null,
+        "due_date": "2026-08-20",
+        "ext_archive": 0,
+        "fname": "Alex",
+        "gmail": false,
+        "id": 90001,
+        "invoice_number": "0000001",
+        "invoiceid": 90001,
+        "language": "en",
+        "last_order_status": null,
+        "lname": "Example",
+        "net_paid_amount": null,
+        "notes": "",
+        "organization": "Example Signs Co",
+        "outstanding": {
+          "amount": "180.00",
+          "code": "USD"
+        },
+        "ownerid": 1,
+        "paid": {
+          "amount": "0.00",
+          "code": "USD"
+        },
+        "parent": 0,
+        "payment_details": "",
+        "payment_status": "unpaid",
+        "province": "",
+        "sentid": 1,
+        "show_attachments": true,
+        "status": 1,
+        "street": "",
+        "street2": "",
+        "template": "clean-grouped",
+        "terms": "",
+        "updated": "2026-08-24 14:06:53",
+        "uuid": "00000000-0000-4000-8000-000000000090",
+        "v3_status": "draft",
+        "vat_name": "",
+        "vat_number": "",
+        "version": "2026-08-24 14:06:53.000000",
+        "vis_state": 0
+      }
+    }
+  }
+}
