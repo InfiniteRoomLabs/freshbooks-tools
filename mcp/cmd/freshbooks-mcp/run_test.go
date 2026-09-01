@@ -2,19 +2,15 @@ package main
 
 import (
 	"bytes"
-	"errors"
+	"encoding/json"
 	"strings"
 	"testing"
 )
 
-type errWriter struct{ err error }
-
-func (w errWriter) Write([]byte) (int, error) { return 0, w.err }
-
 func TestRun(t *testing.T) {
-	t.Run("[happy] prints name and version, exits 0", func(t *testing.T) {
+	t.Run("[happy] version prints name and version, exits 0", func(t *testing.T) {
 		var stdout, stderr bytes.Buffer
-		code := run(&stdout, &stderr, "1.2.3")
+		code := run(&stdout, &stderr, []string{"version"}, "1.2.3")
 		if code != 0 {
 			t.Fatalf("run() exit = %d, want 0", code)
 		}
@@ -24,15 +20,59 @@ func TestRun(t *testing.T) {
 		}
 	})
 
-	t.Run("[sad] stdout write failure exits 1 and reports to stderr", func(t *testing.T) {
-		var stderr bytes.Buffer
-		writeErr := errors.New("broken pipe")
-		code := run(errWriter{err: writeErr}, &stderr, "1.2.3")
+	t.Run("[happy] tools prints valid JSON with every tool", func(t *testing.T) {
+		var stdout, stderr bytes.Buffer
+		code := run(&stdout, &stderr, []string{"tools"}, "1.2.3")
+		if code != 0 {
+			t.Fatalf("run() exit = %d, want 0; stderr = %q", code, stderr.String())
+		}
+		var manifest []map[string]any
+		if err := json.Unmarshal(stdout.Bytes(), &manifest); err != nil {
+			t.Fatalf("tools output is not valid JSON: %v", err)
+		}
+		if len(manifest) != 168 {
+			t.Fatalf("got %d tools, want 168", len(manifest))
+		}
+		for _, entry := range manifest {
+			if _, ok := entry["name"]; !ok {
+				t.Fatalf("entry missing name: %+v", entry)
+			}
+			if _, ok := entry["inputSchema"]; !ok {
+				t.Fatalf("entry missing inputSchema: %+v", entry)
+			}
+		}
+	})
+
+	t.Run("[sad] serve with an invalid transport fails and exits 1", func(t *testing.T) {
+		var stdout, stderr bytes.Buffer
+		code := run(&stdout, &stderr, []string{"serve", "--transport", "bogus"}, "1.2.3")
 		if code != 1 {
 			t.Fatalf("run() exit = %d, want 1", code)
 		}
-		if !strings.Contains(stderr.String(), "broken pipe") {
-			t.Errorf("stderr = %q, want it to mention the write error", stderr.String())
+		if !strings.Contains(stderr.String(), "bogus") {
+			t.Errorf("stderr = %q, want it to mention the bad transport", stderr.String())
+		}
+	})
+
+	t.Run("[sad] serve stdio with no token configured fails fast and exits 1", func(t *testing.T) {
+		for _, e := range []string{"FRESHBOOKS_ACCESS_TOKEN", "FRESHBOOKS_CLIENT_ID", "FRESHBOOKS_CLIENT_SECRET", "FRESHBOOKS_TOKEN_FILE"} {
+			t.Setenv(e, "")
+		}
+		var stdout, stderr bytes.Buffer
+		code := run(&stdout, &stderr, []string{"serve", "--transport", "stdio"}, "1.2.3")
+		if code != 1 {
+			t.Fatalf("run() exit = %d, want 1; stderr = %q", code, stderr.String())
+		}
+		if !strings.Contains(stderr.String(), "token") {
+			t.Errorf("stderr = %q, want it to mention the missing token", stderr.String())
+		}
+	})
+
+	t.Run("[sad] an unknown subcommand fails and exits 1", func(t *testing.T) {
+		var stdout, stderr bytes.Buffer
+		code := run(&stdout, &stderr, []string{"nope"}, "1.2.3")
+		if code != 1 {
+			t.Fatalf("run() exit = %d, want 1", code)
 		}
 	})
 }
