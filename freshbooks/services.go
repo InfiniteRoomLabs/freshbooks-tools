@@ -66,13 +66,13 @@ type TeamMembersService struct{ client *Client }
 // RetainersService is the retainers resource.
 type RetainersService struct{ client *Client }
 
-// CallbacksService is the webhook-callbacks resource.
+// CallbacksService manages webhook subscriptions. See callbacks.go.
 type CallbacksService struct{ client *Client }
 
-// AttachmentsService is the file-uploads resource.
+// AttachmentsService uploads expense-receipt attachments. See attachments.go.
 type AttachmentsService struct{ client *Client }
 
-// ImagesService is the image-uploads resource.
+// ImagesService uploads logo and proposal images. See images.go.
 type ImagesService struct{ client *Client }
 
 // GatewaysService is the payment-gateways resource.

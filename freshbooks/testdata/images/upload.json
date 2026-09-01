@@ -1,0 +1,8 @@
+{
+  "image": {
+    "jwt": "eyJhbGciOiJIUzI1NiJ9.example-image-jwt",
+    "public_id": "eyJhbGciOiJIUzI1NiJ9.example-image-jwt",
+    "filename": "upload-9198160f94ca297e174a602f40899a3c9f76099d"
+  },
+  "link": "https://example.test/service/uploads/images/eyJhbGciOiJIUzI1NiJ9.example-image-jwt"
+}

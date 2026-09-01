@@ -1,0 +1,9 @@
+{
+  "attachment": {
+    "filename": "upload-9198160f94ca297e174a602f40899a3c9f76099d",
+    "public_id": "eyJhbGciOiJIUzI1NiJ9.example-attachment-jwt",
+    "jwt": "eyJhbGciOiJIUzI1NiJ9.example-attachment-jwt",
+    "media_type": "image/jpeg",
+    "uuid": "00000000-0000-4000-8000-000000000099"
+  }
+}

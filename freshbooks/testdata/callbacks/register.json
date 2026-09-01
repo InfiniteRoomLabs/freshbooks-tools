@@ -1,0 +1,12 @@
+{
+  "response": {
+    "result": {
+      "callback": {
+        "callbackid": 2001,
+        "event": "invoice.create",
+        "uri": "https://example.test/webhooks/ready",
+        "verified": false
+      }
+    }
+  }
+}
