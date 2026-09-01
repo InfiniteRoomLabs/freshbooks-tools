@@ -1,0 +1,18 @@
+{
+  "response": {
+    "result": {
+      "staff": {
+        "id": 1,
+        "userid": 1,
+        "fname": "Ryen",
+        "lname": "Marr",
+        "display_name": "RyenMarr",
+        "username": "accountant@example.com",
+        "email": "accountant@example.com",
+        "role": "admin",
+        "level": 3,
+        "vis_state": 1
+      }
+    }
+  }
+}

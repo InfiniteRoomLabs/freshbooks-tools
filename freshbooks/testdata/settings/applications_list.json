@@ -1,0 +1,9 @@
+{
+  "response": [
+    {
+      "client_id": "syn-client-abc123",
+      "name": "Example App",
+      "redirect_uri": "https://app.example.com/callback"
+    }
+  ]
+}

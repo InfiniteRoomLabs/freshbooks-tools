@@ -1,0 +1,43 @@
+{
+  "response": {
+    "id": 8675309,
+    "name": "Example Business LLC",
+    "account_id": "ACM123",
+    "business_group": {
+      "id": 4942664,
+      "category": "business",
+      "members": [
+        {
+          "id": 6446238,
+          "group_id": 4942664,
+          "role": "owner",
+          "identity_id": 4242424,
+          "first_name": "Sam",
+          "last_name": "Owner",
+          "email": "owner@example.com",
+          "company": "Example Business LLC",
+          "business_id": 8675309,
+          "unacknowledged_change": false,
+          "active": true
+        },
+        {
+          "id": 6475824,
+          "group_id": 4942664,
+          "role": "business_accountant",
+          "identity_id": 4242425,
+          "first_name": "Ryen",
+          "last_name": "Marr",
+          "email": "accountant@example.com",
+          "company": "Example Business LLC",
+          "business_id": 8675309,
+          "unacknowledged_change": false,
+          "active": true
+        }
+      ]
+    },
+    "date_format": "mm/dd/yyyy",
+    "address": null,
+    "phone_number": null,
+    "business_clients": []
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "services": [
+    { "business_id": 8675309, "id": 4054453, "name": "Document Review", "billable": true, "project_default": false, "vis_state": 0 },
+    { "business_id": 8675309, "id": 4054454, "name": "Consulting", "billable": true, "project_default": true, "vis_state": 0 }
+  ],
+  "meta": { "total": 2, "per_page": 50, "page": 1, "pages": 1 }
+}

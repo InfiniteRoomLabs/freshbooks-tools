@@ -1,0 +1,60 @@
+{
+  "response": {
+    "result": {
+      "system": {
+        "accountid": "ACM123",
+        "active": true,
+        "auto_bill": 5,
+        "billing_status": "uptodate",
+        "bus_phone": "",
+        "business_type": null,
+        "business_uuid": null,
+        "city": "",
+        "code": "",
+        "country": "Canada",
+        "currency_code": "USD",
+        "date": "2026-08-18 09:14:53",
+        "discountid": null,
+        "dst": true,
+        "duration": 12,
+        "email": "owner@example.com",
+        "fax": "",
+        "gst_amount": {
+          "amount": "0.00",
+          "code": "USD"
+        },
+        "heard_about_us_via": null,
+        "id": 4236410,
+        "info_email": "owner@example.com",
+        "ip": "203.0.113.10",
+        "landing_url": null,
+        "masterlock_billing": true,
+        "migrated_to_smux_at": null,
+        "mob_phone": "",
+        "modern_system": true,
+        "name": "Example Business LLC",
+        "num_clients": null,
+        "num_staff": null,
+        "payment_amount": {
+          "amount": "0.00",
+          "code": "USD"
+        },
+        "payment_frequency": 1,
+        "province": "",
+        "referralid": "multibiz",
+        "referring_url": null,
+        "salutation": null,
+        "size_limit": null,
+        "split_token": null,
+        "street": "",
+        "street2": null,
+        "systemid": 4236410,
+        "test_system": false,
+        "timezone": "UTC",
+        "timezoneid": 14,
+        "vat_name": null,
+        "vat_number": null
+      }
+    }
+  }
+}

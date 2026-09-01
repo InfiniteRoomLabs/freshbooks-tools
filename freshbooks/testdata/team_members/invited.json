@@ -1,0 +1,7 @@
+{
+  "response": {
+    "id": 999001,
+    "to_email": "invitee@example.com",
+    "capacity": "manager"
+  }
+}

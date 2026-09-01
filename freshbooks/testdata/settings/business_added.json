@@ -1,0 +1,37 @@
+{
+  "response": {
+    "id": 1001,
+    "name": "Example Business LLC",
+    "account_id": "ACM123",
+    "business_group": {
+      "id": 2001,
+      "category": "business",
+      "members": [
+        {
+          "id": 3001,
+          "group_id": 2001,
+          "role": "owner",
+          "identity_id": 4242424,
+          "first_name": "Sam",
+          "last_name": "Owner",
+          "email": "owner@example.com",
+          "company": "Example Business LLC",
+          "business_id": 1001,
+          "unacknowledged_change": false,
+          "active": true
+        }
+      ]
+    },
+    "date_format": "mm/dd/yyyy",
+    "address": {
+      "id": 4001,
+      "street": null,
+      "city": null,
+      "province": null,
+      "country": "Canada",
+      "postal_code": null
+    },
+    "phone_number": null,
+    "business_clients": []
+  }
+}

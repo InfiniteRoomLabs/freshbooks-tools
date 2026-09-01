@@ -1,0 +1,6 @@
+{
+  "service_rates": [
+    { "rate": "0.00", "service_id": 4054453, "business_id": 8675309 },
+    { "rate": "45.00", "service_id": 4054454, "business_id": 8675309 }
+  ]
+}

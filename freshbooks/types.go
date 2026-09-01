@@ -153,12 +153,19 @@ func (dt DateTime) MarshalJSON() ([]byte, error) {
 	return json.Marshal(dt.Format(dt.Layout()))
 }
 
+// noZoneLayout is a fourth wire format observed in the Projects/Time
+// Tracking business-scoped family: an RFC 3339-shaped timestamp with no zone
+// offset, e.g. "2019-04-19T18:25:00" (Projects/List Projects, Postman
+// example). INFERRED from that example only, not confirmed live; Phase 2's
+// batch c added it because the three documented layouts all reject it.
+const noZoneLayout = "2006-01-02T15:04:05"
+
 // dateTimeLayouts are tried in order when decoding; the longest, most
 // specific format first so "2026-08-23 17:21:32" never matches DateLayout.
-var dateTimeLayouts = []string{RFC3339Layout, DateTimeLayout, DateLayout}
+var dateTimeLayouts = []string{RFC3339Layout, noZoneLayout, DateTimeLayout, DateLayout}
 
-// UnmarshalJSON accepts RFC 3339, "YYYY-MM-DD HH:MM:SS", "YYYY-MM-DD", null,
-// or an empty string.
+// UnmarshalJSON accepts RFC 3339, "YYYY-MM-DD HH:MM:SS", "YYYY-MM-DD", the
+// zoneless "YYYY-MM-DDTHH:MM:SS" variant, null, or an empty string.
 func (dt *DateTime) UnmarshalJSON(data []byte) error {
 	s, ok, err := jsonString(data)
 	if err != nil {

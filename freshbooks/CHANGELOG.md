@@ -76,6 +76,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Repository scaffold: module skeleton, doc.go package overview, and the
   `freshbooks/internal/inventory` tool that normalizes the FreshBooks
   Postman collection into a parity contract for future phases.
+- Phase 2 batch c (Projects + Time Tracking + My Team + Settings, 47
+  inventory keys): `ProjectsService` (projects, abilities, discussion
+  threads and comments), `TasksService`, `TimeEntriesService` (including the
+  free-text `Search` endpoint), `ServicesService` and `ServiceRatesService`
+  (spanning the business-family service catalogue and the accounting-family
+  billable-items resource the same folder name conflates), `TeamMembersService`
+  (team members, invitation and per-identity rates, invites),
+  `StaffService` (the deprecated Staff resource plus the auth-family
+  business-group member list), `SystemsService.Get`, and
+  `IdentityService.{AddBusiness,DeleteBusiness,DeleteBusinessSubscription,
+  ProvisionPayments,CreateApplication,Applications,UpdateApplication}` for
+  the Settings/Businesses and Settings/Developer keys, which have no
+  dedicated pre-declared service.
+- `DateTime` now accepts a fourth wire format, a zoneless
+  `"YYYY-MM-DDTHH:MM:SS"` timestamp observed in the Projects/Time Tracking
+  Postman examples (e.g. Projects' `created_at`/`updated_at`), alongside the
+  three documented formats.
 
 ### Fixed
 

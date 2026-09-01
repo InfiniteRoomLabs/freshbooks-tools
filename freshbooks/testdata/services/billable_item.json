@@ -1,0 +1,17 @@
+{
+  "response": {
+    "result": {
+      "billable_item": {
+        "id": 60001,
+        "name": "Working hard",
+        "description": "Cool dude",
+        "billable": true,
+        "tax1": 0,
+        "tax2": 0,
+        "unit_cost": { "amount": "50.00", "code": "CAD" },
+        "updated": "2026-08-24 14:39:06",
+        "vis_state": 0
+      }
+    }
+  }
+}
