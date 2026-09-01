@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `CLAUDE.md`: agent-cleanup convention -- stop subagents via `TaskStop` as soon as their gate role completes (lanes after triage, implementers after merge, QA after its verdict).
 - Phase 2 work orders `docs/phases/2/plan-{a,b,c,d}.md` and the 2026-09-01 stage-1 re-cut recorded in `GOAL.md`: 25 cross-folder duplicate requests (same method+URL in two or three Postman folders) are each owned by one batch and implemented as one canonical method with stacked `// inventory:` comments; effective batch loads a 51 / b 59 / c 47 / d 52.
 - Phase 1 (lib core) shipped: the `freshbooks` library client, transport, errors, pagination, types, `auth/` package, and Identity service (see `freshbooks/CHANGELOG.md` for the library-level detail); live-verified OAuth facts recorded as `STATE AS OF 2026-08-23` callouts in spec section 3; sanitized live captures under `freshbooks/testdata/seed/`; `docs/authentication.md` and `docs/library.md` written for real.
 - Phase 1 review-gate artifacts: work order, lead triage, and the implementer / code-review / simplification / security / QA reports under `docs/phases/1/`.
