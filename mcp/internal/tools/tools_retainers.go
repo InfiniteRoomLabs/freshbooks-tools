@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/InfiniteRoomLabs/freshbooks-tools/freshbooks"
 )
@@ -20,15 +21,76 @@ type retainersIDIn struct {
 	idIn
 }
 
+// retainersCreateIn and retainersUpdateIn do not embed
+// freshbooks.Retainer{Create,Update}Request whole: both carry Fee and
+// ExcessRate as json.Number, which jsonschema-go infers as JSON type
+// "string" (json.Number's reflect Kind()) -- but go-sdk's decoder
+// (github.com/segmentio/encoding/json, see internal/json/json.go) accepts
+// only an unquoted numeric literal for a json.Number field and rejects a
+// quoted string outright. No JSON value satisfies both the inferred schema
+// and the decoder at once, so Fee and ExcessRate are exposed as plain
+// strings here and converted with json.Number(...) in the Call closure.
+// Not one of the "reports, uploads, thread comments, rates, verify,
+// checkout links, tokenization" categories docs/phases/3/plan.md's D3
+// anticipated; discovered and resolved during round-trip testing (see
+// docs/phases/3/reports/implementer.md).
 type retainersCreateIn struct {
 	BizScope
-	Body freshbooks.RetainerCreateRequest `json:"body" jsonschema:"the retainer fields to create"`
+	ClientUserID          string `json:"client_user_id" jsonschema:"the client's FreshBooks user id"`
+	StartDate             string `json:"start_date" jsonschema:"the retainer's start date, YYYY-MM-DD"`
+	NextPeriodStartDate   string `json:"next_period_start_date,omitempty" jsonschema:"the next period's start date, YYYY-MM-DD"`
+	Fee                   string `json:"fee" jsonschema:"the retainer fee, as a decimal string"`
+	ExcessRate            string `json:"excess_rate,omitempty" jsonschema:"the excess-usage rate, as a decimal string"`
+	BudgetedTime          int64  `json:"budgeted_time,omitempty" jsonschema:"budgeted minutes"`
+	Active                bool   `json:"active" jsonschema:"whether the retainer is active"`
+	Frequency             string `json:"frequency,omitempty" jsonschema:"the billing frequency"`
+	NumberRecurring       int    `json:"number_recurring,omitempty" jsonschema:"how many times the retainer recurs"`
+	IsInfinitelyRecurring bool   `json:"is_infinitely_recurring,omitempty" jsonschema:"whether the retainer recurs indefinitely"`
+}
+
+func (in retainersCreateIn) body() *freshbooks.RetainerCreateRequest {
+	return &freshbooks.RetainerCreateRequest{
+		ClientUserID:          in.ClientUserID,
+		StartDate:             in.StartDate,
+		NextPeriodStartDate:   in.NextPeriodStartDate,
+		Fee:                   json.Number(in.Fee),
+		ExcessRate:            json.Number(in.ExcessRate),
+		BudgetedTime:          in.BudgetedTime,
+		Active:                in.Active,
+		Frequency:             in.Frequency,
+		NumberRecurring:       in.NumberRecurring,
+		IsInfinitelyRecurring: in.IsInfinitelyRecurring,
+	}
 }
 
 type retainersUpdateIn struct {
 	BizScope
 	idIn
-	Body freshbooks.RetainerUpdateRequest `json:"body" jsonschema:"the retainer fields to update"`
+	ClientUserID          string `json:"client_user_id,omitempty" jsonschema:"the client's FreshBooks user id"`
+	StartDate             string `json:"start_date,omitempty" jsonschema:"the retainer's start date, YYYY-MM-DD"`
+	NextPeriodStartDate   string `json:"next_period_start_date,omitempty" jsonschema:"the next period's start date, YYYY-MM-DD"`
+	Fee                   string `json:"fee,omitempty" jsonschema:"the retainer fee, as a decimal string"`
+	ExcessRate            string `json:"excess_rate,omitempty" jsonschema:"the excess-usage rate, as a decimal string"`
+	BudgetedTime          int64  `json:"budgeted_time,omitempty" jsonschema:"budgeted minutes"`
+	Active                *bool  `json:"active,omitempty" jsonschema:"whether the retainer is active"`
+	Frequency             string `json:"frequency,omitempty" jsonschema:"the billing frequency"`
+	NumberRecurring       int    `json:"number_recurring,omitempty" jsonschema:"how many times the retainer recurs"`
+	IsInfinitelyRecurring bool   `json:"is_infinitely_recurring,omitempty" jsonschema:"whether the retainer recurs indefinitely"`
+}
+
+func (in retainersUpdateIn) body() *freshbooks.RetainerUpdateRequest {
+	return &freshbooks.RetainerUpdateRequest{
+		ClientUserID:          in.ClientUserID,
+		StartDate:             in.StartDate,
+		NextPeriodStartDate:   in.NextPeriodStartDate,
+		Fee:                   json.Number(in.Fee),
+		ExcessRate:            json.Number(in.ExcessRate),
+		BudgetedTime:          in.BudgetedTime,
+		Active:                in.Active,
+		Frequency:             in.Frequency,
+		NumberRecurring:       in.NumberRecurring,
+		IsInfinitelyRecurring: in.IsInfinitelyRecurring,
+	}
 }
 
 // retainersSpecs are the tools wrapping *freshbooks.RetainersService.
@@ -56,14 +118,14 @@ var retainersSpecs = []Spec{
 		"Retainers", "Create",
 		[]string{"Invoices/Retainers/Create Retainer"}, hintW,
 		func(ctx context.Context, c *freshbooks.Client, scope Scope, in retainersCreateIn) (any, error) {
-			return c.Retainers.Create(ctx, scope.BusinessID, &in.Body)
+			return c.Retainers.Create(ctx, scope.BusinessID, in.body())
 		}),
 	newSpec("retainers_update",
 		"Update a retainer. See https://www.freshbooks.com/api/invoices.",
 		"Retainers", "Update",
 		[]string{"Invoices/Retainers/Update Retainer"}, hintI,
 		func(ctx context.Context, c *freshbooks.Client, scope Scope, in retainersUpdateIn) (any, error) {
-			return c.Retainers.Update(ctx, scope.BusinessID, in.ID, &in.Body)
+			return c.Retainers.Update(ctx, scope.BusinessID, in.ID, in.body())
 		}),
 	newSpec("retainers_delete",
 		"Delete a retainer. See https://www.freshbooks.com/api/invoices.",
