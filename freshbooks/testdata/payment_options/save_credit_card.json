@@ -1,0 +1,14 @@
+{
+  "credit_card": {
+    "credit_card_uuid": "00000000-0000-4000-8000-000000000042",
+    "card_holder_user_id": 123456,
+    "saved_to_system_id": "E86Qd",
+    "card_type": "visa",
+    "expiry_year": "2024",
+    "expiry_month": "9",
+    "last_four_digits": "0234",
+    "card_holder_name": "Sam Owner",
+    "access": {"system": true, "client": false, "invoice_profiles": [121212]},
+    "credit_card_tokens": [{"id": "fbpay+examplecardtoken", "gateway_name": "fbpay"}]
+  }
+}

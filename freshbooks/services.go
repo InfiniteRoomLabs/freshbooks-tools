@@ -75,11 +75,15 @@ type AttachmentsService struct{ client *Client }
 // ImagesService uploads logo and proposal images. See images.go.
 type ImagesService struct{ client *Client }
 
-// GatewaysService is the payment-gateways resource.
+// GatewaysService reads the account's connected payment gateways. See
+// gateways.go.
 type GatewaysService struct{ client *Client }
 
 // CheckoutLinksService is the checkout-links resource.
 type CheckoutLinksService struct{ client *Client }
 
-// PaymentOptionsService is the invoice-payment-options resource.
+// PaymentOptionsService tokenizes raw cards and saves them for future
+// charges. See payment_options.go. (Tokenization has no dedicated
+// CheckoutLinks-shaped operations in this batch's scope; every
+// Tokenization endpoint maps to either this service or GatewaysService.)
 type PaymentOptionsService struct{ client *Client }

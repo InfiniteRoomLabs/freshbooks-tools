@@ -1,0 +1,39 @@
+{
+  "gateway_connections": [
+    {
+      "fbpay": {
+        "id": "fbpay-connection-id",
+        "account_id": "45435345345",
+        "visa_debit_accepted": true,
+        "pricing": {
+          "tier_id": 105,
+          "percent_ach": "0.00",
+          "percent_non_amex": "2.90",
+          "percent_non_amex_with_card": "2.70",
+          "percent_amex": "3.50",
+          "percent_amex_with_card": "3.40",
+          "percent_virtual_terminal": "3.50",
+          "per_transaction_fee": "0.30"
+        },
+        "bank_transfer_enabled": false,
+        "tos_accepted": true,
+        "state": "active",
+        "email": "owner@example.test",
+        "manage_account_url": "https://wepay.example.test/account/15524535345",
+        "currencies": ["CAD"],
+        "country": "CA"
+      },
+      "stripe": {
+        "id": "stripe-connection-id",
+        "gateway_user_id": "acct_example",
+        "user_state": "registered",
+        "email": "owner@example.test",
+        "country": "CA",
+        "currencies": ["CAD", "USD"],
+        "publishable_key": "pk_live_example",
+        "bank_transfer_enabled": false
+      },
+      "paypal": null
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+package freshbooks
+
+import (
+	"context"
+	"net/http"
+	"testing"
+)
+
+func TestGatewaysGet(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("[happy] decodes fbpay and stripe connections, flat with no envelope", func(t *testing.T) {
+		var gotPath string
+		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			gotPath = r.URL.Path
+			serveFixture(t, http.StatusOK, "gateways", "get")(w, r)
+		}))
+		got, err := c.Gateways.Get(ctx, "ACM123")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if gotPath != "/payments/account/ACM123/gateway" {
+			t.Fatalf("path = %q", gotPath)
+		}
+		if len(got) != 1 {
+			t.Fatalf("got %d connections", len(got))
+		}
+		conn := got[0]
+		if conn.FBPay == nil || conn.FBPay.State != "active" || conn.FBPay.Pricing.PercentNonAmex != "2.90" {
+			t.Fatalf("fbpay = %+v", conn.FBPay)
+		}
+		if conn.Stripe == nil || conn.Stripe.PublishableKey != "pk_live_example" {
+			t.Fatalf("stripe = %+v", conn.Stripe)
+		}
+	})
+
+	t.Run("[edge] no gateway connected yet", func(t *testing.T) {
+		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			_, _ = w.Write([]byte(`{"gateway_connections": []}`))
+		}))
+		got, err := c.Gateways.Get(ctx, "ACM123")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(got) != 0 {
+			t.Fatalf("got = %+v", got)
+		}
+	})
+
+	t.Run("[sad] a 403 for an account without payments enabled", func(t *testing.T) {
+		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte(`{"error": "forbidden"}`))
+		}))
+		if _, err := c.Gateways.Get(ctx, "ACM123"); err == nil {
+			t.Fatal("want an error")
+		}
+	})
+}
