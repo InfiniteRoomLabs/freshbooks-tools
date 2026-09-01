@@ -1,0 +1,7 @@
+{
+  "abilities": [
+    { "name": "can_view_projects", "value": true },
+    { "name": "can_create_projects", "value": true },
+    { "name": "can_view_time_entries", "value": true }
+  ]
+}

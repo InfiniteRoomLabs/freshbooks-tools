@@ -1,0 +1,17 @@
+{
+  "response": {
+    "result": {
+      "task": {
+        "id": 74830,
+        "name": "Saving the planet",
+        "description": "Hourly rate for doing positive things",
+        "rate": { "amount": "50.00", "code": "USD" },
+        "billable": true,
+        "tax1": 0,
+        "tax2": 0,
+        "updated": "2026-08-24 14:39:06",
+        "vis_state": 0
+      }
+    }
+  }
+}
