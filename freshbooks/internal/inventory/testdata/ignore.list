@@ -42,19 +42,6 @@
 //go:inventory-todo Estimates/Single Estimate -- phase-2
 //go:inventory-todo Estimates/Single Estimate With Estimate Lines -- phase-2
 //go:inventory-todo Estimates/Update Estimate -- phase-2
-//go:inventory-todo Expenses/Create Custom Expense Category -- phase-2
-//go:inventory-todo Expenses/Create Expense -- phase-2
-//go:inventory-todo Expenses/Create Expense with Receipt -- phase-2
-//go:inventory-todo Expenses/Create Recurring Expense -- phase-2
-//go:inventory-todo Expenses/Delete Expense -- phase-2
-//go:inventory-todo Expenses/Expense Summaries -- phase-2
-//go:inventory-todo Expenses/Expense Vendors -- phase-2
-//go:inventory-todo Expenses/List Expense Categories -- phase-2
-//go:inventory-todo Expenses/List Expenses -- phase-2
-//go:inventory-todo Expenses/Single Expense -- phase-2
-//go:inventory-todo Expenses/Single Expense Category -- phase-2
-//go:inventory-todo Expenses/Update Expense -- phase-2
-//go:inventory-todo Expenses/Update Expense with Receipt -- phase-2
 //go:inventory-todo Expenses/Upload Expense Receipt Image/Upload Receipt Image -- phase-2
 //go:inventory-todo Invoices/Other Income/Create Single Other Income -- phase-2
 //go:inventory-todo Invoices/Other Income/Delete Single Other Income -- phase-2

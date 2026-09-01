@@ -1,0 +1,27 @@
+{
+  "response": {
+    "result": {
+      "summaries": [
+        {
+          "id": "grand_total",
+          "counts": 2,
+          "amounts": [
+            { "amount": "159.46", "code": "USD", "count": 2 }
+          ]
+        },
+        {
+          "id": "archived",
+          "counts": 0,
+          "amounts": []
+        },
+        {
+          "id": "active",
+          "counts": 2,
+          "amounts": [
+            { "amount": "159.46", "code": "USD", "count": 2 }
+          ]
+        }
+      ]
+    }
+  }
+}

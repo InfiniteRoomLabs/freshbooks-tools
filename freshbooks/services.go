@@ -17,12 +17,6 @@ type InvoicesService struct{ client *Client }
 // InvoiceProfilesService is the recurring-invoice-template resource.
 type InvoiceProfilesService struct{ client *Client }
 
-// ExpensesService is the expenses resource.
-type ExpensesService struct{ client *Client }
-
-// ExpenseCategoriesService is the expense-categories resource.
-type ExpenseCategoriesService struct{ client *Client }
-
 // EstimatesService is the estimates and proposals resource.
 type EstimatesService struct{ client *Client }
 

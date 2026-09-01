@@ -1,0 +1,24 @@
+{
+  "response": {
+    "result": {
+      "expenses": [
+        {
+          "id": 1825574,
+          "expenseid": 1825574,
+          "amount": { "amount": "79.73", "code": "USD" },
+          "date": "2026-08-22",
+          "categoryid": 2003174,
+          "vendor": "Example Fuel Co",
+          "notes": "Fuel for deliveries",
+          "status": 0,
+          "has_receipt": true,
+          "vis_state": 0
+        }
+      ],
+      "page": 1,
+      "pages": 1,
+      "per_page": 15,
+      "total": 1
+    }
+  }
+}

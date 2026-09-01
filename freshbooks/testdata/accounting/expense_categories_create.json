@@ -1,0 +1,17 @@
+{
+  "response": {
+    "result": {
+      "category": {
+        "id": 5503992,
+        "categoryid": 5503992,
+        "category": "Custom Category",
+        "parentid": 2003142,
+        "is_editable": true,
+        "is_cogs": false,
+        "created_at": "2026-08-22 04:32:55",
+        "updated_at": "2026-08-22 04:32:55",
+        "vis_state": 0
+      }
+    }
+  }
+}
