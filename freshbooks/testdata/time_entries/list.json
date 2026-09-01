@@ -1,0 +1,50 @@
+{
+  "meta": {
+    "total_logged": 54000,
+    "total_unbilled": 0,
+    "total": 2,
+    "per_page": 15,
+    "page": 1,
+    "pages": 1
+  },
+  "time_entries": [
+    {
+      "id": 47634496,
+      "identity_id": 4242424,
+      "timer": null,
+      "is_logged": true,
+      "started_at": "2026-08-16T20:00:00Z",
+      "created_at": "2026-08-18T15:16:32Z",
+      "duration": 7200,
+      "client_id": 55001,
+      "project_id": 2976412,
+      "task_id": null,
+      "service_id": null,
+      "note": "Design review",
+      "active": true,
+      "billable": true,
+      "billed": false,
+      "internal": false,
+      "retainer_id": null
+    },
+    {
+      "id": 47902064,
+      "identity_id": 4242424,
+      "timer": null,
+      "is_logged": true,
+      "started_at": "2026-08-16T20:00:00Z",
+      "created_at": "2026-08-24T18:44:50Z",
+      "duration": 3600,
+      "client_id": 55001,
+      "project_id": 2989082,
+      "task_id": null,
+      "service_id": null,
+      "note": "Stuff",
+      "active": true,
+      "billable": false,
+      "billed": false,
+      "internal": false,
+      "retainer_id": null
+    }
+  ]
+}

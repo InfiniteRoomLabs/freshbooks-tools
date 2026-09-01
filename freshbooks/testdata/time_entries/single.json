@@ -1,0 +1,21 @@
+{
+  "time_entry": {
+    "id": 47902064,
+    "identity_id": 4242424,
+    "timer": null,
+    "is_logged": true,
+    "started_at": "2026-08-16T20:00:00Z",
+    "created_at": "2026-08-24T18:44:50Z",
+    "duration": 7200,
+    "client_id": 55001,
+    "project_id": 2989082,
+    "task_id": null,
+    "service_id": null,
+    "note": "Stuff",
+    "active": true,
+    "billable": false,
+    "billed": false,
+    "internal": false,
+    "retainer_id": null
+  }
+}
