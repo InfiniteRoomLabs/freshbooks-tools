@@ -12,8 +12,6 @@ type attachmentsUploadExpenseReceiptIn struct {
 }
 
 // attachmentsSpecs are the tools wrapping *freshbooks.AttachmentsService.
-//
-// inventory: Uploader/Upload Expense Receipt
 var attachmentsSpecs = []Spec{
 	newSpec("attachments_upload_expense_receipt",
 		"Upload a receipt image or PDF for later attachment to an expense. See https://www.freshbooks.com/api/expenses.",

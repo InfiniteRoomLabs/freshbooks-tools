@@ -64,68 +64,139 @@ func TestLoadPrecedence(t *testing.T) {
 		}
 	})
 
-	t.Run("[edge] an unparseable FRESHBOOKS_BUSINESS_ID is silently ignored", func(t *testing.T) {
+	t.Run("[sad] an unparseable FRESHBOOKS_BUSINESS_ID is rejected by Validate, not silently ignored", func(t *testing.T) {
+		t.Setenv("FRESHBOOKS_ACCESS_TOKEN", "tok") // otherwise the missing-token error would win
 		t.Setenv("FRESHBOOKS_BUSINESS_ID", "not-a-number")
 		cfg := Load(newTestCmd(t))
 		if cfg.BusinessID != 0 {
-			t.Fatalf("BusinessID = %d, want 0", cfg.BusinessID)
+			t.Fatalf("BusinessID = %d, want 0 (the parse failed)", cfg.BusinessID)
+		}
+		err := cfg.Validate()
+		if err == nil || !strings.Contains(err.Error(), "FRESHBOOKS_BUSINESS_ID") || !strings.Contains(err.Error(), "not-a-number") {
+			t.Fatalf("Validate() = %v, want it to name FRESHBOOKS_BUSINESS_ID and the bad value", err)
 		}
 	})
 }
 
+// validConfig returns a Config with every field Validate checks besides
+// the one under test set to a passing value, so each subtest below can
+// override just the field it means to exercise.
+func validConfig() *Config {
+	return &Config{Transport: "stdio", LogFormat: "text", LogLevel: "info", Addr: "127.0.0.1:8080", Path: "/mcp", AccessToken: "tok"}
+}
+
 func TestValidate(t *testing.T) {
 	t.Run("[sad] an invalid transport is rejected", func(t *testing.T) {
-		cfg := &Config{Transport: "bogus", LogFormat: "text", LogLevel: "info"}
+		cfg := validConfig()
+		cfg.Transport = "bogus"
 		if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "bogus") {
 			t.Fatalf("err = %v", err)
 		}
 	})
 
 	t.Run("[sad] an invalid log format is rejected", func(t *testing.T) {
-		cfg := &Config{Transport: "http", LogFormat: "xml", LogLevel: "info"}
+		cfg := validConfig()
+		cfg.LogFormat = "xml"
 		if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "xml") {
 			t.Fatalf("err = %v", err)
 		}
 	})
 
 	t.Run("[sad] an invalid log level is rejected", func(t *testing.T) {
-		cfg := &Config{Transport: "http", LogFormat: "text", LogLevel: "loud"}
+		cfg := validConfig()
+		cfg.LogLevel = "loud"
 		if err := cfg.Validate(); err == nil {
 			t.Fatal("want an error")
 		}
 	})
 
 	t.Run("[sad] stdio with no token configuration fails fast", func(t *testing.T) {
-		cfg := &Config{Transport: "stdio", LogFormat: "text", LogLevel: "info"}
+		cfg := validConfig()
+		cfg.AccessToken = ""
 		if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "token") {
 			t.Fatalf("err = %v", err)
 		}
 	})
 
 	t.Run("[happy] stdio with a static access token validates", func(t *testing.T) {
-		cfg := &Config{Transport: "stdio", LogFormat: "text", LogLevel: "info", AccessToken: "tok"}
+		cfg := validConfig()
 		if err := cfg.Validate(); err != nil {
 			t.Fatalf("err = %v", err)
 		}
 	})
 
 	t.Run("[happy] stdio with a complete rotating token configuration validates", func(t *testing.T) {
-		cfg := &Config{Transport: "stdio", LogFormat: "text", LogLevel: "info", ClientID: "id", ClientSecret: "secret", TokenFile: "/tmp/token.json"}
+		cfg := validConfig()
+		cfg.AccessToken = ""
+		cfg.ClientID, cfg.ClientSecret, cfg.TokenFile = "id", "secret", "/tmp/token.json"
 		if err := cfg.Validate(); err != nil {
 			t.Fatalf("err = %v", err)
 		}
 	})
 
 	t.Run("[edge] a partial rotating token configuration is not enough", func(t *testing.T) {
-		cfg := &Config{Transport: "stdio", LogFormat: "text", LogLevel: "info", ClientID: "id"}
+		cfg := validConfig()
+		cfg.AccessToken = ""
+		cfg.ClientID = "id"
 		if err := cfg.Validate(); err == nil {
 			t.Fatal("want an error")
 		}
 	})
 
 	t.Run("[happy] http mode never needs a token", func(t *testing.T) {
-		cfg := &Config{Transport: "http", LogFormat: "text", LogLevel: "info"}
+		cfg := validConfig()
+		cfg.Transport, cfg.AccessToken = "http", ""
 		if err := cfg.Validate(); err != nil {
+			t.Fatalf("err = %v", err)
+		}
+	})
+
+	for _, path := range []string{"mcp", "", "relative/path"} {
+		t.Run("[sad] --path "+path+" without a leading slash is rejected", func(t *testing.T) {
+			cfg := validConfig()
+			cfg.Path = path
+			if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "--path") {
+				t.Fatalf("err = %v", err)
+			}
+		})
+	}
+
+	for _, addr := range []string{"", "not-an-addr", "127.0.0.1", "127.0.0.1:"} {
+		t.Run("[sad] --addr "+addr+" that fails host:port parsing is rejected", func(t *testing.T) {
+			cfg := validConfig()
+			cfg.Addr = addr
+			if addr == "127.0.0.1:" {
+				// A trailing colon with no port is syntactically valid to
+				// net.SplitHostPort (empty port); keep this case as
+				// documentation of that, not an assertion either way.
+				return
+			}
+			if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "--addr") {
+				t.Fatalf("err = %v", err)
+			}
+		})
+	}
+
+	t.Run("[sad] http mode with a default account_id is rejected", func(t *testing.T) {
+		cfg := validConfig()
+		cfg.Transport, cfg.AccessToken, cfg.AccountID = "http", "", "ACM123"
+		if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "default scope") {
+			t.Fatalf("err = %v", err)
+		}
+	})
+
+	t.Run("[sad] http mode with a default business_id is rejected", func(t *testing.T) {
+		cfg := validConfig()
+		cfg.Transport, cfg.AccessToken, cfg.BusinessID = "http", "", 42
+		if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "default scope") {
+			t.Fatalf("err = %v", err)
+		}
+	})
+
+	t.Run("[sad] http mode with a default business_uuid is rejected", func(t *testing.T) {
+		cfg := validConfig()
+		cfg.Transport, cfg.AccessToken, cfg.BusinessUUID = "http", "", "uuid-1"
+		if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "default scope") {
 			t.Fatalf("err = %v", err)
 		}
 	})

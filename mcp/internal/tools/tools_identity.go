@@ -14,14 +14,6 @@ type identityAddBusinessIn struct {
 	Body freshbooks.BusinessCreateRequest `json:"body" jsonschema:"the business fields to create"`
 }
 
-type identityDeleteBusinessIn struct {
-	BizScope
-}
-
-type identityDeleteBusinessSubscriptionIn struct {
-	AcctScope
-}
-
 type identityProvisionPaymentsIn struct {
 	AcctScope
 	Body freshbooks.PaymentsProvisionRequest `json:"body" jsonschema:"the FreshBooks Payments enrollment fields"`
@@ -31,6 +23,12 @@ type identityCreateApplicationIn struct {
 	Body freshbooks.ApplicationCreateRequest `json:"body" jsonschema:"the OAuth application fields to register"`
 }
 
+// identityUpdateApplicationIn's Body.ClientSecret is a required input
+// string (freshbooks/settings.go's ApplicationUpdateRequest has no
+// omitempty on it), so the tool is registered with newSensitiveSpec, not
+// newSpec: see that function's doc comment and
+// docs/phases/3/reports/security.md finding 1 for why a required secret
+// input needs it.
 type identityUpdateApplicationIn struct {
 	ClientID string                              `json:"client_id" jsonschema:"the OAuth application's client id"`
 	Body     freshbooks.ApplicationUpdateRequest `json:"body" jsonschema:"the OAuth application's full replacement fields"`
@@ -92,14 +90,14 @@ var identitySpecs = []Spec{
 		"Delete a business. Destructive and irreversible: FreshBooks refuses this while the business carries an active subscription -- cancel it first with identity_delete_business_subscription. See https://www.freshbooks.com/api/authentication.",
 		"Identity", "DeleteBusiness",
 		[]string{"Settings/Businesses/Delete Business"}, hintD,
-		func(ctx context.Context, c *freshbooks.Client, scope Scope, in identityDeleteBusinessIn) (any, error) {
+		func(ctx context.Context, c *freshbooks.Client, scope Scope, in BizScope) (any, error) {
 			return void(c.Identity.DeleteBusiness(ctx, scope.BusinessID))
 		}),
 	newSpec("identity_delete_business_subscription",
 		"Cancel a business's billing subscription, the prerequisite for identity_delete_business. Destructive and irreversible. See https://www.freshbooks.com/api/authentication.",
 		"Identity", "DeleteBusinessSubscription",
 		[]string{"Settings/Businesses/Delete Business - Subscription"}, hintD,
-		func(ctx context.Context, c *freshbooks.Client, scope Scope, in identityDeleteBusinessSubscriptionIn) (any, error) {
+		func(ctx context.Context, c *freshbooks.Client, scope Scope, in AcctScope) (any, error) {
 			return void(c.Identity.DeleteBusinessSubscription(ctx, scope.AccountID))
 		}),
 	newSpec("identity_provision_payments",
@@ -131,7 +129,7 @@ var identitySpecs = []Spec{
 			}
 			return redactApplications(apps), nil
 		}),
-	newSpec("identity_update_application",
+	newSensitiveSpec("identity_update_application",
 		"Edit a registered OAuth application. The response's client_secret is redacted before it reaches this tool's result. See https://www.freshbooks.com/api/authentication.",
 		"Identity", "UpdateApplication",
 		[]string{"Settings/Developer/Modify existing application"}, hintI,

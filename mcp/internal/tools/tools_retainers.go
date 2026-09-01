@@ -100,11 +100,7 @@ var retainersSpecs = []Spec{
 		"Retainers", "List",
 		[]string{"Invoices/Retainers/Get all retainers"}, hintRO,
 		func(ctx context.Context, c *freshbooks.Client, scope Scope, in retainersListIn) (any, error) {
-			var search freshbooks.Search
-			if len(in.Search) > 0 {
-				search = freshbooks.Search(in.Search)
-			}
-			return c.Retainers.List(ctx, scope.BusinessID, &freshbooks.RetainerListOptions{Search: search})
+			return c.Retainers.List(ctx, scope.BusinessID, &freshbooks.RetainerListOptions{Search: searchOf(in.Search)})
 		}),
 	newSpec("retainers_get",
 		"Get a single retainer. See https://www.freshbooks.com/api/invoices.",

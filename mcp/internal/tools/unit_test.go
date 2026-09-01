@@ -3,14 +3,11 @@ package tools
 import (
 	"context"
 	"errors"
-	"net/http"
-	"net/url"
 	"sort"
 	"strings"
 	"testing"
 
 	"github.com/InfiniteRoomLabs/freshbooks-tools/freshbooks"
-	"github.com/InfiniteRoomLabs/freshbooks-tools/freshbooks/auth"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -214,36 +211,10 @@ func TestUploadInRejectsBadBase64(t *testing.T) {
 // default configured -- the "named missing field" contract in
 // docs/phases/3/plan.md.
 func TestMissingScopeIsError(t *testing.T) {
-	upstream := fakeUpstream(t)
+	upstream, _ := fakeUpstream(t)
 	defer upstream.Close()
-	upstreamURL, err := url.Parse(upstream.URL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	client, err := freshbooks.NewClient(
-		freshbooks.WithTokenSource(auth.StaticTokenSource("test-token")),
-		freshbooks.WithHTTPClient(&http.Client{Transport: redirectTransport{addr: upstreamURL.Host, next: http.DefaultTransport}}),
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	mcpServer := mcp.NewServer(&mcp.Implementation{Name: "missing-scope-test", Version: "test"}, nil)
-	Register(mcpServer, client, Scope{}) // no default scope at all
-
+	clientSession := newTestSession(t, upstream, Scope{}, nil) // no default scope at all
 	ctx := context.Background()
-	clientTransport, serverTransport := mcp.NewInMemoryTransports()
-	serverSession, err := mcpServer.Connect(ctx, serverTransport, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = serverSession.Close() }()
-	mcpClient := mcp.NewClient(&mcp.Implementation{Name: "missing-scope-test-client", Version: "test"}, nil)
-	clientSession, err := mcpClient.Connect(ctx, clientTransport, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = clientSession.Close() }()
 
 	// team_members_invitation_rates embeds only BizScope with no override.
 	result, err := clientSession.CallTool(ctx, &mcp.CallToolParams{Name: "team_members_invitation_rates", Arguments: map[string]any{}})
@@ -255,5 +226,31 @@ func TestMissingScopeIsError(t *testing.T) {
 	}
 	if !strings.Contains(errorContentText(result), "business_id") {
 		t.Fatalf("error text = %q, want it to name business_id", errorContentText(result))
+	}
+}
+
+// TestMissingScopeIsErrorForSensitiveSpec is TestMissingScopeIsError's
+// counterpart for the newSensitiveSpec dispatch path (registry.go), which
+// has its own missing-scope check separate from newSpec's.
+func TestMissingScopeIsErrorForSensitiveSpec(t *testing.T) {
+	upstream, _ := fakeUpstream(t)
+	defer upstream.Close()
+	clientSession := newTestSession(t, upstream, Scope{}, nil) // no default scope at all
+	ctx := context.Background()
+
+	// payment_options_stripe_create_setup_intent embeds AcctScope with no
+	// override.
+	result, err := clientSession.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "payment_options_stripe_create_setup_intent",
+		Arguments: map[string]any{"payment_method": "pm_test"},
+	})
+	if err != nil {
+		t.Fatalf("CallTool: %v", err)
+	}
+	if !result.IsError {
+		t.Fatal("want IsError for a call with no account_id anywhere")
+	}
+	if !strings.Contains(errorContentText(result), "account_id") {
+		t.Fatalf("error text = %q, want it to name account_id", errorContentText(result))
 	}
 }

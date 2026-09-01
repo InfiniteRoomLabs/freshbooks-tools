@@ -3,6 +3,8 @@ package server
 import (
 	"context"
 	"errors"
+	"log/slog"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -18,6 +20,7 @@ import (
 type Server struct {
 	cfg     *config.Config
 	version string
+	logger  *slog.Logger
 
 	// schemas is shared across every *mcp.Server this Server builds --
 	// the single one for stdio, and the fresh one per request in stateless
@@ -28,9 +31,11 @@ type Server struct {
 
 // New builds a Server from cfg. version becomes the MCP Implementation
 // version reported to clients and the User-Agent this process sends to
-// FreshBooks.
+// FreshBooks. The logger is built once here and reused for the life of
+// the process -- not rebuilt per request, which cfg.Logger() alone would
+// do if called from a hot path.
 func New(cfg *config.Config, version string) *Server {
-	return &Server{cfg: cfg, version: version, schemas: mcp.NewSchemaCache()}
+	return &Server{cfg: cfg, version: version, logger: cfg.Logger(), schemas: mcp.NewSchemaCache()}
 }
 
 func (s *Server) implementation() *mcp.Implementation {
@@ -55,7 +60,7 @@ func (s *Server) defaultScope() tools.Scope {
 func (s *Server) clientOptions() []freshbooks.Option {
 	opts := []freshbooks.Option{
 		freshbooks.WithUserAgent(s.userAgent()),
-		freshbooks.WithLogger(s.cfg.Logger()),
+		freshbooks.WithLogger(s.logger),
 	}
 	if s.cfg.BaseURL != "" {
 		opts = append(opts, freshbooks.WithBaseURL(s.cfg.BaseURL))
@@ -115,19 +120,24 @@ func requireBearer(next http.Handler) http.Handler {
 // every other server this process builds, and is only ever invoked after
 // requireBearer has already confirmed the header is present, so the
 // client's token source is never empty in practice.
+//
+// It returns nil when freshbooks.NewClient fails -- every option passed to
+// it today is either a constant or already-validated config, so this is
+// unreachable in practice, but nil (rather than a server with zero tools
+// registered) makes go-sdk answer a clean "400 no server available"
+// instead of every subsequent call failing as "unknown tool", the most
+// confusing failure mode available to a client (docs/phases/3/reports/
+// code-review.md finding 10, security.md finding 7).
 func (s *Server) getServer(r *http.Request) *mcp.Server {
 	token, _ := bearerToken(r)
 	opts := append([]freshbooks.Option{freshbooks.WithTokenSource(auth.StaticTokenSource(token))}, s.clientOptions()...)
 
-	mcpServer := mcp.NewServer(s.implementation(), &mcp.ServerOptions{SchemaCache: s.schemas})
 	client, err := freshbooks.NewClient(opts...)
 	if err != nil {
-		// Every option above is either a constant or already-validated
-		// config; this is unreachable in practice. Returning a tool-less
-		// server (rather than panicking on a nil client) keeps the
-		// process up so the client sees a clean protocol-level failure.
-		return mcpServer
+		s.logger.Error("building the freshbooks client for a request", "error", err)
+		return nil
 	}
+	mcpServer := mcp.NewServer(s.implementation(), &mcp.ServerOptions{SchemaCache: s.schemas})
 	tools.Register(mcpServer, client, s.defaultScope())
 	return mcpServer
 }
@@ -141,7 +151,22 @@ func (s *Server) HTTPHandler() http.Handler {
 	streamable := mcp.NewStreamableHTTPHandler(s.getServer, &mcp.StreamableHTTPOptions{
 		Stateless:    true,
 		JSONResponse: true,
-		Logger:       s.cfg.Logger(),
+		Logger:       s.logger,
+		// CrossOriginProtection rejects a browser cross-origin request by
+		// default (its zero value trusts no origin); go-sdk v1.7.0 only
+		// enables this when the MCPGODEBUG compatibility parameter
+		// enableoriginverification=1 is set, which this process does not
+		// set. Setting it explicitly here does not depend on that
+		// parameter now or if the SDK's default ever changes (see
+		// docs/phases/3/reports/security.md finding 3). The field itself
+		// is deprecated in go-sdk v1.7.0 in favor of wrapping the handler
+		// in http.CrossOriginProtection.Handler middleware; this uses the
+		// field anyway because it is what the review lane's fix asked
+		// for, it is still fully functional, and it keeps the protection
+		// declared alongside every other StreamableHTTPOptions setting
+		// rather than as a separate wrapping step easy to forget when
+		// this handler is next touched.
+		CrossOriginProtection: &http.CrossOriginProtection{}, //nolint:staticcheck // SA1019: deliberate, see comment above
 	})
 
 	mux := http.NewServeMux()
@@ -152,15 +177,18 @@ func (s *Server) HTTPHandler() http.Handler {
 	return mux
 }
 
-// shutdownGrace bounds how long RunHTTP waits for in-flight requests to
+// shutdownGrace bounds how long Serve waits for in-flight requests to
 // finish after ctx is canceled.
 const shutdownGrace = 10 * time.Second
 
-// RunHTTP serves HTTPHandler on cfg.Addr until ctx is canceled, then shuts
-// down gracefully within shutdownGrace.
-func (s *Server) RunHTTP(ctx context.Context) error {
+// Serve runs HTTPHandler on l until ctx is canceled, then shuts down
+// gracefully within shutdownGrace. RunHTTP is a thin wrapper that binds
+// cfg.Addr and calls this; tests call Serve directly with a listener
+// they bind themselves (an ephemeral "127.0.0.1:0" port), so the bind is
+// synchronous and there is nothing to poll or sleep for before the server
+// is known to be listening.
+func (s *Server) Serve(ctx context.Context, l net.Listener) error {
 	httpServer := &http.Server{
-		Addr:              s.cfg.Addr,
 		Handler:           s.HTTPHandler(),
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
@@ -169,7 +197,7 @@ func (s *Server) RunHTTP(ctx context.Context) error {
 	}
 
 	errCh := make(chan error, 1)
-	go func() { errCh <- httpServer.ListenAndServe() }()
+	go func() { errCh <- httpServer.Serve(l) }()
 
 	select {
 	case <-ctx.Done():
@@ -182,4 +210,14 @@ func (s *Server) RunHTTP(ctx context.Context) error {
 		}
 		return err
 	}
+}
+
+// RunHTTP binds cfg.Addr and serves HTTPHandler on it until ctx is
+// canceled, then shuts down gracefully.
+func (s *Server) RunHTTP(ctx context.Context) error {
+	l, err := net.Listen("tcp", s.cfg.Addr)
+	if err != nil {
+		return err
+	}
+	return s.Serve(ctx, l)
 }

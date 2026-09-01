@@ -1,7 +1,9 @@
 package server
 
 import (
+	"bytes"
 	"context"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -10,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/InfiniteRoomLabs/freshbooks-tools/freshbooks"
+	"github.com/InfiniteRoomLabs/freshbooks-tools/freshbooks/auth"
 	"github.com/InfiniteRoomLabs/freshbooks-tools/mcp/internal/config"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -205,6 +209,36 @@ func TestStatelessProperty(t *testing.T) {
 	}
 }
 
+// TestGetServerReturnsNilOnClientConstructionFailure drives getServer's
+// unreachable-in-production failure path (docs/phases/3/reports/
+// security.md finding 7, code-review.md finding 10): an invalid BaseURL
+// makes freshbooks.NewClient fail, and the handler must answer a clean
+// 400 rather than silently serving a tool-less server.
+func TestGetServerReturnsNilOnClientConstructionFailure(t *testing.T) {
+	cfg := testConfig("not-an-absolute-url")
+	srv := New(cfg, "test")
+	ts := httptest.NewServer(srv.HTTPHandler())
+	defer ts.Close()
+
+	body := `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"t","version":"0"}}}`
+	req, err := http.NewRequest(http.MethodPost, ts.URL+"/mcp", strings.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Authorization", "Bearer tok")
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json, text/event-stream")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400 (no server available)", resp.StatusCode)
+	}
+}
+
 func TestRunStdioFailsWithoutToken(t *testing.T) {
 	cfg := &config.Config{Transport: "stdio", LogLevel: "error", LogFormat: "text"}
 	srv := New(cfg, "test")
@@ -259,27 +293,123 @@ func TestRunStdioHappyPathReturnsOnCancel(t *testing.T) {
 	}
 }
 
+// TestRunHTTPShutsDownGracefully drives Serve directly with a listener the
+// test binds itself, so the bind is synchronous, and polls /healthz until
+// the accept loop is actually answering before cancelling -- no sleep, so
+// it cannot flake on a loaded runner in either direction (see
+// docs/phases/3/reports/code-review.md finding 9).
 func TestRunHTTPShutsDownGracefully(t *testing.T) {
 	upstream, _ := fakeFreshBooksUpstream(t)
 	defer upstream.Close()
+
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	cfg := testConfig(upstream.URL)
 	srv := New(cfg, "test")
 
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
-	go func() { done <- srv.RunHTTP(ctx) }()
+	go func() { done <- srv.Serve(ctx, l) }()
 
-	// Give ListenAndServe a moment to bind before asking it to stop.
-	time.Sleep(50 * time.Millisecond)
+	waitHealthy(t, "http://"+l.Addr().String()+"/healthz")
 	cancel()
 
 	select {
 	case err := <-done:
 		if err != nil {
-			t.Fatalf("RunHTTP returned %v, want nil on graceful shutdown", err)
+			t.Fatalf("Serve returned %v, want nil on graceful shutdown", err)
 		}
 	case <-time.After(5 * time.Second):
-		t.Fatal("RunHTTP did not return after context cancellation")
+		t.Fatal("Serve did not return after context cancellation")
 	}
+}
+
+// waitHealthy polls url until it answers 200, or fails the test after 5
+// seconds.
+func waitHealthy(t *testing.T, url string) {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		resp, err := http.Get(url) //nolint:gosec // url is a fixed loopback address this test built itself
+		if err == nil {
+			_ = resp.Body.Close()
+			if resp.StatusCode == http.StatusOK {
+				return
+			}
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	t.Fatalf("server at %s never became healthy", url)
+}
+
+// TestLoggingNeverLeaksBearer drives one real tools/call through the HTTP
+// path (server.HTTPHandler, both the SDK's own StreamableHTTPOptions.Logger
+// and the lib's WithLogger) and one through the stdio path's client
+// construction (TokenSource + clientOptions, the same building blocks
+// RunStdio uses), both at debug level with a known bearer, and asserts the
+// bearer never reaches the captured log output in either path
+// (docs/phases/3/reports/security.md finding 5).
+func TestLoggingNeverLeaksBearer(t *testing.T) {
+	const bearer = "super-secret-bearer-token-do-not-leak"
+
+	t.Run("http", func(t *testing.T) {
+		var logBuf bytes.Buffer
+		upstream, _ := fakeFreshBooksUpstream(t)
+		defer upstream.Close()
+
+		cfg := testConfig(upstream.URL)
+		cfg.LogLevel = "debug"
+		srv := New(cfg, "test")
+		srv.logger = slog.New(slog.NewTextHandler(&logBuf, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+		ts := httptest.NewServer(srv.HTTPHandler())
+		defer ts.Close()
+
+		clientTransport := &mcp.StreamableClientTransport{
+			Endpoint:             ts.URL + "/mcp",
+			HTTPClient:           &http.Client{Transport: headerTransport{bearer: bearer, next: http.DefaultTransport}},
+			DisableStandaloneSSE: true,
+		}
+		mcpClient := mcp.NewClient(&mcp.Implementation{Name: "log-test-client", Version: "test"}, nil)
+		ctx := context.Background()
+		session, err := mcpClient.Connect(ctx, clientTransport, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = session.Close() }()
+		if _, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "identity_whoami", Arguments: map[string]any{}}); err != nil {
+			t.Fatal(err)
+		}
+
+		if strings.Contains(logBuf.String(), bearer) {
+			t.Fatalf("HTTP path logging leaked the bearer: %s", logBuf.String())
+		}
+	})
+
+	t.Run("stdio", func(t *testing.T) {
+		var logBuf bytes.Buffer
+		upstream, _ := fakeFreshBooksUpstream(t)
+		defer upstream.Close()
+
+		cfg := testConfig(upstream.URL)
+		cfg.LogLevel = "debug"
+		srv := New(cfg, "test")
+		srv.logger = slog.New(slog.NewTextHandler(&logBuf, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+		opts := append([]freshbooks.Option{freshbooks.WithTokenSource(auth.StaticTokenSource(bearer))}, srv.clientOptions()...)
+		client, err := freshbooks.NewClient(opts...)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := client.Identity.Whoami(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+
+		if strings.Contains(logBuf.String(), bearer) {
+			t.Fatalf("stdio path logging leaked the bearer: %s", logBuf.String())
+		}
+	})
 }

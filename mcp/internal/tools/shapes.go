@@ -22,14 +22,20 @@ type listIn struct {
 	PerPage int               `json:"per_page,omitempty" jsonschema:"page size"`
 }
 
-// search converts the wire map to the lib's Search type, nil when empty so
-// an omitted filter never sends an empty search[] query parameter.
-func (l listIn) search() freshbooks.Search {
-	if len(l.Search) == 0 {
+// searchOf converts a wire filter map to the lib's Search type, nil when
+// empty so an omitted filter never sends an empty search[] query
+// parameter. Shared by listIn.search() and by retainersListIn
+// (tools_retainers.go), which cannot embed listIn -- RetainerListOptions
+// has no Page/PerPage -- but still wants the same conversion.
+func searchOf(m map[string]string) freshbooks.Search {
+	if len(m) == 0 {
 		return nil
 	}
-	return freshbooks.Search(l.Search)
+	return freshbooks.Search(m)
 }
+
+// search converts listIn's wire map to the lib's Search type.
+func (l listIn) search() freshbooks.Search { return searchOf(l.Search) }
 
 // reqOpts renders listIn as a []RequestOption, for the handful of methods
 // that take raw variadic RequestOptions instead of a *XListOptions struct
@@ -64,17 +70,12 @@ func (i includeIn) opts() []freshbooks.RequestOption {
 	return []freshbooks.RequestOption{freshbooks.Include(i.Include...)}
 }
 
-// ok is the result for a tool whose lib method returns only an error: a
-// small acknowledgement so a successful call still carries content instead
-// of an empty result.
-func ok() any { return map[string]bool{"ok": true} }
-
 // void adapts a lib method that returns only an error into a Call's (any,
-// error) shape, substituting ok() for a nil error so a successful call
-// still carries content.
+// error) shape: nil passes through as a small acknowledgement, so a
+// successful call still carries content instead of an empty result.
 func void(err error) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ok(), nil
+	return map[string]bool{"ok": true}, nil
 }

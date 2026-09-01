@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/InfiniteRoomLabs/freshbooks-tools/freshbooks"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 // toolsMDPath is docs/phases/3/tools.md relative to this package: the
@@ -21,12 +22,13 @@ type mdRow struct {
 	name    string
 	service string
 	method  string
+	annot   string
 	keys    []string
 }
 
 // tableRowPattern matches one tools.md data row:
 // | # | `tool_name` | `Service.Method` (file.go:line) | ANNOT | keys |
-var tableRowPattern = regexp.MustCompile("^\\| *\\d+ *\\| *`([a-z0-9_]+)` *\\| *`([A-Za-z]+)\\.([A-Za-z]+)` *\\([^)]*\\) *\\| *[A-Z]+ *\\| *(.+?) *\\|$")
+var tableRowPattern = regexp.MustCompile("^\\| *\\d+ *\\| *`([a-z0-9_]+)` *\\| *`([A-Za-z]+)\\.([A-Za-z]+)` *\\([^)]*\\) *\\| *([A-Z]+) *\\| *(.+?) *\\|$")
 
 // keyPattern extracts each backtick-quoted key from an mdRow's keys
 // column, which lists one or more `Key/Path` entries separated by "; ".
@@ -50,9 +52,9 @@ func parseToolsMD(t *testing.T) []mdRow {
 		if m == nil {
 			continue
 		}
-		row := mdRow{name: m[1], service: m[2], method: m[3]}
-		if strings.TrimSpace(m[4]) != "-" {
-			for _, km := range keyPattern.FindAllStringSubmatch(m[4], -1) {
+		row := mdRow{name: m[1], service: m[2], method: m[3], annot: m[4]}
+		if strings.TrimSpace(m[5]) != "-" {
+			for _, km := range keyPattern.FindAllStringSubmatch(m[5], -1) {
 				row.keys = append(row.keys, km[1])
 			}
 		}
@@ -100,11 +102,34 @@ func TestParityAgainstToolsMD(t *testing.T) {
 		if !reflect.DeepEqual(spec.Keys, row.keys) {
 			t.Errorf("%s: registry keys %v != tools.md keys %v", spec.Name, spec.Keys, row.keys)
 		}
+		if got := annotClass(spec.Annotations); got != row.annot {
+			t.Errorf("%s: registry annotation class %q != tools.md column %q", spec.Name, got, row.annot)
+		}
 	}
 	for name := range byName {
 		if !seen[name] {
 			t.Errorf("tools.md tool %q is missing from the registry", name)
 		}
+	}
+}
+
+// annotClass reduces a *mcp.ToolAnnotations back to the single-letter
+// column tools.md documents (RO/D/I/W), matching registry.go's hintRO/
+// hintD/hintI/hintW exactly: each sets precisely one of ReadOnlyHint,
+// DestructiveHint, or IdempotentHint, and a plain write sets none of
+// them.
+func annotClass(a *mcp.ToolAnnotations) string {
+	switch {
+	case a == nil:
+		return ""
+	case a.ReadOnlyHint:
+		return "RO"
+	case a.DestructiveHint != nil && *a.DestructiveHint:
+		return "D"
+	case a.IdempotentHint:
+		return "I"
+	default:
+		return "W"
 	}
 }
 
