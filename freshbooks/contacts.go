@@ -42,8 +42,11 @@ type ContactUpdateRequest struct {
 	Phone1    string `json:"phone1,omitempty"`
 }
 
-func contactPath(acct AccountID, contactID int64) string {
-	return fmt.Sprintf("/accounting/account/%s/users/contacts/%d", acct, contactID)
+func contactPath(acct AccountID, contactID int64) (string, error) {
+	if err := pathSegment(string(acct)); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("/accounting/account/%s/users/contacts/%d", acct, contactID), nil
 }
 
 // Update changes an existing secondary contact's details. The Postman
@@ -56,11 +59,15 @@ func (s *ContactsService) Update(ctx context.Context, acct AccountID, contactID 
 	if req == nil {
 		return nil, fmt.Errorf("freshbooks: Contacts.Update needs a request")
 	}
+	path, err := contactPath(acct, contactID)
+	if err != nil {
+		return nil, err
+	}
 	body := struct {
 		Contact *ContactUpdateRequest `json:"contact"`
 	}{req}
 	var env contactEnvelope
-	if err := s.client.do(ctx, http.MethodPut, contactPath(acct, contactID), FamilyAccounting, body, &env); err != nil {
+	if err := s.client.do(ctx, http.MethodPut, path, FamilyAccounting, body, &env); err != nil {
 		return nil, err
 	}
 	return &env.Contact, nil
@@ -72,5 +79,9 @@ func (s *ContactsService) Update(ctx context.Context, acct AccountID, contactID 
 //
 // inventory: Clients/Delete Secondary  Contact ID
 func (s *ContactsService) Delete(ctx context.Context, acct AccountID, contactID int64) error {
-	return s.client.do(ctx, http.MethodDelete, contactPath(acct, contactID), FamilyAccounting, nil, nil)
+	path, err := contactPath(acct, contactID)
+	if err != nil {
+		return err
+	}
+	return s.client.do(ctx, http.MethodDelete, path, FamilyAccounting, nil, nil)
 }

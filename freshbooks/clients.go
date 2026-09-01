@@ -76,10 +76,10 @@ type Customer struct {
 	AllowLateNotifications bool `json:"allow_late_notifications,omitempty"`
 	// SignupDate, LastLogin, LastActivity, and Updated are account-local
 	// timestamps.
-	SignupDate   string `json:"signup_date,omitempty"`
-	LastLogin    string `json:"last_login,omitempty"`
-	LastActivity string `json:"last_activity,omitempty"`
-	Updated      string `json:"updated,omitempty"`
+	SignupDate   DateTime `json:"signup_date,omitempty"`
+	LastLogin    DateTime `json:"last_login,omitempty"`
+	LastActivity DateTime `json:"last_activity,omitempty"`
+	Updated      DateTime `json:"updated,omitempty"`
 	// NumLogins counts the client's portal logins.
 	NumLogins int `json:"num_logins,omitempty"`
 	// Contacts are the client's secondary contacts, present when requested
@@ -98,29 +98,43 @@ type customerListEnvelope struct {
 	PageMeta
 }
 
-// ClientWriteRequest is the payload for Create and Update. Every field is
-// optional so a caller can send only what it means to set.
+// ClientWriteRequest is the payload for Create and Update. Every field is a
+// pointer, including strings, so a caller can set or explicitly clear any
+// one field on a partial-update PUT without disturbing the rest -- Update
+// only sends the fields a caller actually set.
 type ClientWriteRequest struct {
-	FirstName       string    `json:"fname,omitempty"`
-	LastName        string    `json:"lname,omitempty"`
-	Organization    string    `json:"organization,omitempty"`
-	Email           string    `json:"email,omitempty"`
-	VatName         *string   `json:"vat_name,omitempty"`
-	VatNumber       string    `json:"vat_number,omitempty"`
-	Note            *string   `json:"note,omitempty"`
-	HomePhone       *string   `json:"home_phone,omitempty"`
-	MobilePhone     string    `json:"mob_phone,omitempty"`
-	BusinessPhone   string    `json:"bus_phone,omitempty"`
-	Fax             string    `json:"fax,omitempty"`
-	BillingStreet   string    `json:"p_street,omitempty"`
-	BillingStreet2  string    `json:"p_street2,omitempty"`
-	BillingCity     string    `json:"p_city,omitempty"`
-	BillingProvince string    `json:"p_province,omitempty"`
-	BillingCode     string    `json:"p_code,omitempty"`
-	BillingCountry  string    `json:"p_country,omitempty"`
-	CurrencyCode    string    `json:"currency_code,omitempty"`
-	Language        string    `json:"language,omitempty"`
-	Contacts        []Contact `json:"contacts,omitempty"`
+	FirstName              *string   `json:"fname,omitempty"`
+	LastName               *string   `json:"lname,omitempty"`
+	Organization           *string   `json:"organization,omitempty"`
+	Email                  *string   `json:"email,omitempty"`
+	VatName                *string   `json:"vat_name,omitempty"`
+	VatNumber              *string   `json:"vat_number,omitempty"`
+	Note                   *string   `json:"note,omitempty"`
+	HomePhone              *string   `json:"home_phone,omitempty"`
+	MobilePhone            *string   `json:"mob_phone,omitempty"`
+	BusinessPhone          *string   `json:"bus_phone,omitempty"`
+	Fax                    *string   `json:"fax,omitempty"`
+	CompanyIndustry        *string   `json:"company_industry,omitempty"`
+	CompanySize            *string   `json:"company_size,omitempty"`
+	BillingStreet          *string   `json:"p_street,omitempty"`
+	BillingStreet2         *string   `json:"p_street2,omitempty"`
+	BillingCity            *string   `json:"p_city,omitempty"`
+	BillingProvince        *string   `json:"p_province,omitempty"`
+	BillingCode            *string   `json:"p_code,omitempty"`
+	BillingCountry         *string   `json:"p_country,omitempty"`
+	ShippingStreet         *string   `json:"s_street,omitempty"`
+	ShippingStreet2        *string   `json:"s_street2,omitempty"`
+	ShippingCity           *string   `json:"s_city,omitempty"`
+	ShippingProvince       *string   `json:"s_province,omitempty"`
+	ShippingCode           *string   `json:"s_code,omitempty"`
+	ShippingCountry        *string   `json:"s_country,omitempty"`
+	CurrencyCode           *string   `json:"currency_code,omitempty"`
+	Language               *string   `json:"language,omitempty"`
+	PrefEmail              *bool     `json:"pref_email,omitempty"`
+	PrefGmail              *bool     `json:"pref_gmail,omitempty"`
+	AllowLateFees          *bool     `json:"allow_late_fees,omitempty"`
+	AllowLateNotifications *bool     `json:"allow_late_notifications,omitempty"`
+	Contacts               []Contact `json:"contacts,omitempty"`
 }
 
 // ClientListOptions filters and paginates List.
@@ -131,58 +145,57 @@ type ClientListOptions struct {
 	Include []string
 }
 
-func (o *ClientListOptions) requestOptions() []RequestOption {
+func (o *ClientListOptions) opts() []RequestOption {
 	if o == nil {
 		return nil
 	}
-	var opts []RequestOption
-	if o.Search != nil {
-		opts = append(opts, o.Search)
-	}
-	if o.Page > 0 {
-		opts = append(opts, PageNumber(o.Page))
-	}
-	if o.PerPage > 0 {
-		opts = append(opts, PerPage(o.PerPage))
-	}
+	opts := listOpts(o.Search, o.Page, o.PerPage)
 	if len(o.Include) > 0 {
 		opts = append(opts, Include(o.Include...))
 	}
 	return opts
 }
 
-func clientsPath(acct AccountID) string {
-	return fmt.Sprintf("/accounting/account/%s/users/clients", acct)
+func clientsPath(acct AccountID) (string, error) {
+	if err := pathSegment(string(acct)); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("/accounting/account/%s/users/clients", acct), nil
 }
 
-func clientPath(acct AccountID, id int64) string {
-	return fmt.Sprintf("/accounting/account/%s/users/clients/%d", acct, id)
+func clientPath(acct AccountID, id int64) (string, error) {
+	base, err := clientsPath(acct)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s/%d", base, id), nil
 }
 
 // List returns one page of clients.
 //
 // inventory: Clients/List Clients
-func (s *ClientsService) List(ctx context.Context, acct AccountID, opts *ClientListOptions) (*Page[Customer], error) {
-	var env customerListEnvelope
-	if err := s.client.do(ctx, http.MethodGet, clientsPath(acct), FamilyAccounting, nil, &env, opts.requestOptions()...); err != nil {
+func (s *ClientsService) List(ctx context.Context, acct AccountID, opts *ClientListOptions, extra ...RequestOption) (*Page[Customer], error) {
+	path, err := clientsPath(acct)
+	if err != nil {
 		return nil, err
 	}
-	return &Page[Customer]{Items: env.Clients, Page: env.Page, Pages: env.Pages, PerPage: env.PerPage, Total: env.Total}, nil
+	var env customerListEnvelope
+	reqOpts := append(opts.opts(), extra...)
+	if err := s.client.do(ctx, http.MethodGet, path, FamilyAccounting, nil, &env, reqOpts...); err != nil {
+		return nil, err
+	}
+	return newPage(env.Clients, env.PageMeta), nil
 }
 
 // All walks every page of clients, auto-paginating.
-func (s *ClientsService) All(ctx context.Context, acct AccountID, opts *ClientListOptions) iter.Seq2[Customer, error] {
-	perPage := 100
-	var search Search
-	var include []string
-	if opts != nil {
-		if opts.PerPage > 0 {
-			perPage = opts.PerPage
-		}
-		search, include = opts.Search, opts.Include
-	}
+func (s *ClientsService) All(ctx context.Context, acct AccountID, opts *ClientListOptions, extra ...RequestOption) iter.Seq2[Customer, error] {
 	return All(ctx, func(ctx context.Context, page int) (*Page[Customer], error) {
-		return s.List(ctx, acct, &ClientListOptions{Search: search, Page: page, PerPage: perPage, Include: include})
+		o := ClientListOptions{Page: page}
+		if opts != nil {
+			o.Search, o.PerPage, o.Include = opts.Search, opts.PerPage, opts.Include
+		}
+		o.PerPage = pageSize(o.PerPage)
+		return s.List(ctx, acct, &o, extra...)
 	})
 }
 
@@ -190,8 +203,12 @@ func (s *ClientsService) All(ctx context.Context, acct AccountID, opts *ClientLi
 //
 // inventory: Clients/Single Client
 func (s *ClientsService) Get(ctx context.Context, acct AccountID, id int64, opts ...RequestOption) (*Customer, error) {
+	path, err := clientPath(acct, id)
+	if err != nil {
+		return nil, err
+	}
 	var env customerEnvelope
-	if err := s.client.do(ctx, http.MethodGet, clientPath(acct, id), FamilyAccounting, nil, &env, opts...); err != nil {
+	if err := s.client.do(ctx, http.MethodGet, path, FamilyAccounting, nil, &env, opts...); err != nil {
 		return nil, err
 	}
 	return &env.Client, nil
@@ -204,11 +221,15 @@ func (s *ClientsService) Create(ctx context.Context, acct AccountID, req *Client
 	if req == nil {
 		return nil, fmt.Errorf("freshbooks: Clients.Create needs a request")
 	}
+	path, err := clientsPath(acct)
+	if err != nil {
+		return nil, err
+	}
 	body := struct {
 		Client *ClientWriteRequest `json:"client"`
 	}{req}
 	var env customerEnvelope
-	if err := s.client.do(ctx, http.MethodPost, clientsPath(acct), FamilyAccounting, body, &env); err != nil {
+	if err := s.client.do(ctx, http.MethodPost, path, FamilyAccounting, body, &env); err != nil {
 		return nil, err
 	}
 	return &env.Client, nil
@@ -221,11 +242,15 @@ func (s *ClientsService) Update(ctx context.Context, acct AccountID, id int64, r
 	if req == nil {
 		return nil, fmt.Errorf("freshbooks: Clients.Update needs a request")
 	}
+	path, err := clientPath(acct, id)
+	if err != nil {
+		return nil, err
+	}
 	body := struct {
 		Client *ClientWriteRequest `json:"client"`
 	}{req}
 	var env customerEnvelope
-	if err := s.client.do(ctx, http.MethodPut, clientPath(acct, id), FamilyAccounting, body, &env); err != nil {
+	if err := s.client.do(ctx, http.MethodPut, path, FamilyAccounting, body, &env); err != nil {
 		return nil, err
 	}
 	return &env.Client, nil
@@ -237,9 +262,13 @@ func (s *ClientsService) Update(ctx context.Context, acct AccountID, id int64, r
 //
 // inventory: Clients/Remove All Secondary Contacts
 func (s *ClientsService) RemoveAllSecondaryContacts(ctx context.Context, acct AccountID, id int64) (*Customer, error) {
+	path, err := clientPath(acct, id)
+	if err != nil {
+		return nil, err
+	}
 	body := map[string]any{"client": map[string]any{"contacts": []Contact{}}}
 	var env customerEnvelope
-	if err := s.client.do(ctx, http.MethodPut, clientPath(acct, id), FamilyAccounting, body, &env); err != nil {
+	if err := s.client.do(ctx, http.MethodPut, path, FamilyAccounting, body, &env); err != nil {
 		return nil, err
 	}
 	return &env.Client, nil

@@ -30,7 +30,7 @@ type Tax struct {
 	// Compound reports whether this tax compounds on top of another.
 	Compound bool `json:"compound,omitempty"`
 	// Updated is the account-local last-modified timestamp.
-	Updated string `json:"updated,omitempty"`
+	Updated DateTime `json:"updated,omitempty"`
 }
 
 type taxEnvelope struct {
@@ -43,11 +43,14 @@ type taxListEnvelope struct {
 }
 
 // TaxCreateRequest is the payload for Create. Name is required; the API
-// accepts Amount as a bare JSON number, not a Money object.
+// accepts Amount as a bare JSON number, not a Money object. Compound lets a
+// caller create a compound tax in one call, matching TaxUpdateRequest and
+// the Tax read model.
 type TaxCreateRequest struct {
-	Name   string   `json:"name"`
-	Number *string  `json:"number,omitempty"`
-	Amount *float64 `json:"amount,omitempty"`
+	Name     string   `json:"name"`
+	Number   *string  `json:"number,omitempty"`
+	Amount   *float64 `json:"amount,omitempty"`
+	Compound *bool    `json:"compound,omitempty"`
 }
 
 // TaxUpdateRequest is the payload for Update. Only non-nil fields are sent.
@@ -68,29 +71,26 @@ type TaxListOptions struct {
 	PerPage int
 }
 
-func (o *TaxListOptions) requestOptions() []RequestOption {
+func (o *TaxListOptions) opts() []RequestOption {
 	if o == nil {
 		return nil
 	}
-	var opts []RequestOption
-	if o.Search != nil {
-		opts = append(opts, o.Search)
-	}
-	if o.Page > 0 {
-		opts = append(opts, PageNumber(o.Page))
-	}
-	if o.PerPage > 0 {
-		opts = append(opts, PerPage(o.PerPage))
-	}
-	return opts
+	return listOpts(o.Search, o.Page, o.PerPage)
 }
 
-func taxesPath(acct AccountID) string {
-	return fmt.Sprintf("/accounting/account/%s/taxes/taxes", acct)
+func taxesPath(acct AccountID) (string, error) {
+	if err := pathSegment(string(acct)); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("/accounting/account/%s/taxes/taxes", acct), nil
 }
 
-func taxPath(acct AccountID, taxID int64) string {
-	return fmt.Sprintf("/accounting/account/%s/taxes/taxes/%d", acct, taxID)
+func taxPath(acct AccountID, taxID int64) (string, error) {
+	base, err := taxesPath(acct)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s/%d", base, taxID), nil
 }
 
 // List returns one page of tax rates.
@@ -98,26 +98,28 @@ func taxPath(acct AccountID, taxID int64) string {
 // inventory: Expenses/List Taxes
 // inventory: Accounting/Taxes/List Taxes
 // inventory: Settings/Items and Services/List Taxes
-func (s *TaxesService) List(ctx context.Context, acct AccountID, opts *TaxListOptions) (*Page[Tax], error) {
-	var env taxListEnvelope
-	if err := s.client.do(ctx, http.MethodGet, taxesPath(acct), FamilyAccounting, nil, &env, opts.requestOptions()...); err != nil {
+func (s *TaxesService) List(ctx context.Context, acct AccountID, opts *TaxListOptions, extra ...RequestOption) (*Page[Tax], error) {
+	path, err := taxesPath(acct)
+	if err != nil {
 		return nil, err
 	}
-	return &Page[Tax]{Items: env.Taxes, Page: env.Page, Pages: env.Pages, PerPage: env.PerPage, Total: env.Total}, nil
+	var env taxListEnvelope
+	reqOpts := append(opts.opts(), extra...)
+	if err := s.client.do(ctx, http.MethodGet, path, FamilyAccounting, nil, &env, reqOpts...); err != nil {
+		return nil, err
+	}
+	return newPage(env.Taxes, env.PageMeta), nil
 }
 
 // All walks every page of tax rates, auto-paginating.
-func (s *TaxesService) All(ctx context.Context, acct AccountID, opts *TaxListOptions) iter.Seq2[Tax, error] {
-	perPage := 100
-	var search Search
-	if opts != nil {
-		if opts.PerPage > 0 {
-			perPage = opts.PerPage
-		}
-		search = opts.Search
-	}
+func (s *TaxesService) All(ctx context.Context, acct AccountID, opts *TaxListOptions, extra ...RequestOption) iter.Seq2[Tax, error] {
 	return All(ctx, func(ctx context.Context, page int) (*Page[Tax], error) {
-		return s.List(ctx, acct, &TaxListOptions{Search: search, Page: page, PerPage: perPage})
+		o := TaxListOptions{Page: page}
+		if opts != nil {
+			o.Search, o.PerPage = opts.Search, opts.PerPage
+		}
+		o.PerPage = pageSize(o.PerPage)
+		return s.List(ctx, acct, &o, extra...)
 	})
 }
 
@@ -126,9 +128,13 @@ func (s *TaxesService) All(ctx context.Context, acct AccountID, opts *TaxListOpt
 // inventory: Expenses/Single Tax (GET)
 // inventory: Accounting/Taxes/Get Single Tax
 // inventory: Settings/Items and Services/Single Tax (GET)
-func (s *TaxesService) Get(ctx context.Context, acct AccountID, taxID int64) (*Tax, error) {
+func (s *TaxesService) Get(ctx context.Context, acct AccountID, taxID int64, opts ...RequestOption) (*Tax, error) {
+	path, err := taxPath(acct, taxID)
+	if err != nil {
+		return nil, err
+	}
 	var env taxEnvelope
-	if err := s.client.do(ctx, http.MethodGet, taxPath(acct, taxID), FamilyAccounting, nil, &env); err != nil {
+	if err := s.client.do(ctx, http.MethodGet, path, FamilyAccounting, nil, &env, opts...); err != nil {
 		return nil, err
 	}
 	return &env.Tax, nil
@@ -143,11 +149,15 @@ func (s *TaxesService) Create(ctx context.Context, acct AccountID, req *TaxCreat
 	if req == nil {
 		return nil, fmt.Errorf("freshbooks: Taxes.Create needs a request")
 	}
+	path, err := taxesPath(acct)
+	if err != nil {
+		return nil, err
+	}
 	body := struct {
 		Tax *TaxCreateRequest `json:"tax"`
 	}{req}
 	var env taxEnvelope
-	if err := s.client.do(ctx, http.MethodPost, taxesPath(acct), FamilyAccounting, body, &env); err != nil {
+	if err := s.client.do(ctx, http.MethodPost, path, FamilyAccounting, body, &env); err != nil {
 		return nil, err
 	}
 	return &env.Tax, nil
@@ -162,11 +172,15 @@ func (s *TaxesService) Update(ctx context.Context, acct AccountID, taxID int64, 
 	if req == nil {
 		return nil, fmt.Errorf("freshbooks: Taxes.Update needs a request")
 	}
+	path, err := taxPath(acct, taxID)
+	if err != nil {
+		return nil, err
+	}
 	body := struct {
 		Tax *TaxUpdateRequest `json:"tax"`
 	}{req}
 	var env taxEnvelope
-	if err := s.client.do(ctx, http.MethodPut, taxPath(acct, taxID), FamilyAccounting, body, &env); err != nil {
+	if err := s.client.do(ctx, http.MethodPut, path, FamilyAccounting, body, &env); err != nil {
 		return nil, err
 	}
 	return &env.Tax, nil
@@ -180,5 +194,9 @@ func (s *TaxesService) Update(ctx context.Context, acct AccountID, taxID int64, 
 // inventory: Accounting/Taxes/Delete Single Tax
 // inventory: Settings/Items and Services/Single Tax (DELETE)
 func (s *TaxesService) Delete(ctx context.Context, acct AccountID, taxID int64) error {
-	return s.client.do(ctx, http.MethodDelete, taxPath(acct, taxID), FamilyAccounting, nil, nil)
+	path, err := taxPath(acct, taxID)
+	if err != nil {
+		return err
+	}
+	return s.client.do(ctx, http.MethodDelete, path, FamilyAccounting, nil, nil)
 }

@@ -36,8 +36,8 @@ type ExpenseCategory struct {
 	// sold. FreshBooks docs mark this field deprecated.
 	IsCOGS bool `json:"is_cogs,omitempty"`
 	// CreatedAt and UpdatedAt are account-local timestamps.
-	CreatedAt string `json:"created_at,omitempty"`
-	UpdatedAt string `json:"updated_at,omitempty"`
+	CreatedAt DateTime `json:"created_at,omitempty"`
+	UpdatedAt DateTime `json:"updated_at,omitempty"`
 	// VisState is the category's visibility state.
 	VisState VisState `json:"vis_state"`
 }
@@ -65,63 +65,66 @@ type ExpenseCategoryListOptions struct {
 	PerPage int
 }
 
-func (o *ExpenseCategoryListOptions) requestOptions() []RequestOption {
+func (o *ExpenseCategoryListOptions) opts() []RequestOption {
 	if o == nil {
 		return nil
 	}
-	var opts []RequestOption
-	if o.Search != nil {
-		opts = append(opts, o.Search)
-	}
-	if o.Page > 0 {
-		opts = append(opts, PageNumber(o.Page))
-	}
-	if o.PerPage > 0 {
-		opts = append(opts, PerPage(o.PerPage))
-	}
-	return opts
+	return listOpts(o.Search, o.Page, o.PerPage)
 }
 
-func expenseCategoriesPath(acct AccountID) string {
-	return fmt.Sprintf("/accounting/account/%s/expenses/categories", acct)
+func expenseCategoriesPath(acct AccountID) (string, error) {
+	if err := pathSegment(string(acct)); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("/accounting/account/%s/expenses/categories", acct), nil
 }
 
-func expenseCategoryPath(acct AccountID, id int64) string {
-	return fmt.Sprintf("/accounting/account/%s/expenses/categories/%d", acct, id)
+func expenseCategoryPath(acct AccountID, id int64) (string, error) {
+	base, err := expenseCategoriesPath(acct)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s/%d", base, id), nil
 }
 
 // List returns one page of expense categories.
 //
 // inventory: Expenses/List Expense Categories
-func (s *ExpenseCategoriesService) List(ctx context.Context, acct AccountID, opts *ExpenseCategoryListOptions) (*Page[ExpenseCategory], error) {
-	var env expenseCategoryListEnvelope
-	if err := s.client.do(ctx, http.MethodGet, expenseCategoriesPath(acct), FamilyAccounting, nil, &env, opts.requestOptions()...); err != nil {
+func (s *ExpenseCategoriesService) List(ctx context.Context, acct AccountID, opts *ExpenseCategoryListOptions, extra ...RequestOption) (*Page[ExpenseCategory], error) {
+	path, err := expenseCategoriesPath(acct)
+	if err != nil {
 		return nil, err
 	}
-	return &Page[ExpenseCategory]{Items: env.Categories, Page: env.Page, Pages: env.Pages, PerPage: env.PerPage, Total: env.Total}, nil
+	var env expenseCategoryListEnvelope
+	reqOpts := append(opts.opts(), extra...)
+	if err := s.client.do(ctx, http.MethodGet, path, FamilyAccounting, nil, &env, reqOpts...); err != nil {
+		return nil, err
+	}
+	return newPage(env.Categories, env.PageMeta), nil
 }
 
 // All walks every page of expense categories, auto-paginating.
-func (s *ExpenseCategoriesService) All(ctx context.Context, acct AccountID, opts *ExpenseCategoryListOptions) iter.Seq2[ExpenseCategory, error] {
-	perPage := 100
-	var search Search
-	if opts != nil {
-		if opts.PerPage > 0 {
-			perPage = opts.PerPage
-		}
-		search = opts.Search
-	}
+func (s *ExpenseCategoriesService) All(ctx context.Context, acct AccountID, opts *ExpenseCategoryListOptions, extra ...RequestOption) iter.Seq2[ExpenseCategory, error] {
 	return All(ctx, func(ctx context.Context, page int) (*Page[ExpenseCategory], error) {
-		return s.List(ctx, acct, &ExpenseCategoryListOptions{Search: search, Page: page, PerPage: perPage})
+		o := ExpenseCategoryListOptions{Page: page}
+		if opts != nil {
+			o.Search, o.PerPage = opts.Search, opts.PerPage
+		}
+		o.PerPage = pageSize(o.PerPage)
+		return s.List(ctx, acct, &o, extra...)
 	})
 }
 
 // Get retrieves a single expense category.
 //
 // inventory: Expenses/Single Expense Category
-func (s *ExpenseCategoriesService) Get(ctx context.Context, acct AccountID, id int64) (*ExpenseCategory, error) {
+func (s *ExpenseCategoriesService) Get(ctx context.Context, acct AccountID, id int64, opts ...RequestOption) (*ExpenseCategory, error) {
+	path, err := expenseCategoryPath(acct, id)
+	if err != nil {
+		return nil, err
+	}
 	var env expenseCategoryEnvelope
-	if err := s.client.do(ctx, http.MethodGet, expenseCategoryPath(acct, id), FamilyAccounting, nil, &env); err != nil {
+	if err := s.client.do(ctx, http.MethodGet, path, FamilyAccounting, nil, &env, opts...); err != nil {
 		return nil, err
 	}
 	return &env.Category, nil
@@ -136,11 +139,15 @@ func (s *ExpenseCategoriesService) Create(ctx context.Context, acct AccountID, r
 	if req == nil {
 		return nil, fmt.Errorf("freshbooks: ExpenseCategories.Create needs a request")
 	}
+	path, err := expenseCategoriesPath(acct)
+	if err != nil {
+		return nil, err
+	}
 	body := struct {
 		Category *ExpenseCategoryCreateRequest `json:"category"`
 	}{req}
 	var env expenseCategoryEnvelope
-	if err := s.client.do(ctx, http.MethodPost, expenseCategoriesPath(acct), FamilyAccounting, body, &env); err != nil {
+	if err := s.client.do(ctx, http.MethodPost, path, FamilyAccounting, body, &env); err != nil {
 		return nil, err
 	}
 	return &env.Category, nil

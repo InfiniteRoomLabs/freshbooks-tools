@@ -13,6 +13,11 @@
         "role": "client",
         "currency_code": "USD",
         "language": "en",
+        "s_street": "2 Example Ave.",
+        "s_city": "Example City",
+        "s_province": "California",
+        "s_code": "94001",
+        "s_country": "United States",
         "vis_state": 0
       }
     }

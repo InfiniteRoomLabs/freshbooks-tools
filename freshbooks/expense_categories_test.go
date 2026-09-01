@@ -108,3 +108,31 @@ func TestExpenseCategoriesCreate(t *testing.T) {
 		}
 	})
 }
+
+func TestExpenseCategoriesRejectUnsafeAccountID(t *testing.T) {
+	ctx := context.Background()
+
+	tests := []struct {
+		name string
+		acct AccountID
+	}{
+		{"[sad] a path separator", "a/b"},
+		{"[sad] a query delimiter", "a?b"},
+		{"[sad] a fragment delimiter", "a#b"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			called := false
+			c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				called = true
+				w.WriteHeader(http.StatusOK)
+			}))
+			if _, err := c.ExpenseCategories.Get(ctx, tc.acct, 1); err == nil {
+				t.Fatal("want an error")
+			}
+			if called {
+				t.Fatal("a request was made with an unsafe account id")
+			}
+		})
+	}
+}

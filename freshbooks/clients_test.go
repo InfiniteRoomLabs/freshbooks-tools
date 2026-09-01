@@ -92,7 +92,7 @@ func TestClientsCreate(t *testing.T) {
 	ctx := context.Background()
 	acct := AccountID("ACM123")
 
-	t.Run("[happy] posts the client payload", func(t *testing.T) {
+	t.Run("[happy] posts the client payload, including a shipping address", func(t *testing.T) {
 		var gotMethod string
 		var gotBody map[string]any
 		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -101,10 +101,17 @@ func TestClientsCreate(t *testing.T) {
 			_ = json.Unmarshal(raw, &gotBody)
 			serveFixture(t, http.StatusOK, "accounting", "clients_create")(w, r)
 		}))
+		firstName, lastName, email := "Jordan", "NewClient", "newclient@example.com"
+		street, city, province, code, country := "2 Example Ave.", "Example City", "California", "94001", "United States"
 		cl, err := c.Clients.Create(ctx, acct, &ClientWriteRequest{
-			FirstName: "Jordan",
-			LastName:  "NewClient",
-			Email:     "newclient@example.com",
+			FirstName:        &firstName,
+			LastName:         &lastName,
+			Email:            &email,
+			ShippingStreet:   &street,
+			ShippingCity:     &city,
+			ShippingProvince: &province,
+			ShippingCode:     &code,
+			ShippingCountry:  &country,
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -115,6 +122,12 @@ func TestClientsCreate(t *testing.T) {
 		inner, _ := gotBody["client"].(map[string]any)
 		if inner["email"] != "newclient@example.com" {
 			t.Fatalf("body = %v", gotBody)
+		}
+		if inner["s_street"] != street || inner["s_city"] != city || inner["s_country"] != country {
+			t.Fatalf("shipping address missing from body: %v", gotBody)
+		}
+		if _, ok := inner["pref_email"]; ok {
+			t.Fatal("an unset PrefEmail should be omitted")
 		}
 		if cl.ID != 55002 {
 			t.Fatalf("client = %+v", cl)
@@ -130,7 +143,8 @@ func TestClientsCreate(t *testing.T) {
 
 	t.Run("[sad] a validation error", func(t *testing.T) {
 		c, _ := newTestClient(t, serveFixture(t, http.StatusUnprocessableEntity, "accounting", "error_422"))
-		if _, err := c.Clients.Create(ctx, acct, &ClientWriteRequest{Email: "not-an-email"}); !errors.Is(err, ErrValidation) {
+		email := "not-an-email"
+		if _, err := c.Clients.Create(ctx, acct, &ClientWriteRequest{Email: &email}); !errors.Is(err, ErrValidation) {
 			t.Fatalf("err = %v", err)
 		}
 	})
@@ -146,7 +160,8 @@ func TestClientsUpdate(t *testing.T) {
 			gotPath, gotMethod = r.URL.Path, r.Method
 			serveFixture(t, http.StatusOK, "accounting", "clients_update")(w, r)
 		}))
-		cl, err := c.Clients.Update(ctx, acct, 55001, &ClientWriteRequest{FirstName: "Alexandra"})
+		firstName := "Alexandra"
+		cl, err := c.Clients.Update(ctx, acct, 55001, &ClientWriteRequest{FirstName: &firstName})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -155,6 +170,24 @@ func TestClientsUpdate(t *testing.T) {
 		}
 		if cl.FirstName != "Alexandra" {
 			t.Fatalf("client = %+v", cl)
+		}
+	})
+
+	t.Run("[happy] an explicit false PrefEmail is sent, not omitted", func(t *testing.T) {
+		var gotBody map[string]any
+		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			raw, _ := io.ReadAll(r.Body)
+			_ = json.Unmarshal(raw, &gotBody)
+			serveFixture(t, http.StatusOK, "accounting", "clients_update")(w, r)
+		}))
+		prefEmail := false
+		if _, err := c.Clients.Update(ctx, acct, 55001, &ClientWriteRequest{PrefEmail: &prefEmail}); err != nil {
+			t.Fatal(err)
+		}
+		inner, _ := gotBody["client"].(map[string]any)
+		v, ok := inner["pref_email"]
+		if !ok || v != false {
+			t.Fatalf("body = %v, want pref_email explicitly false", gotBody)
 		}
 	})
 
@@ -197,4 +230,32 @@ func TestClientsRemoveAllSecondaryContacts(t *testing.T) {
 			t.Fatalf("err = %v", err)
 		}
 	})
+}
+
+func TestClientsRejectUnsafeAccountID(t *testing.T) {
+	ctx := context.Background()
+
+	tests := []struct {
+		name string
+		acct AccountID
+	}{
+		{"[sad] a path separator", "a/b"},
+		{"[sad] a query delimiter", "a?b"},
+		{"[sad] a fragment delimiter", "a#b"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			called := false
+			c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				called = true
+				w.WriteHeader(http.StatusOK)
+			}))
+			if _, err := c.Clients.Get(ctx, tc.acct, 1); err == nil {
+				t.Fatal("want an error")
+			}
+			if called {
+				t.Fatal("a request was made with an unsafe account id")
+			}
+		})
+	}
 }

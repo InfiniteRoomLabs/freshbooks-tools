@@ -79,6 +79,17 @@ func TestCreditNotesCreate(t *testing.T) {
 		if inner["credit_type"] != "goodwill" {
 			t.Fatalf("body = %v", gotBody)
 		}
+		lines, _ := inner["lines"].([]any)
+		if len(lines) != 1 {
+			t.Fatalf("lines = %v", inner["lines"])
+		}
+		line, _ := lines[0].(map[string]any)
+		if _, ok := line["unit_cost"]; !ok {
+			t.Fatalf("line = %v, want unit_cost present", line)
+		}
+		if _, ok := line["taxAmount1"]; ok {
+			t.Fatal("an unset TaxAmount1 should be omitted, not sent as an empty Money object")
+		}
 		if cn.CreditID != 30948 {
 			t.Fatalf("credit note = %+v", cn)
 		}
@@ -154,4 +165,32 @@ func TestCreditNotesDelete(t *testing.T) {
 			t.Fatalf("err = %v", err)
 		}
 	})
+}
+
+func TestCreditNotesRejectUnsafeAccountID(t *testing.T) {
+	ctx := context.Background()
+
+	tests := []struct {
+		name string
+		acct AccountID
+	}{
+		{"[sad] a path separator", "a/b"},
+		{"[sad] a query delimiter", "a?b"},
+		{"[sad] a fragment delimiter", "a#b"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			called := false
+			c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				called = true
+				w.WriteHeader(http.StatusOK)
+			}))
+			if _, err := c.CreditNotes.List(ctx, tc.acct, nil); err == nil {
+				t.Fatal("want an error")
+			}
+			if called {
+				t.Fatal("a request was made with an unsafe account id")
+			}
+		})
+	}
 }

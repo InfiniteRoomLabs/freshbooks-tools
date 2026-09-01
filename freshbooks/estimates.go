@@ -13,8 +13,8 @@ type EstimatesService struct{ client *Client }
 // EstimateLine is one line item on an estimate.
 type EstimateLine struct {
 	// LineID and Updated are set by FreshBooks; empty on a line you send.
-	LineID  string `json:"lineid,omitempty"`
-	Updated string `json:"updated,omitempty"`
+	LineID  string   `json:"lineid,omitempty"`
+	Updated DateTime `json:"updated,omitempty"`
 	// Type is a FreshBooks line-type code; 0 is a normal line.
 	Type int `json:"type,omitempty"`
 	// Name and Description describe the line.
@@ -22,14 +22,14 @@ type EstimateLine struct {
 	Description string `json:"description,omitempty"`
 	// Qty and UnitCost determine the line's amount.
 	Qty      string `json:"qty,omitempty"`
-	UnitCost Money  `json:"unit_cost,omitempty"`
+	UnitCost Money  `json:"unit_cost,omitzero"`
 	// Amount is computed by FreshBooks from Qty * UnitCost.
-	Amount Money `json:"amount,omitempty"`
+	Amount Money `json:"amount,omitzero"`
 	// TaxName1, TaxAmount1, TaxName2, and TaxAmount2 record up to two taxes.
 	TaxName1   string `json:"taxName1,omitempty"`
-	TaxAmount1 Money  `json:"taxAmount1,omitempty"`
+	TaxAmount1 Money  `json:"taxAmount1,omitzero"`
 	TaxName2   string `json:"taxName2,omitempty"`
-	TaxAmount2 Money  `json:"taxAmount2,omitempty"`
+	TaxAmount2 Money  `json:"taxAmount2,omitzero"`
 	// ExpenseID links this line to a billed-through expense, when set.
 	ExpenseID int64 `json:"expenseid,omitempty"`
 }
@@ -48,9 +48,9 @@ type Estimate struct {
 	// CreateDate is when the estimate was created.
 	CreateDate Date `json:"create_date"`
 	// CreatedAt is the account-local creation timestamp.
-	CreatedAt string `json:"created_at,omitempty"`
+	CreatedAt DateTime `json:"created_at,omitempty"`
 	// Updated is the account-local last-modified timestamp.
-	Updated string `json:"updated,omitempty"`
+	Updated DateTime `json:"updated,omitempty"`
 	// CurrencyCode and Language are the estimate's currency and language.
 	CurrencyCode string `json:"currency_code,omitempty"`
 	Language     string `json:"language,omitempty"`
@@ -62,9 +62,9 @@ type Estimate struct {
 	// DiscountValue is a percentage discount applied to the estimate.
 	DiscountValue string `json:"discount_value,omitempty"`
 	// DiscountTotal is the discount amount FreshBooks computed.
-	DiscountTotal Money `json:"discount_total,omitempty"`
+	DiscountTotal Money `json:"discount_total,omitzero"`
 	// Amount is the estimate's total.
-	Amount Money `json:"amount,omitempty"`
+	Amount Money `json:"amount,omitzero"`
 	// Template names the presentation template.
 	Template string `json:"template,omitempty"`
 	// Status is a numeric estimate status; DisplayStatus and UIStatus are
@@ -169,58 +169,57 @@ type EstimateListOptions struct {
 	Include []string
 }
 
-func (o *EstimateListOptions) requestOptions() []RequestOption {
+func (o *EstimateListOptions) opts() []RequestOption {
 	if o == nil {
 		return nil
 	}
-	var opts []RequestOption
-	if o.Search != nil {
-		opts = append(opts, o.Search)
-	}
-	if o.Page > 0 {
-		opts = append(opts, PageNumber(o.Page))
-	}
-	if o.PerPage > 0 {
-		opts = append(opts, PerPage(o.PerPage))
-	}
+	opts := listOpts(o.Search, o.Page, o.PerPage)
 	if len(o.Include) > 0 {
 		opts = append(opts, Include(o.Include...))
 	}
 	return opts
 }
 
-func estimatesPath(acct AccountID) string {
-	return fmt.Sprintf("/accounting/account/%s/estimates/estimates", acct)
+func estimatesPath(acct AccountID) (string, error) {
+	if err := pathSegment(string(acct)); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("/accounting/account/%s/estimates/estimates", acct), nil
 }
 
-func estimatePath(acct AccountID, id int64) string {
-	return fmt.Sprintf("/accounting/account/%s/estimates/estimates/%d", acct, id)
+func estimatePath(acct AccountID, id int64) (string, error) {
+	base, err := estimatesPath(acct)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s/%d", base, id), nil
 }
 
 // List returns one page of estimates.
 //
 // inventory: Estimates/List Estimates
-func (s *EstimatesService) List(ctx context.Context, acct AccountID, opts *EstimateListOptions) (*Page[Estimate], error) {
-	var env estimateListEnvelope
-	if err := s.client.do(ctx, http.MethodGet, estimatesPath(acct), FamilyAccounting, nil, &env, opts.requestOptions()...); err != nil {
+func (s *EstimatesService) List(ctx context.Context, acct AccountID, opts *EstimateListOptions, extra ...RequestOption) (*Page[Estimate], error) {
+	path, err := estimatesPath(acct)
+	if err != nil {
 		return nil, err
 	}
-	return &Page[Estimate]{Items: env.Estimates, Page: env.Page, Pages: env.Pages, PerPage: env.PerPage, Total: env.Total}, nil
+	var env estimateListEnvelope
+	reqOpts := append(opts.opts(), extra...)
+	if err := s.client.do(ctx, http.MethodGet, path, FamilyAccounting, nil, &env, reqOpts...); err != nil {
+		return nil, err
+	}
+	return newPage(env.Estimates, env.PageMeta), nil
 }
 
 // All walks every page of estimates, auto-paginating.
-func (s *EstimatesService) All(ctx context.Context, acct AccountID, opts *EstimateListOptions) iter.Seq2[Estimate, error] {
-	perPage := 100
-	var search Search
-	var include []string
-	if opts != nil {
-		if opts.PerPage > 0 {
-			perPage = opts.PerPage
-		}
-		search, include = opts.Search, opts.Include
-	}
+func (s *EstimatesService) All(ctx context.Context, acct AccountID, opts *EstimateListOptions, extra ...RequestOption) iter.Seq2[Estimate, error] {
 	return All(ctx, func(ctx context.Context, page int) (*Page[Estimate], error) {
-		return s.List(ctx, acct, &EstimateListOptions{Search: search, Page: page, PerPage: perPage, Include: include})
+		o := EstimateListOptions{Page: page}
+		if opts != nil {
+			o.Search, o.PerPage, o.Include = opts.Search, opts.PerPage, opts.Include
+		}
+		o.PerPage = pageSize(o.PerPage)
+		return s.List(ctx, acct, &o, extra...)
 	})
 }
 
@@ -228,8 +227,12 @@ func (s *EstimatesService) All(ctx context.Context, acct AccountID, opts *Estima
 //
 // inventory: Estimates/Single Estimate
 func (s *EstimatesService) Get(ctx context.Context, acct AccountID, id int64, opts ...RequestOption) (*Estimate, error) {
+	path, err := estimatePath(acct, id)
+	if err != nil {
+		return nil, err
+	}
 	var env estimateEnvelope
-	if err := s.client.do(ctx, http.MethodGet, estimatePath(acct, id), FamilyAccounting, nil, &env, opts...); err != nil {
+	if err := s.client.do(ctx, http.MethodGet, path, FamilyAccounting, nil, &env, opts...); err != nil {
 		return nil, err
 	}
 	return &env.Estimate, nil
@@ -243,11 +246,15 @@ func (s *EstimatesService) Create(ctx context.Context, acct AccountID, req *Esti
 	if req == nil {
 		return nil, fmt.Errorf("freshbooks: Estimates.Create needs a request")
 	}
+	path, err := estimatesPath(acct)
+	if err != nil {
+		return nil, err
+	}
 	body := struct {
 		Estimate *EstimateWriteRequest `json:"estimate"`
 	}{req}
 	var env estimateEnvelope
-	if err := s.client.do(ctx, http.MethodPost, estimatesPath(acct), FamilyAccounting, body, &env); err != nil {
+	if err := s.client.do(ctx, http.MethodPost, path, FamilyAccounting, body, &env); err != nil {
 		return nil, err
 	}
 	return &env.Estimate, nil
@@ -260,37 +267,45 @@ func (s *EstimatesService) Update(ctx context.Context, acct AccountID, id int64,
 	if req == nil {
 		return nil, fmt.Errorf("freshbooks: Estimates.Update needs a request")
 	}
+	path, err := estimatePath(acct, id)
+	if err != nil {
+		return nil, err
+	}
 	body := struct {
 		Estimate *EstimateWriteRequest `json:"estimate"`
 	}{req}
 	var env estimateEnvelope
-	if err := s.client.do(ctx, http.MethodPut, estimatePath(acct, id), FamilyAccounting, body, &env); err != nil {
+	if err := s.client.do(ctx, http.MethodPut, path, FamilyAccounting, body, &env); err != nil {
 		return nil, err
 	}
 	return &env.Estimate, nil
 }
 
 // Delete soft-deletes an estimate by setting vis_state to 1. FreshBooks
-// models this as a PUT, not a real HTTP DELETE, despite the FreshBooks docs
-// page listing the verb as DELETE -- the Postman example concretely sends a
-// PUT with {"estimate": {"vis_state": 1}}, consistent with every other
-// soft-delete in this API family (bills, vendors, credit notes). Trusted
-// over the docs page; flagged in the Phase 2 batch b report for a live
-// check.
+// models this as a PUT, not a real HTTP DELETE, matching the FreshBooks
+// docs page's own "Delete Single Estimate" section and every other
+// soft-delete in this API family (bills, vendors, credit notes).
 //
 // inventory: Estimates/Delete Estimate
 func (s *EstimatesService) Delete(ctx context.Context, acct AccountID, id int64) error {
-	body := map[string]any{"estimate": map[string]any{"vis_state": VisStateDeleted}}
-	return s.client.do(ctx, http.MethodPut, estimatePath(acct, id), FamilyAccounting, body, nil)
+	path, err := estimatePath(acct, id)
+	if err != nil {
+		return err
+	}
+	return s.client.softDelete(ctx, path, "estimate")
 }
 
 // Accept marks an estimate accepted on the client's behalf.
 //
 // inventory: Estimates/Accept Estimate
 func (s *EstimatesService) Accept(ctx context.Context, acct AccountID, id int64) (*Estimate, error) {
+	path, err := estimatePath(acct, id)
+	if err != nil {
+		return nil, err
+	}
 	body := map[string]any{"estimate": map[string]any{"action_accept": true}}
 	var env estimateEnvelope
-	if err := s.client.do(ctx, http.MethodPut, estimatePath(acct, id), FamilyAccounting, body, &env); err != nil {
+	if err := s.client.do(ctx, http.MethodPut, path, FamilyAccounting, body, &env); err != nil {
 		return nil, err
 	}
 	return &env.Estimate, nil
@@ -303,10 +318,14 @@ func (s *EstimatesService) Send(ctx context.Context, acct AccountID, id int64, r
 	if req == nil || len(req.EmailRecipients) == 0 {
 		return fmt.Errorf("freshbooks: Estimates.Send needs at least one recipient")
 	}
+	path, err := estimatePath(acct, id)
+	if err != nil {
+		return err
+	}
 	body := map[string]any{"estimate": map[string]any{
 		"email_recipients":          req.EmailRecipients,
 		"estimate_customized_email": req.EstimateCustomizedEmail,
 		"action_email":              true,
 	}}
-	return s.client.do(ctx, http.MethodPut, estimatePath(acct, id), FamilyAccounting, body, nil)
+	return s.client.do(ctx, http.MethodPut, path, FamilyAccounting, body, nil)
 }

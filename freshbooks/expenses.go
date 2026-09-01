@@ -57,8 +57,8 @@ type Expense struct {
 	// TaxPercent2 record up to two taxes applied to the expense.
 	TaxName1    string `json:"taxName1,omitempty"`
 	TaxName2    string `json:"taxName2,omitempty"`
-	TaxAmount1  Money  `json:"taxAmount1,omitempty"`
-	TaxAmount2  Money  `json:"taxAmount2,omitempty"`
+	TaxAmount1  Money  `json:"taxAmount1,omitzero"`
+	TaxAmount2  Money  `json:"taxAmount2,omitzero"`
 	TaxPercent1 string `json:"taxPercent1,omitempty"`
 	TaxPercent2 string `json:"taxPercent2,omitempty"`
 	// MarkupPercent is the markup applied when this expense is billed
@@ -67,7 +67,7 @@ type Expense struct {
 	// Attachment is the receipt image, when one was uploaded.
 	Attachment *ExpenseAttachment `json:"attachment,omitempty"`
 	// Updated is the account-local last-modified timestamp.
-	Updated string `json:"updated,omitempty"`
+	Updated DateTime `json:"updated,omitempty"`
 	// VisState is the expense's visibility state.
 	VisState VisState `json:"vis_state"`
 }
@@ -92,14 +92,19 @@ type ExpenseAttachmentRequest struct {
 // field is optional so a caller can send only what it means to set; Amount
 // and Date are effectively required by the API for Create.
 //
-// CategoryID is a string here, not an int, because the Postman examples
-// send it that way (e.g. "categoryid": "65679") even though the API returns
-// it as an int on read; this is INFERRED from the example, not documented.
+// CategoryID is *int64: the FreshBooks docs field table types it int and
+// writable, and the docs page's own create-expense example sends it
+// unquoted. An earlier version of this type sent it as a string, following
+// a Postman example that happens to quote the value; the docs win where the
+// two disagree (CLAUDE.md's "docs beat Postman" rule). TaxPercent1,
+// TaxPercent2, and MarkupPercent are *string for the same reason: the docs
+// field table types all three as string, matching the Expense read model.
 type ExpenseWriteRequest struct {
 	Amount        *Money                    `json:"amount,omitempty"`
 	Date          *Date                     `json:"date,omitempty"`
-	CategoryID    string                    `json:"categoryid,omitempty"`
+	CategoryID    *int64                    `json:"categoryid,omitempty"`
 	ClientID      *int64                    `json:"clientid,omitempty"`
+	ProjectID     *int64                    `json:"projectid,omitempty"`
 	StaffID       *int64                    `json:"staffid,omitempty"`
 	Vendor        string                    `json:"vendor,omitempty"`
 	Notes         string                    `json:"notes,omitempty"`
@@ -107,9 +112,9 @@ type ExpenseWriteRequest struct {
 	TaxName2      string                    `json:"taxName2,omitempty"`
 	TaxAmount1    *Money                    `json:"taxAmount1,omitempty"`
 	TaxAmount2    *Money                    `json:"taxAmount2,omitempty"`
-	TaxPercent1   *float64                  `json:"taxPercent1,omitempty"`
-	TaxPercent2   *float64                  `json:"taxPercent2,omitempty"`
-	MarkupPercent *float64                  `json:"markup_percent,omitempty"`
+	TaxPercent1   *string                   `json:"taxPercent1,omitempty"`
+	TaxPercent2   *string                   `json:"taxPercent2,omitempty"`
+	MarkupPercent *string                   `json:"markup_percent,omitempty"`
 	IsCOGS        *bool                     `json:"is_cogs,omitempty"`
 	Attachment    *ExpenseAttachmentRequest `json:"attachment,omitempty"`
 }
@@ -121,63 +126,66 @@ type ExpenseListOptions struct {
 	PerPage int
 }
 
-func (o *ExpenseListOptions) requestOptions() []RequestOption {
+func (o *ExpenseListOptions) opts() []RequestOption {
 	if o == nil {
 		return nil
 	}
-	var opts []RequestOption
-	if o.Search != nil {
-		opts = append(opts, o.Search)
-	}
-	if o.Page > 0 {
-		opts = append(opts, PageNumber(o.Page))
-	}
-	if o.PerPage > 0 {
-		opts = append(opts, PerPage(o.PerPage))
-	}
-	return opts
+	return listOpts(o.Search, o.Page, o.PerPage)
 }
 
-func expensesPath(acct AccountID) string {
-	return fmt.Sprintf("/accounting/account/%s/expenses/expenses", acct)
+func expensesPath(acct AccountID) (string, error) {
+	if err := pathSegment(string(acct)); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("/accounting/account/%s/expenses/expenses", acct), nil
 }
 
-func expensePath(acct AccountID, id int64) string {
-	return fmt.Sprintf("/accounting/account/%s/expenses/expenses/%d", acct, id)
+func expensePath(acct AccountID, id int64) (string, error) {
+	base, err := expensesPath(acct)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s/%d", base, id), nil
 }
 
 // List returns one page of expenses.
 //
 // inventory: Expenses/List Expenses
-func (s *ExpensesService) List(ctx context.Context, acct AccountID, opts *ExpenseListOptions) (*Page[Expense], error) {
-	var env expenseListEnvelope
-	if err := s.client.do(ctx, http.MethodGet, expensesPath(acct), FamilyAccounting, nil, &env, opts.requestOptions()...); err != nil {
+func (s *ExpensesService) List(ctx context.Context, acct AccountID, opts *ExpenseListOptions, extra ...RequestOption) (*Page[Expense], error) {
+	path, err := expensesPath(acct)
+	if err != nil {
 		return nil, err
 	}
-	return &Page[Expense]{Items: env.Expenses, Page: env.Page, Pages: env.Pages, PerPage: env.PerPage, Total: env.Total}, nil
+	var env expenseListEnvelope
+	reqOpts := append(opts.opts(), extra...)
+	if err := s.client.do(ctx, http.MethodGet, path, FamilyAccounting, nil, &env, reqOpts...); err != nil {
+		return nil, err
+	}
+	return newPage(env.Expenses, env.PageMeta), nil
 }
 
 // All walks every page of expenses, auto-paginating.
-func (s *ExpensesService) All(ctx context.Context, acct AccountID, opts *ExpenseListOptions) iter.Seq2[Expense, error] {
-	perPage := 100
-	var search Search
-	if opts != nil {
-		if opts.PerPage > 0 {
-			perPage = opts.PerPage
-		}
-		search = opts.Search
-	}
+func (s *ExpensesService) All(ctx context.Context, acct AccountID, opts *ExpenseListOptions, extra ...RequestOption) iter.Seq2[Expense, error] {
 	return All(ctx, func(ctx context.Context, page int) (*Page[Expense], error) {
-		return s.List(ctx, acct, &ExpenseListOptions{Search: search, Page: page, PerPage: perPage})
+		o := ExpenseListOptions{Page: page}
+		if opts != nil {
+			o.Search, o.PerPage = opts.Search, opts.PerPage
+		}
+		o.PerPage = pageSize(o.PerPage)
+		return s.List(ctx, acct, &o, extra...)
 	})
 }
 
 // Get retrieves a single expense.
 //
 // inventory: Expenses/Single Expense
-func (s *ExpensesService) Get(ctx context.Context, acct AccountID, id int64) (*Expense, error) {
+func (s *ExpensesService) Get(ctx context.Context, acct AccountID, id int64, opts ...RequestOption) (*Expense, error) {
+	path, err := expensePath(acct, id)
+	if err != nil {
+		return nil, err
+	}
 	var env expenseEnvelope
-	if err := s.client.do(ctx, http.MethodGet, expensePath(acct, id), FamilyAccounting, nil, &env); err != nil {
+	if err := s.client.do(ctx, http.MethodGet, path, FamilyAccounting, nil, &env, opts...); err != nil {
 		return nil, err
 	}
 	return &env.Expense, nil
@@ -194,11 +202,15 @@ func (s *ExpensesService) Create(ctx context.Context, acct AccountID, req *Expen
 	if req == nil {
 		return nil, fmt.Errorf("freshbooks: Expenses.Create needs a request")
 	}
+	path, err := expensesPath(acct)
+	if err != nil {
+		return nil, err
+	}
 	body := struct {
 		Expense *ExpenseWriteRequest `json:"expense"`
 	}{req}
 	var env expenseEnvelope
-	if err := s.client.do(ctx, http.MethodPost, expensesPath(acct), FamilyAccounting, body, &env); err != nil {
+	if err := s.client.do(ctx, http.MethodPost, path, FamilyAccounting, body, &env); err != nil {
 		return nil, err
 	}
 	return &env.Expense, nil
@@ -213,11 +225,15 @@ func (s *ExpensesService) Update(ctx context.Context, acct AccountID, id int64, 
 	if req == nil {
 		return nil, fmt.Errorf("freshbooks: Expenses.Update needs a request")
 	}
+	path, err := expensePath(acct, id)
+	if err != nil {
+		return nil, err
+	}
 	body := struct {
 		Expense *ExpenseWriteRequest `json:"expense"`
 	}{req}
 	var env expenseEnvelope
-	if err := s.client.do(ctx, http.MethodPut, expensePath(acct, id), FamilyAccounting, body, &env); err != nil {
+	if err := s.client.do(ctx, http.MethodPut, path, FamilyAccounting, body, &env); err != nil {
 		return nil, err
 	}
 	return &env.Expense, nil
@@ -235,8 +251,11 @@ func (s *ExpensesService) Update(ctx context.Context, acct AccountID, id int64, 
 //
 // inventory: Expenses/Delete Expense
 func (s *ExpensesService) Delete(ctx context.Context, acct AccountID, id int64) error {
-	body := map[string]any{"expense": map[string]any{"vis_state": VisStateDeleted}}
-	return s.client.do(ctx, http.MethodPut, expensePath(acct, id), FamilyAccounting, body, nil)
+	path, err := expensePath(acct, id)
+	if err != nil {
+		return err
+	}
+	return s.client.softDelete(ctx, path, "expense")
 }
 
 // ExpenseSummaryAmount is one currency's contribution to an ExpenseSummary.
@@ -258,17 +277,34 @@ type expenseSummariesEnvelope struct {
 	Summaries []ExpenseSummary `json:"summaries"`
 }
 
+func expenseSummariesPath(acct AccountID) (string, error) {
+	if err := pathSegment(string(acct)); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("/accounting/account/%s/expenses/summaries", acct), nil
+}
+
 // Summaries returns the account's expense totals bucketed by status
 // (grand_total, active, archived).
 //
 // inventory: Expenses/Expense Summaries
 func (s *ExpensesService) Summaries(ctx context.Context, acct AccountID) ([]ExpenseSummary, error) {
+	path, err := expenseSummariesPath(acct)
+	if err != nil {
+		return nil, err
+	}
 	var env expenseSummariesEnvelope
-	path := fmt.Sprintf("/accounting/account/%s/expenses/summaries", acct)
 	if err := s.client.do(ctx, http.MethodGet, path, FamilyAccounting, nil, &env); err != nil {
 		return nil, err
 	}
 	return env.Summaries, nil
+}
+
+func expenseVendorsPath(acct AccountID) (string, error) {
+	if err := pathSegment(string(acct)); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("/accounting/account/%s/expenses/vendors", acct), nil
 }
 
 // Vendors returns the distinct vendor names used across the account's
@@ -279,10 +315,13 @@ func (s *ExpensesService) Summaries(ctx context.Context, acct AccountID) ([]Expe
 //
 // inventory: Expenses/Expense Vendors
 func (s *ExpensesService) Vendors(ctx context.Context, acct AccountID) ([]string, error) {
+	path, err := expenseVendorsPath(acct)
+	if err != nil {
+		return nil, err
+	}
 	var env struct {
 		Vendors []string `json:"vendors"`
 	}
-	path := fmt.Sprintf("/accounting/account/%s/expenses/vendors", acct)
 	if err := s.client.do(ctx, http.MethodGet, path, FamilyAccounting, nil, &env); err != nil {
 		return nil, err
 	}
@@ -296,8 +335,8 @@ type ExpenseProfile struct {
 	ProfileID     int64  `json:"profileid"`
 	Frequency     string `json:"frequency"`
 	StartDate     Date   `json:"start_date"`
-	EndDate       Date   `json:"end_date,omitempty"`
-	NextIssueDate Date   `json:"next_issue_date,omitempty"`
+	EndDate       Date   `json:"end_date,omitzero"`
+	NextIssueDate Date   `json:"next_issue_date,omitzero"`
 	Amount        Money  `json:"amount"`
 	Notes         string `json:"notes,omitempty"`
 	Vendor        string `json:"vendor,omitempty"`
@@ -312,7 +351,9 @@ type expenseProfileEnvelope struct {
 }
 
 // ExpenseProfileCreateRequest is the payload for CreateRecurring. Frequency,
-// StartDate, and Amount are required by the API.
+// StartDate, and Amount are required by the API. CategoryID is *int64,
+// matching ExpenseWriteRequest's doc comment on why (docs field table +
+// example, not the Postman example's quoted value).
 type ExpenseProfileCreateRequest struct {
 	Frequency     string   `json:"frequency"`
 	StartDate     Date     `json:"start_date"`
@@ -321,12 +362,19 @@ type ExpenseProfileCreateRequest struct {
 	Amount        Money    `json:"amount"`
 	Notes         string   `json:"notes,omitempty"`
 	Vendor        string   `json:"vendor,omitempty"`
-	CategoryID    string   `json:"categoryid,omitempty"`
+	CategoryID    *int64   `json:"categoryid,omitempty"`
 	ClientID      *int64   `json:"clientid,omitempty"`
 	StaffID       *int64   `json:"staffid,omitempty"`
 	TaxName1      string   `json:"taxName1,omitempty"`
 	TaxAmount1    *Money   `json:"taxAmount1,omitempty"`
 	TaxPercent1   *float64 `json:"taxPercent1,omitempty"`
+}
+
+func expenseProfilesPath(acct AccountID) (string, error) {
+	if err := pathSegment(string(acct)); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("/accounting/account/%s/expense_profiles/expense_profiles", acct), nil
 }
 
 // CreateRecurring creates a recurring-expense profile that FreshBooks will
@@ -340,11 +388,14 @@ func (s *ExpensesService) CreateRecurring(ctx context.Context, acct AccountID, r
 	if req == nil {
 		return nil, fmt.Errorf("freshbooks: Expenses.CreateRecurring needs a request")
 	}
+	path, err := expenseProfilesPath(acct)
+	if err != nil {
+		return nil, err
+	}
 	body := struct {
 		ExpenseProfile *ExpenseProfileCreateRequest `json:"expense_profile"`
 	}{req}
 	var env expenseProfileEnvelope
-	path := fmt.Sprintf("/accounting/account/%s/expense_profiles/expense_profiles", acct)
 	if err := s.client.do(ctx, http.MethodPost, path, FamilyAccounting, body, &env); err != nil {
 		return nil, err
 	}

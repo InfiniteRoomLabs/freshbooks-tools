@@ -57,12 +57,19 @@ type BillPaymentUpdateRequest struct {
 	Note        *string `json:"note,omitempty"`
 }
 
-func billPaymentsPath(acct AccountID) string {
-	return fmt.Sprintf("/accounting/account/%s/bill_payments/bill_payments", acct)
+func billPaymentsPath(acct AccountID) (string, error) {
+	if err := pathSegment(string(acct)); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("/accounting/account/%s/bill_payments/bill_payments", acct), nil
 }
 
-func billPaymentPath(acct AccountID, id int64) string {
-	return fmt.Sprintf("/accounting/account/%s/bill_payments/bill_payments/%d", acct, id)
+func billPaymentPath(acct AccountID, id int64) (string, error) {
+	base, err := billPaymentsPath(acct)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s/%d", base, id), nil
 }
 
 // Create records a new payment against a bill.
@@ -72,11 +79,15 @@ func (s *BillPaymentsService) Create(ctx context.Context, acct AccountID, req *B
 	if req == nil {
 		return nil, fmt.Errorf("freshbooks: BillPayments.Create needs a request")
 	}
+	path, err := billPaymentsPath(acct)
+	if err != nil {
+		return nil, err
+	}
 	body := struct {
 		BillPayment *BillPaymentCreateRequest `json:"bill_payment"`
 	}{req}
 	var env billPaymentEnvelope
-	if err := s.client.do(ctx, http.MethodPost, billPaymentsPath(acct), FamilyAccounting, body, &env); err != nil {
+	if err := s.client.do(ctx, http.MethodPost, path, FamilyAccounting, body, &env); err != nil {
 		return nil, err
 	}
 	return &env.BillPayment, nil
@@ -90,11 +101,15 @@ func (s *BillPaymentsService) Update(ctx context.Context, acct AccountID, id int
 	if req == nil {
 		return nil, fmt.Errorf("freshbooks: BillPayments.Update needs a request")
 	}
+	path, err := billPaymentPath(acct, id)
+	if err != nil {
+		return nil, err
+	}
 	body := struct {
 		BillPayment *BillPaymentUpdateRequest `json:"bill_payment"`
 	}{req}
 	var env billPaymentEnvelope
-	if err := s.client.do(ctx, http.MethodPut, billPaymentPath(acct, id), FamilyAccounting, body, &env); err != nil {
+	if err := s.client.do(ctx, http.MethodPut, path, FamilyAccounting, body, &env); err != nil {
 		return nil, err
 	}
 	return &env.BillPayment, nil

@@ -13,6 +13,14 @@ import (
 // FreshBooks docs page, not live-verified.
 type BillVendorsService struct{ client *Client }
 
+// BillVendorTaxDefault is one default tax FreshBooks applies to bills raised
+// against a vendor.
+type BillVendorTaxDefault struct {
+	TaxID  int64  `json:"taxid,omitempty"`
+	Name   string `json:"name,omitempty"`
+	Amount string `json:"amount,omitempty"`
+}
+
 // BillVendor is a vendor that bills can be raised against.
 type BillVendor struct {
 	// VendorID is the vendor's identifier.
@@ -45,12 +53,13 @@ type BillVendor struct {
 	Language string `json:"language,omitempty"`
 	// Is1099 reports whether this vendor requires 1099 tracking (US tax).
 	Is1099 bool `json:"is_1099,omitempty"`
-	// TaxDefaults are the tax names applied to bills from this vendor by
-	// default.
-	TaxDefaults []string `json:"tax_defaults,omitempty"`
+	// TaxDefaults are the default taxes applied to bills from this vendor.
+	TaxDefaults []BillVendorTaxDefault `json:"tax_defaults,omitempty"`
+	// OutstandingBalance is the total unpaid balance owed to this vendor.
+	OutstandingBalance *Money `json:"outstanding_balance,omitempty"`
 	// CreatedAt and UpdatedAt are account-local timestamps.
-	CreatedAt string `json:"created_at,omitempty"`
-	UpdatedAt string `json:"updated_at,omitempty"`
+	CreatedAt DateTime `json:"created_at,omitempty"`
+	UpdatedAt DateTime `json:"updated_at,omitempty"`
 	// VisState is the vendor's visibility state.
 	VisState VisState `json:"vis_state"`
 }
@@ -67,23 +76,25 @@ type billVendorListEnvelope struct {
 // BillVendorRequest is the payload for Create and Update. VendorName is
 // required by the API on creation.
 type BillVendorRequest struct {
-	VendorName              string   `json:"vendor_name,omitempty"`
-	PrimaryContactFirstName string   `json:"primary_contact_first_name,omitempty"`
-	PrimaryContactLastName  string   `json:"primary_contact_last_name,omitempty"`
-	PrimaryContactEmail     string   `json:"primary_contact_email,omitempty"`
-	Street                  string   `json:"street,omitempty"`
-	Street2                 string   `json:"street2,omitempty"`
-	City                    string   `json:"city,omitempty"`
-	Province                string   `json:"province,omitempty"`
-	PostalCode              string   `json:"postal_code,omitempty"`
-	Country                 string   `json:"country,omitempty"`
-	AccountNumber           string   `json:"account_number,omitempty"`
-	Phone                   string   `json:"phone,omitempty"`
-	Website                 string   `json:"website,omitempty"`
-	CurrencyCode            string   `json:"currency_code,omitempty"`
-	Language                string   `json:"language,omitempty"`
-	Is1099                  bool     `json:"is_1099,omitempty"`
-	TaxDefaults             []string `json:"tax_defaults,omitempty"`
+	VendorName              string `json:"vendor_name,omitempty"`
+	PrimaryContactFirstName string `json:"primary_contact_first_name,omitempty"`
+	PrimaryContactLastName  string `json:"primary_contact_last_name,omitempty"`
+	PrimaryContactEmail     string `json:"primary_contact_email,omitempty"`
+	Street                  string `json:"street,omitempty"`
+	Street2                 string `json:"street2,omitempty"`
+	City                    string `json:"city,omitempty"`
+	Province                string `json:"province,omitempty"`
+	PostalCode              string `json:"postal_code,omitempty"`
+	Country                 string `json:"country,omitempty"`
+	AccountNumber           string `json:"account_number,omitempty"`
+	Phone                   string `json:"phone,omitempty"`
+	Website                 string `json:"website,omitempty"`
+	CurrencyCode            string `json:"currency_code,omitempty"`
+	Language                string `json:"language,omitempty"`
+	// Is1099 is a pointer so a caller can explicitly send false to turn 1099
+	// tracking off, not just omit the field to leave it unset.
+	Is1099      *bool    `json:"is_1099,omitempty"`
+	TaxDefaults []string `json:"tax_defaults,omitempty"`
 }
 
 // BillVendorListOptions filters and paginates List.
@@ -93,54 +104,53 @@ type BillVendorListOptions struct {
 	PerPage int
 }
 
-func (o *BillVendorListOptions) requestOptions() []RequestOption {
+func (o *BillVendorListOptions) opts() []RequestOption {
 	if o == nil {
 		return nil
 	}
-	var opts []RequestOption
-	if o.Search != nil {
-		opts = append(opts, o.Search)
-	}
-	if o.Page > 0 {
-		opts = append(opts, PageNumber(o.Page))
-	}
-	if o.PerPage > 0 {
-		opts = append(opts, PerPage(o.PerPage))
-	}
-	return opts
+	return listOpts(o.Search, o.Page, o.PerPage)
 }
 
-func billVendorsPath(acct AccountID) string {
-	return fmt.Sprintf("/accounting/account/%s/bill_vendors/bill_vendors", acct)
+func billVendorsPath(acct AccountID) (string, error) {
+	if err := pathSegment(string(acct)); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("/accounting/account/%s/bill_vendors/bill_vendors", acct), nil
 }
 
-func billVendorPath(acct AccountID, id int64) string {
-	return fmt.Sprintf("/accounting/account/%s/bill_vendors/bill_vendors/%d", acct, id)
+func billVendorPath(acct AccountID, id int64) (string, error) {
+	base, err := billVendorsPath(acct)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s/%d", base, id), nil
 }
 
 // List returns one page of vendors.
 //
 // inventory: Expenses/Vendors (Beta)/Get Vendors
-func (s *BillVendorsService) List(ctx context.Context, acct AccountID, opts *BillVendorListOptions) (*Page[BillVendor], error) {
-	var env billVendorListEnvelope
-	if err := s.client.do(ctx, http.MethodGet, billVendorsPath(acct), FamilyAccounting, nil, &env, opts.requestOptions()...); err != nil {
+func (s *BillVendorsService) List(ctx context.Context, acct AccountID, opts *BillVendorListOptions, extra ...RequestOption) (*Page[BillVendor], error) {
+	path, err := billVendorsPath(acct)
+	if err != nil {
 		return nil, err
 	}
-	return &Page[BillVendor]{Items: env.BillVendors, Page: env.Page, Pages: env.Pages, PerPage: env.PerPage, Total: env.Total}, nil
+	var env billVendorListEnvelope
+	reqOpts := append(opts.opts(), extra...)
+	if err := s.client.do(ctx, http.MethodGet, path, FamilyAccounting, nil, &env, reqOpts...); err != nil {
+		return nil, err
+	}
+	return newPage(env.BillVendors, env.PageMeta), nil
 }
 
 // All walks every page of vendors, auto-paginating.
-func (s *BillVendorsService) All(ctx context.Context, acct AccountID, opts *BillVendorListOptions) iter.Seq2[BillVendor, error] {
-	perPage := 100
-	var search Search
-	if opts != nil {
-		if opts.PerPage > 0 {
-			perPage = opts.PerPage
-		}
-		search = opts.Search
-	}
+func (s *BillVendorsService) All(ctx context.Context, acct AccountID, opts *BillVendorListOptions, extra ...RequestOption) iter.Seq2[BillVendor, error] {
 	return All(ctx, func(ctx context.Context, page int) (*Page[BillVendor], error) {
-		return s.List(ctx, acct, &BillVendorListOptions{Search: search, Page: page, PerPage: perPage})
+		o := BillVendorListOptions{Page: page}
+		if opts != nil {
+			o.Search, o.PerPage = opts.Search, opts.PerPage
+		}
+		o.PerPage = pageSize(o.PerPage)
+		return s.List(ctx, acct, &o, extra...)
 	})
 }
 
@@ -151,11 +161,15 @@ func (s *BillVendorsService) Create(ctx context.Context, acct AccountID, req *Bi
 	if req == nil {
 		return nil, fmt.Errorf("freshbooks: BillVendors.Create needs a request")
 	}
+	path, err := billVendorsPath(acct)
+	if err != nil {
+		return nil, err
+	}
 	body := struct {
 		BillVendor *BillVendorRequest `json:"bill_vendor"`
 	}{req}
 	var env billVendorEnvelope
-	if err := s.client.do(ctx, http.MethodPost, billVendorsPath(acct), FamilyAccounting, body, &env); err != nil {
+	if err := s.client.do(ctx, http.MethodPost, path, FamilyAccounting, body, &env); err != nil {
 		return nil, err
 	}
 	return &env.BillVendor, nil
@@ -168,11 +182,15 @@ func (s *BillVendorsService) Update(ctx context.Context, acct AccountID, id int6
 	if req == nil {
 		return nil, fmt.Errorf("freshbooks: BillVendors.Update needs a request")
 	}
+	path, err := billVendorPath(acct, id)
+	if err != nil {
+		return nil, err
+	}
 	body := struct {
 		BillVendor *BillVendorRequest `json:"bill_vendor"`
 	}{req}
 	var env billVendorEnvelope
-	if err := s.client.do(ctx, http.MethodPut, billVendorPath(acct, id), FamilyAccounting, body, &env); err != nil {
+	if err := s.client.do(ctx, http.MethodPut, path, FamilyAccounting, body, &env); err != nil {
 		return nil, err
 	}
 	return &env.BillVendor, nil
@@ -183,6 +201,9 @@ func (s *BillVendorsService) Update(ctx context.Context, acct AccountID, id int6
 //
 // inventory: Expenses/Vendors (Beta)/Delete Vendor
 func (s *BillVendorsService) Delete(ctx context.Context, acct AccountID, id int64) error {
-	body := map[string]any{"bill_vendor": map[string]any{"vis_state": VisStateDeleted}}
-	return s.client.do(ctx, http.MethodPut, billVendorPath(acct, id), FamilyAccounting, body, nil)
+	path, err := billVendorPath(acct, id)
+	if err != nil {
+		return err
+	}
+	return s.client.softDelete(ctx, path, "bill_vendor")
 }

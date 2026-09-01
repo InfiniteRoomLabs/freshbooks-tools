@@ -85,28 +85,53 @@ func TestExpensesCreate(t *testing.T) {
 	ctx := context.Background()
 	acct := AccountID("ACM123")
 
-	t.Run("[happy] posts the expense payload, categoryid as a string", func(t *testing.T) {
+	t.Run("[happy] posts the expense payload, categoryid as an int", func(t *testing.T) {
 		var gotBody map[string]any
 		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			raw, _ := io.ReadAll(r.Body)
 			_ = json.Unmarshal(raw, &gotBody)
 			serveFixture(t, http.StatusOK, "accounting", "expenses_create")(w, r)
 		}))
+		categoryID := int64(65679)
 		exp, err := c.Expenses.Create(ctx, acct, &ExpenseWriteRequest{
 			Amount:     &Money{Amount: "79.73", Code: "USD"},
 			Date:       func() *Date { d := NewDate(fixedClock()); return &d }(),
-			CategoryID: "65679",
+			CategoryID: &categoryID,
 			Vendor:     "Example Fuel Co",
 		})
 		if err != nil {
 			t.Fatal(err)
 		}
 		inner, _ := gotBody["expense"].(map[string]any)
-		if inner["categoryid"] != "65679" {
+		if inner["categoryid"] != float64(65679) {
 			t.Fatalf("body = %v", gotBody)
+		}
+		if _, ok := inner["projectid"]; ok {
+			t.Fatal("an unset ProjectID should be omitted")
 		}
 		if exp.ExpenseID != 1825575 {
 			t.Fatalf("expense = %+v", exp)
+		}
+	})
+
+	t.Run("[happy] TaxPercent1 and MarkupPercent are sent as strings", func(t *testing.T) {
+		var gotBody map[string]any
+		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			raw, _ := io.ReadAll(r.Body)
+			_ = json.Unmarshal(raw, &gotBody)
+			serveFixture(t, http.StatusOK, "accounting", "expenses_create")(w, r)
+		}))
+		taxPercent1, markup := "13", "20"
+		if _, err := c.Expenses.Create(ctx, acct, &ExpenseWriteRequest{
+			Amount:        &Money{Amount: "79.73", Code: "USD"},
+			TaxPercent1:   &taxPercent1,
+			MarkupPercent: &markup,
+		}); err != nil {
+			t.Fatal(err)
+		}
+		inner, _ := gotBody["expense"].(map[string]any)
+		if inner["taxPercent1"] != "13" || inner["markup_percent"] != "20" {
+			t.Fatalf("body = %v", gotBody)
 		}
 	})
 
@@ -266,4 +291,32 @@ func TestExpensesCreateRecurring(t *testing.T) {
 			t.Fatal("want an error")
 		}
 	})
+}
+
+func TestExpensesRejectUnsafeAccountID(t *testing.T) {
+	ctx := context.Background()
+
+	tests := []struct {
+		name string
+		acct AccountID
+	}{
+		{"[sad] a path separator", "a/b"},
+		{"[sad] a query delimiter", "a?b"},
+		{"[sad] a fragment delimiter", "a#b"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			called := false
+			c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				called = true
+				w.WriteHeader(http.StatusOK)
+			}))
+			if _, err := c.Expenses.Get(ctx, tc.acct, 1); err == nil {
+				t.Fatal("want an error")
+			}
+			if called {
+				t.Fatal("a request was made with an unsafe account id")
+			}
+		})
+	}
 }

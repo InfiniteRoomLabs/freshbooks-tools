@@ -49,6 +49,19 @@ func listOpts(search Search, page, perPage int) []RequestOption {
 	return opts
 }
 
+// defaultPerPage is the page size All uses when the caller did not pick one:
+// large enough to keep the round-trip count down, small enough to stay
+// inside the accounting family's page-size ceiling.
+const defaultPerPage = 100
+
+// pageSize resolves a caller's page size against defaultPerPage.
+func pageSize(perPage int) int {
+	if perPage > 0 {
+		return perPage
+	}
+	return defaultPerPage
+}
+
 // newPage assembles a Page from a decoded list response's items and its
 // pagination block, whichever family the block came from (an embedded
 // PageMeta for the accounting family, a "meta" object for the business

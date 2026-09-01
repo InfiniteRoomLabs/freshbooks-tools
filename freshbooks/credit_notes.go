@@ -22,13 +22,15 @@ type CreditNoteLine struct {
 	Description string `json:"description,omitempty"`
 	// Qty and UnitCost determine the line's amount.
 	Qty      string `json:"qty,omitempty"`
-	UnitCost Money  `json:"unit_cost,omitempty"`
+	UnitCost Money  `json:"unit_cost,omitzero"`
 	// TaxName1, TaxAmount1, TaxName2, and TaxAmount2 record up to two taxes.
-	TaxName1      string `json:"taxName1,omitempty"`
-	TaxAmount1    Money  `json:"taxAmount1,omitempty"`
-	TaxName2      string `json:"taxName2,omitempty"`
-	TaxAmount2    Money  `json:"taxAmount2,omitempty"`
-	CompoundedTax bool   `json:"compounded_tax,omitempty"`
+	TaxName1   string `json:"taxName1,omitempty"`
+	TaxAmount1 Money  `json:"taxAmount1,omitzero"`
+	TaxName2   string `json:"taxName2,omitempty"`
+	TaxAmount2 Money  `json:"taxAmount2,omitzero"`
+	// CompoundedTax is a pointer so a caller can explicitly send false, not
+	// just omit the field to leave it unset.
+	CompoundedTax *bool `json:"compounded_tax,omitempty"`
 }
 
 // CreditNote is a credit issued to a client: a goodwill credit, a
@@ -54,8 +56,8 @@ type CreditNote struct {
 	Terms string `json:"terms,omitempty"`
 	// Amount is the credit's total; Paid is how much of it has been
 	// applied.
-	Amount Money `json:"amount,omitempty"`
-	Paid   Money `json:"paid,omitempty"`
+	Amount Money `json:"amount,omitzero"`
+	Paid   Money `json:"paid,omitzero"`
 	// Status, DisplayStatus, and PaymentStatus describe the credit's state.
 	Status        string `json:"status,omitempty"`
 	DisplayStatus string `json:"display_status,omitempty"`
@@ -115,54 +117,53 @@ type CreditNoteListOptions struct {
 	PerPage int
 }
 
-func (o *CreditNoteListOptions) requestOptions() []RequestOption {
+func (o *CreditNoteListOptions) opts() []RequestOption {
 	if o == nil {
 		return nil
 	}
-	var opts []RequestOption
-	if o.Search != nil {
-		opts = append(opts, o.Search)
-	}
-	if o.Page > 0 {
-		opts = append(opts, PageNumber(o.Page))
-	}
-	if o.PerPage > 0 {
-		opts = append(opts, PerPage(o.PerPage))
-	}
-	return opts
+	return listOpts(o.Search, o.Page, o.PerPage)
 }
 
-func creditNotesPath(acct AccountID) string {
-	return fmt.Sprintf("/accounting/account/%s/credit_notes/credit_notes", acct)
+func creditNotesPath(acct AccountID) (string, error) {
+	if err := pathSegment(string(acct)); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("/accounting/account/%s/credit_notes/credit_notes", acct), nil
 }
 
-func creditNotePath(acct AccountID, id int64) string {
-	return fmt.Sprintf("/accounting/account/%s/credit_notes/credit_notes/%d", acct, id)
+func creditNotePath(acct AccountID, id int64) (string, error) {
+	base, err := creditNotesPath(acct)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s/%d", base, id), nil
 }
 
 // List returns one page of credit notes.
 //
 // inventory: Clients/Credits/List Credits
-func (s *CreditNotesService) List(ctx context.Context, acct AccountID, opts *CreditNoteListOptions) (*Page[CreditNote], error) {
-	var env creditNoteListEnvelope
-	if err := s.client.do(ctx, http.MethodGet, creditNotesPath(acct), FamilyAccounting, nil, &env, opts.requestOptions()...); err != nil {
+func (s *CreditNotesService) List(ctx context.Context, acct AccountID, opts *CreditNoteListOptions, extra ...RequestOption) (*Page[CreditNote], error) {
+	path, err := creditNotesPath(acct)
+	if err != nil {
 		return nil, err
 	}
-	return &Page[CreditNote]{Items: env.CreditNotes, Page: env.Page, Pages: env.Pages, PerPage: env.PerPage, Total: env.Total}, nil
+	var env creditNoteListEnvelope
+	reqOpts := append(opts.opts(), extra...)
+	if err := s.client.do(ctx, http.MethodGet, path, FamilyAccounting, nil, &env, reqOpts...); err != nil {
+		return nil, err
+	}
+	return newPage(env.CreditNotes, env.PageMeta), nil
 }
 
 // All walks every page of credit notes, auto-paginating.
-func (s *CreditNotesService) All(ctx context.Context, acct AccountID, opts *CreditNoteListOptions) iter.Seq2[CreditNote, error] {
-	perPage := 100
-	var search Search
-	if opts != nil {
-		if opts.PerPage > 0 {
-			perPage = opts.PerPage
-		}
-		search = opts.Search
-	}
+func (s *CreditNotesService) All(ctx context.Context, acct AccountID, opts *CreditNoteListOptions, extra ...RequestOption) iter.Seq2[CreditNote, error] {
 	return All(ctx, func(ctx context.Context, page int) (*Page[CreditNote], error) {
-		return s.List(ctx, acct, &CreditNoteListOptions{Search: search, Page: page, PerPage: perPage})
+		o := CreditNoteListOptions{Page: page}
+		if opts != nil {
+			o.Search, o.PerPage = opts.Search, opts.PerPage
+		}
+		o.PerPage = pageSize(o.PerPage)
+		return s.List(ctx, acct, &o, extra...)
 	})
 }
 
@@ -176,11 +177,15 @@ func (s *CreditNotesService) Create(ctx context.Context, acct AccountID, req *Cr
 	if req == nil {
 		return nil, fmt.Errorf("freshbooks: CreditNotes.Create needs a request")
 	}
+	path, err := creditNotesPath(acct)
+	if err != nil {
+		return nil, err
+	}
 	body := struct {
 		CreditNote *CreditNoteWriteRequest `json:"credit_note"`
 	}{req}
 	var env creditNoteEnvelope
-	if err := s.client.do(ctx, http.MethodPost, creditNotesPath(acct), FamilyAccounting, body, &env); err != nil {
+	if err := s.client.do(ctx, http.MethodPost, path, FamilyAccounting, body, &env); err != nil {
 		return nil, err
 	}
 	return &env.CreditNote, nil
@@ -195,11 +200,15 @@ func (s *CreditNotesService) Update(ctx context.Context, acct AccountID, id int6
 	if req == nil {
 		return nil, fmt.Errorf("freshbooks: CreditNotes.Update needs a request")
 	}
+	path, err := creditNotePath(acct, id)
+	if err != nil {
+		return nil, err
+	}
 	body := struct {
 		CreditNote *CreditNoteWriteRequest `json:"credit_note"`
 	}{req}
 	var env creditNoteEnvelope
-	if err := s.client.do(ctx, http.MethodPut, creditNotePath(acct, id), FamilyAccounting, body, &env); err != nil {
+	if err := s.client.do(ctx, http.MethodPut, path, FamilyAccounting, body, &env); err != nil {
 		return nil, err
 	}
 	return &env.CreditNote, nil
@@ -210,6 +219,9 @@ func (s *CreditNotesService) Update(ctx context.Context, acct AccountID, id int6
 //
 // inventory: Clients/Credits/Delete Credit
 func (s *CreditNotesService) Delete(ctx context.Context, acct AccountID, id int64) error {
-	body := map[string]any{"credit_note": map[string]any{"vis_state": VisStateDeleted}}
-	return s.client.do(ctx, http.MethodPut, creditNotePath(acct, id), FamilyAccounting, body, nil)
+	path, err := creditNotePath(acct, id)
+	if err != nil {
+		return err
+	}
+	return s.client.softDelete(ctx, path, "credit_note")
 }

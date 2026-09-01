@@ -2,7 +2,9 @@ package freshbooks
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"testing"
 )
@@ -11,7 +13,7 @@ func TestBillVendorsList(t *testing.T) {
 	ctx := context.Background()
 	acct := AccountID("ACM123")
 
-	t.Run("[happy] returns a page of vendors", func(t *testing.T) {
+	t.Run("[happy] returns a page of vendors, decoding object tax defaults and the outstanding balance", func(t *testing.T) {
 		c, _ := newTestClient(t, serveFixture(t, http.StatusOK, "accounting", "bill_vendors_list"))
 		page, err := c.BillVendors.List(ctx, acct, nil)
 		if err != nil {
@@ -19,6 +21,13 @@ func TestBillVendorsList(t *testing.T) {
 		}
 		if len(page.Items) != 1 || page.Items[0].VendorName != "Example Supplies Co" {
 			t.Fatalf("page = %+v", page)
+		}
+		v := page.Items[0]
+		if len(v.TaxDefaults) != 1 || v.TaxDefaults[0].Name != "HST" || v.TaxDefaults[0].TaxID != 4001 {
+			t.Fatalf("tax defaults = %+v", v.TaxDefaults)
+		}
+		if v.OutstandingBalance == nil || v.OutstandingBalance.Amount != "375.00" {
+			t.Fatalf("outstanding balance = %+v", v.OutstandingBalance)
 		}
 	})
 
@@ -34,8 +43,16 @@ func TestBillVendorsAll(t *testing.T) {
 	ctx := context.Background()
 	acct := AccountID("ACM123")
 
-	t.Run("[happy] auto-paginates until a short page", func(t *testing.T) {
-		c, _ := newTestClient(t, serveFixture(t, http.StatusOK, "accounting", "bill_vendors_list"))
+	t.Run("[happy] auto-paginates across two pages", func(t *testing.T) {
+		var calls int
+		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			calls++
+			if r.URL.Query().Get("page") == "2" {
+				serveFixture(t, http.StatusOK, "accounting", "bill_vendors_list_page2")(w, r)
+				return
+			}
+			serveFixture(t, http.StatusOK, "accounting", "bill_vendors_list")(w, r)
+		}))
 		var got []BillVendor
 		for v, err := range c.BillVendors.All(ctx, acct, nil) {
 			if err != nil {
@@ -43,8 +60,11 @@ func TestBillVendorsAll(t *testing.T) {
 			}
 			got = append(got, v)
 		}
-		if len(got) != 1 {
-			t.Fatalf("got %d vendors", len(got))
+		if calls != 2 {
+			t.Fatalf("calls = %d, want 2", calls)
+		}
+		if len(got) != 2 || got[0].VendorID != 5 || got[1].VendorID != 6 {
+			t.Fatalf("got %d vendors: %+v", len(got), got)
 		}
 	})
 }
@@ -53,10 +73,13 @@ func TestBillVendorsCreate(t *testing.T) {
 	ctx := context.Background()
 	acct := AccountID("ACM123")
 
-	t.Run("[happy] posts the vendor payload", func(t *testing.T) {
+	t.Run("[happy] posts the vendor payload, omitting an unset Is1099", func(t *testing.T) {
 		var gotMethod string
+		var gotBody map[string]any
 		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			gotMethod = r.Method
+			raw, _ := io.ReadAll(r.Body)
+			_ = json.Unmarshal(raw, &gotBody)
 			serveFixture(t, http.StatusOK, "accounting", "bill_vendors_create")(w, r)
 		}))
 		v, err := c.BillVendors.Create(ctx, acct, &BillVendorRequest{VendorName: "Example Supplies Co"})
@@ -66,8 +89,33 @@ func TestBillVendorsCreate(t *testing.T) {
 		if gotMethod != http.MethodPost {
 			t.Fatalf("method = %q", gotMethod)
 		}
+		inner, _ := gotBody["bill_vendor"].(map[string]any)
+		if inner["vendor_name"] != "Example Supplies Co" {
+			t.Fatalf("body = %v", gotBody)
+		}
+		if _, ok := inner["is_1099"]; ok {
+			t.Fatal("an unset Is1099 should be omitted")
+		}
 		if v.VendorID != 5 {
 			t.Fatalf("vendor = %+v", v)
+		}
+	})
+
+	t.Run("[happy] an explicit false Is1099 is sent, not omitted", func(t *testing.T) {
+		var gotBody map[string]any
+		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			raw, _ := io.ReadAll(r.Body)
+			_ = json.Unmarshal(raw, &gotBody)
+			serveFixture(t, http.StatusOK, "accounting", "bill_vendors_create")(w, r)
+		}))
+		is1099 := false
+		if _, err := c.BillVendors.Create(ctx, acct, &BillVendorRequest{VendorName: "Example Supplies Co", Is1099: &is1099}); err != nil {
+			t.Fatal(err)
+		}
+		inner, _ := gotBody["bill_vendor"].(map[string]any)
+		v, ok := inner["is_1099"]
+		if !ok || v != false {
+			t.Fatalf("body = %v, want is_1099 explicitly false", gotBody)
 		}
 	})
 
@@ -111,8 +159,11 @@ func TestBillVendorsDelete(t *testing.T) {
 
 	t.Run("[happy] soft-deletes via a vis_state PUT, not a real DELETE", func(t *testing.T) {
 		var gotMethod string
+		var gotBody map[string]any
 		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			gotMethod = r.Method
+			raw, _ := io.ReadAll(r.Body)
+			_ = json.Unmarshal(raw, &gotBody)
 			serveFixture(t, http.StatusOK, "accounting", "bill_vendors_delete")(w, r)
 		}))
 		if err := c.BillVendors.Delete(ctx, acct, 5); err != nil {
@@ -120,6 +171,10 @@ func TestBillVendorsDelete(t *testing.T) {
 		}
 		if gotMethod != http.MethodPut {
 			t.Fatalf("method = %q, want PUT", gotMethod)
+		}
+		inner, _ := gotBody["bill_vendor"].(map[string]any)
+		if inner["vis_state"] != float64(VisStateDeleted) {
+			t.Fatalf("body = %v", gotBody)
 		}
 	})
 
@@ -132,4 +187,32 @@ func TestBillVendorsDelete(t *testing.T) {
 			t.Fatalf("err = %v", err)
 		}
 	})
+}
+
+func TestBillVendorsRejectUnsafeAccountID(t *testing.T) {
+	ctx := context.Background()
+
+	tests := []struct {
+		name string
+		acct AccountID
+	}{
+		{"[sad] a path separator", "a/b"},
+		{"[sad] a query delimiter", "a?b"},
+		{"[sad] a fragment delimiter", "a#b"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			called := false
+			c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				called = true
+				w.WriteHeader(http.StatusOK)
+			}))
+			if _, err := c.BillVendors.List(ctx, tc.acct, nil); err == nil {
+				t.Fatal("want an error")
+			}
+			if called {
+				t.Fatal("a request was made with an unsafe account id")
+			}
+		})
+	}
 }
