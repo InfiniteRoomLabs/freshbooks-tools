@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Phase 2 work orders `docs/phases/2/plan-{a,b,c,d}.md` and the 2026-09-01 stage-1 re-cut recorded in `GOAL.md`: 25 cross-folder duplicate requests (same method+URL in two or three Postman folders) are each owned by one batch and implemented as one canonical method with stacked `// inventory:` comments; effective batch loads a 51 / b 59 / c 47 / d 52.
 - Phase 1 (lib core) shipped: the `freshbooks` library client, transport, errors, pagination, types, `auth/` package, and Identity service (see `freshbooks/CHANGELOG.md` for the library-level detail); live-verified OAuth facts recorded as `STATE AS OF 2026-08-23` callouts in spec section 3; sanitized live captures under `freshbooks/testdata/seed/`; `docs/authentication.md` and `docs/library.md` written for real.
 - Phase 1 review-gate artifacts: work order, lead triage, and the implementer / code-review / simplification / security / QA reports under `docs/phases/1/`.
 - Phase 0 scaffold: `go.work` with the `freshbooks`, `mcp`, and `cli` modules; the `freshbooks/internal/inventory` tool that normalizes the Postman collection into `inventory.json` and checks Go source against it via `// inventory:` comments; `mise.toml` tasks (`fmt-check`, `vet`, `lint`, `test`, `cover`, `vuln`, `inventory-check`, `actionlint`, `build`, `docs`, `check`) backed by `scripts/`; `.golangci.yml`; `.github/workflows/{ci,release}.yml` and per-module `.goreleaser.yaml`; `.github/dependabot.yml`; `README.md` and the `docs/*.md` stubs.
