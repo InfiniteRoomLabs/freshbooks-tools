@@ -1,6 +1,6 @@
 # Phase 4 (CLI) — implementer report
 
-Branch `phase-4/cli`, 10 commits on top of `f557d2d` (the work order commit). `git status --porcelain` is empty; `mise run check` is green on all three modules.
+Branch `phase-4/cli`: `f557d2d` (the work order commit, already on the branch when this run started) plus 10 implementation/test/fix/docs commits, listed below, plus this report's own commit. `git status --porcelain` is empty; `mise run check` is green on all three modules.
 
 ## What shipped
 
