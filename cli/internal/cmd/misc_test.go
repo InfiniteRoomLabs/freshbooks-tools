@@ -12,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/InfiniteRoomLabs/freshbooks-tools/cli/internal/output"
 	"github.com/spf13/cobra"
 )
 
@@ -274,23 +273,6 @@ func TestVoidErrorPath(t *testing.T) {
 			t.Errorf("void() = %v", out)
 		}
 	})
-}
-
-func TestSortedKeys(t *testing.T) {
-	// output.SortedKeys is exercised indirectly through `config
-	// contexts`; this drives it directly for the deterministic-order
-	// guarantee itself.
-	m := map[string]int{"c": 1, "a": 2, "b": 3}
-	got := output.SortedKeys(m)
-	want := []string{"a", "b", "c"}
-	if len(got) != len(want) {
-		t.Fatalf("got %v, want %v", got, want)
-	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Fatalf("got %v, want %v", got, want)
-		}
-	}
 }
 
 // TestOpenUploadMissingFile exercises OpenUpload's error path.

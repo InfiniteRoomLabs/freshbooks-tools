@@ -225,14 +225,7 @@ func setupCredentials(t *testing.T) {
 	t.Helper()
 	dir := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", dir)
-	credDir := filepath.Join(dir, "freshbooks", "credentials")
-	if err := os.MkdirAll(credDir, 0o700); err != nil {
-		t.Fatal(err)
-	}
-	tok := `{"access_token":"test-fixture-token","token_type":"Bearer"}`
-	if err := os.WriteFile(filepath.Join(credDir, "default.json"), []byte(tok), 0o600); err != nil {
-		t.Fatal(err)
-	}
+	writeCredentials(t, dir, "default", `{"access_token":"test-fixture-token","token_type":"Bearer"}`)
 }
 
 // buildArgs renders one command's full argv for the round-trip test:

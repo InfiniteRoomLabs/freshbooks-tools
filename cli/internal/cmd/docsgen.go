@@ -182,8 +182,10 @@ func renderDocsTree(buf *bytes.Buffer, c *cobra.Command) error {
 	// <today's date>" footer, which would otherwise make every run
 	// non-idempotent.
 	c.DisableAutoGenTag = true
-	c.InitDefaultHelpCmd()
-	c.InitDefaultHelpFlag()
+	// GenMarkdownCustom itself calls InitDefaultHelpCmd/InitDefaultHelpFlag
+	// as its own first two statements before rendering anything (cobra
+	// doc/md_docs.go), so calling them again here is redundant (F28/
+	// simplify #4).
 	if err := doc.GenMarkdownCustom(c, buf, linkHandler); err != nil {
 		return err
 	}

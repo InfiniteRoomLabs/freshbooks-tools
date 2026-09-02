@@ -6,6 +6,23 @@ import (
 	"github.com/InfiniteRoomLabs/freshbooks-tools/freshbooks"
 )
 
+// reportOptions decodes a report command's optional -f/--file filter body
+// into a fresh O, returning a nil *O when no body was supplied -- exactly
+// the nil the hand-written "if !has { ... nil }" branch each report
+// closure used to pass, so the lib method cannot tell the two forms apart
+// (F28/simplify #1).
+func reportOptions[O any](inv *Invocation) (*O, error) {
+	var opts O
+	has, err := inv.DecodeBodyOptional(&opts)
+	if err != nil {
+		return nil, err
+	}
+	if !has {
+		return nil, nil
+	}
+	return &opts, nil
+}
+
 // reportsCommands wrap *freshbooks.ReportsService.
 //
 // docs/phases/4/commands.md's "report opts as flags" column is not
@@ -26,15 +43,11 @@ var reportsCommands = []Command{
 		Keys:  []string{"Reports/Accounts Aging"},
 		Class: ClassRO, Scope: ScopeAccount, Body: true, BodyOptional: true,
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
-			var opts freshbooks.AccountsAgingOptions
-			has, err := inv.DecodeBodyOptional(&opts)
+			opts, err := reportOptions[freshbooks.AccountsAgingOptions](inv)
 			if err != nil {
 				return nil, err
 			}
-			if !has {
-				return c.Reports.AccountsAging(ctx, inv.Scope.AccountID, nil)
-			}
-			return c.Reports.AccountsAging(ctx, inv.Scope.AccountID, &opts)
+			return c.Reports.AccountsAging(ctx, inv.Scope.AccountID, opts)
 		},
 	},
 	{
@@ -44,15 +57,11 @@ var reportsCommands = []Command{
 		Keys:  []string{"Reports/Balance Sheet"},
 		Class: ClassRO, Scope: ScopeAccount, Body: true, BodyOptional: true,
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
-			var opts freshbooks.BalanceSheetOptions
-			has, err := inv.DecodeBodyOptional(&opts)
+			opts, err := reportOptions[freshbooks.BalanceSheetOptions](inv)
 			if err != nil {
 				return nil, err
 			}
-			if !has {
-				return c.Reports.BalanceSheet(ctx, inv.Scope.AccountID, nil)
-			}
-			return c.Reports.BalanceSheet(ctx, inv.Scope.AccountID, &opts)
+			return c.Reports.BalanceSheet(ctx, inv.Scope.AccountID, opts)
 		},
 	},
 	{
@@ -62,15 +71,11 @@ var reportsCommands = []Command{
 		Keys:  []string{"Reports/Bank Reconciliation Summary"},
 		Class: ClassRO, Scope: ScopeAccount, Body: true, BodyOptional: true,
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
-			var opts freshbooks.BankReconciliationSummaryOptions
-			has, err := inv.DecodeBodyOptional(&opts)
+			opts, err := reportOptions[freshbooks.BankReconciliationSummaryOptions](inv)
 			if err != nil {
 				return nil, err
 			}
-			if !has {
-				return c.Reports.BankReconciliationSummary(ctx, inv.Scope.AccountID, nil)
-			}
-			return c.Reports.BankReconciliationSummary(ctx, inv.Scope.AccountID, &opts)
+			return c.Reports.BankReconciliationSummary(ctx, inv.Scope.AccountID, opts)
 		},
 	},
 	{
@@ -80,15 +85,11 @@ var reportsCommands = []Command{
 		Keys:  []string{"Reports/Client Account Statement"},
 		Class: ClassRO, Scope: ScopeAccount, Body: true, BodyOptional: true,
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
-			var opts freshbooks.ClientAccountStatementOptions
-			has, err := inv.DecodeBodyOptional(&opts)
+			opts, err := reportOptions[freshbooks.ClientAccountStatementOptions](inv)
 			if err != nil {
 				return nil, err
 			}
-			if !has {
-				return c.Reports.ClientAccountStatement(ctx, inv.Scope.AccountID, nil)
-			}
-			return c.Reports.ClientAccountStatement(ctx, inv.Scope.AccountID, &opts)
+			return c.Reports.ClientAccountStatement(ctx, inv.Scope.AccountID, opts)
 		},
 	},
 	{
@@ -108,15 +109,11 @@ var reportsCommands = []Command{
 		Keys:  []string{"Reports/Expense Details"},
 		Class: ClassRO, Scope: ScopeAccount, Body: true, BodyOptional: true,
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
-			var opts freshbooks.ExpenseDetailsOptions
-			has, err := inv.DecodeBodyOptional(&opts)
+			opts, err := reportOptions[freshbooks.ExpenseDetailsOptions](inv)
 			if err != nil {
 				return nil, err
 			}
-			if !has {
-				return c.Reports.ExpenseDetails(ctx, inv.Scope.AccountID, nil)
-			}
-			return c.Reports.ExpenseDetails(ctx, inv.Scope.AccountID, &opts)
+			return c.Reports.ExpenseDetails(ctx, inv.Scope.AccountID, opts)
 		},
 	},
 	{
@@ -126,15 +123,11 @@ var reportsCommands = []Command{
 		Keys:  []string{"Reports/Invoice Details"},
 		Class: ClassRO, Scope: ScopeAccount, Body: true, BodyOptional: true,
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
-			var opts freshbooks.InvoiceDetailsOptions
-			has, err := inv.DecodeBodyOptional(&opts)
+			opts, err := reportOptions[freshbooks.InvoiceDetailsOptions](inv)
 			if err != nil {
 				return nil, err
 			}
-			if !has {
-				return c.Reports.InvoiceDetails(ctx, inv.Scope.AccountID, nil)
-			}
-			return c.Reports.InvoiceDetails(ctx, inv.Scope.AccountID, &opts)
+			return c.Reports.InvoiceDetails(ctx, inv.Scope.AccountID, opts)
 		},
 	},
 	{
@@ -144,15 +137,11 @@ var reportsCommands = []Command{
 		Keys:  []string{"Reports/Item Sales"},
 		Class: ClassRO, Scope: ScopeAccount, Body: true, BodyOptional: true,
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
-			var opts freshbooks.ItemSalesOptions
-			has, err := inv.DecodeBodyOptional(&opts)
+			opts, err := reportOptions[freshbooks.ItemSalesOptions](inv)
 			if err != nil {
 				return nil, err
 			}
-			if !has {
-				return c.Reports.ItemSales(ctx, inv.Scope.AccountID, nil)
-			}
-			return c.Reports.ItemSales(ctx, inv.Scope.AccountID, &opts)
+			return c.Reports.ItemSales(ctx, inv.Scope.AccountID, opts)
 		},
 	},
 	{
@@ -162,15 +151,11 @@ var reportsCommands = []Command{
 		Keys:  []string{"Reports/Payments Collected"},
 		Class: ClassRO, Scope: ScopeAccount, Body: true, BodyOptional: true,
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
-			var opts freshbooks.PaymentsCollectedOptions
-			has, err := inv.DecodeBodyOptional(&opts)
+			opts, err := reportOptions[freshbooks.PaymentsCollectedOptions](inv)
 			if err != nil {
 				return nil, err
 			}
-			if !has {
-				return c.Reports.PaymentsCollected(ctx, inv.Scope.AccountID, nil)
-			}
-			return c.Reports.PaymentsCollected(ctx, inv.Scope.AccountID, &opts)
+			return c.Reports.PaymentsCollected(ctx, inv.Scope.AccountID, opts)
 		},
 	},
 	{
@@ -180,15 +165,11 @@ var reportsCommands = []Command{
 		Keys:  []string{"Reports/Profit/Loss Report"},
 		Class: ClassRO, Scope: ScopeAccount, Body: true, BodyOptional: true,
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
-			var opts freshbooks.ProfitLossOptions
-			has, err := inv.DecodeBodyOptional(&opts)
+			opts, err := reportOptions[freshbooks.ProfitLossOptions](inv)
 			if err != nil {
 				return nil, err
 			}
-			if !has {
-				return c.Reports.ProfitLoss(ctx, inv.Scope.AccountID, nil)
-			}
-			return c.Reports.ProfitLoss(ctx, inv.Scope.AccountID, &opts)
+			return c.Reports.ProfitLoss(ctx, inv.Scope.AccountID, opts)
 		},
 	},
 	{
@@ -198,15 +179,11 @@ var reportsCommands = []Command{
 		Keys:  []string{"Reports/Revenue By Client"},
 		Class: ClassRO, Scope: ScopeAccount, Body: true, BodyOptional: true,
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
-			var opts freshbooks.RevenueByClientOptions
-			has, err := inv.DecodeBodyOptional(&opts)
+			opts, err := reportOptions[freshbooks.RevenueByClientOptions](inv)
 			if err != nil {
 				return nil, err
 			}
-			if !has {
-				return c.Reports.RevenueByClient(ctx, inv.Scope.AccountID, nil)
-			}
-			return c.Reports.RevenueByClient(ctx, inv.Scope.AccountID, &opts)
+			return c.Reports.RevenueByClient(ctx, inv.Scope.AccountID, opts)
 		},
 	},
 	{
@@ -216,15 +193,11 @@ var reportsCommands = []Command{
 		Keys:  []string{"Reports/Sales Tax Summary"},
 		Class: ClassRO, Scope: ScopeAccount, Body: true, BodyOptional: true,
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
-			var opts freshbooks.SalesTaxSummaryOptions
-			has, err := inv.DecodeBodyOptional(&opts)
+			opts, err := reportOptions[freshbooks.SalesTaxSummaryOptions](inv)
 			if err != nil {
 				return nil, err
 			}
-			if !has {
-				return c.Reports.SalesTaxSummary(ctx, inv.Scope.AccountID, nil)
-			}
-			return c.Reports.SalesTaxSummary(ctx, inv.Scope.AccountID, &opts)
+			return c.Reports.SalesTaxSummary(ctx, inv.Scope.AccountID, opts)
 		},
 	},
 	{
@@ -234,15 +207,11 @@ var reportsCommands = []Command{
 		Keys:  []string{"Reports/Trial Balance"},
 		Class: ClassRO, Scope: ScopeAccount, Body: true, BodyOptional: true,
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
-			var opts freshbooks.TrialBalanceOptions
-			has, err := inv.DecodeBodyOptional(&opts)
+			opts, err := reportOptions[freshbooks.TrialBalanceOptions](inv)
 			if err != nil {
 				return nil, err
 			}
-			if !has {
-				return c.Reports.TrialBalance(ctx, inv.Scope.AccountID, nil)
-			}
-			return c.Reports.TrialBalance(ctx, inv.Scope.AccountID, &opts)
+			return c.Reports.TrialBalance(ctx, inv.Scope.AccountID, opts)
 		},
 	},
 	{

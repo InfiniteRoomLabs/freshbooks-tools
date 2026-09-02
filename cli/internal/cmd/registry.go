@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -393,7 +394,13 @@ func (c Command) execute(cmd *cobra.Command, args []string, state *runtimeState)
 var All = buildRegistry()
 
 func buildRegistry() []Command {
-	return sortedCommands(joinAll(
+	// slices.Concat (F28/simplify #2): mcp/internal/tools/registry.go's
+	// identical 33-slice join already uses it (Phase 3 simplification
+	// #5); this hand-rolled equivalent was a CLI-side reintroduction.
+	// Concat preserves order exactly, and sortedCommands below sorts
+	// afterwards with SliceStable anyway, so All's contents and index
+	// order are unchanged.
+	return sortedCommands(slices.Concat(
 		attachmentsCommands, billPaymentsCommands, billsCommands, billVendorsCommands,
 		callbacksCommands, clientsCommands, contactsCommands, creditNotesCommands,
 		estimatesCommands, expenseCategoriesCommands, expensesCommands, gatewaysCommands,
@@ -403,14 +410,6 @@ func buildRegistry() []Command {
 		retainersCommands, serviceRatesCommands, servicesCommands, staffCommands,
 		systemsCommands, tasksCommands, taxesCommands, teamMembersCommands, timeEntriesCommands,
 	))
-}
-
-func joinAll(groups ...[]Command) []Command {
-	var out []Command
-	for _, g := range groups {
-		out = append(out, g...)
-	}
-	return out
 }
 
 // sortedCommands orders commands by group then verb, so BuildTree's cobra
