@@ -60,7 +60,9 @@ func newAPICmd(state *runtimeState) *cobra.Command {
 	}
 
 	cc.Flags().StringVarP(&bodyFile, "file", "f", "", "JSON request body: a file path, or - for stdin")
-	cc.Flags().StringArrayVarP(&queryPairs, "query", "q", nil, "query parameter as key=value (repeatable)")
+	// No -q shorthand: the global -q/--quiet persistent flag already
+	// claims it, and cobra panics on a duplicate shorthand at merge time.
+	cc.Flags().StringArrayVar(&queryPairs, "query", nil, "query parameter as key=value (repeatable)")
 	return cc
 }
 

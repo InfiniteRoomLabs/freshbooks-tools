@@ -241,7 +241,7 @@ func (s *runtimeState) buildClient(cmd *cobra.Command) (*freshbooks.Client, erro
 
 	opts := []freshbooks.Option{
 		freshbooks.WithTokenSource(tokenSource),
-		freshbooks.WithHTTPClient(&http.Client{Timeout: timeout}),
+		freshbooks.WithHTTPClient(&http.Client{Transport: httpTransport(), Timeout: timeout}),
 		freshbooks.WithLogger(s.buildLogger(cmd)),
 	}
 	if baseURL != "" {
@@ -252,6 +252,22 @@ func (s *runtimeState) buildClient(cmd *cobra.Command) (*freshbooks.Client, erro
 		return nil, &runtimeError{err: err}
 	}
 	return client, nil
+}
+
+// testTransport, when non-nil, overrides the HTTP transport buildClient's
+// non-dry-run path uses. It is only ever set by this package's own
+// round-trip test (roundtrip_test.go) to redirect every request --
+// including the two payment_options tokenization calls that bypass
+// WithBaseURL entirely via the lib's doOnHost -- onto a local fixture
+// server; no flag or environment variable can reach it, so production
+// behavior is unaffected.
+var testTransport http.RoundTripper
+
+func httpTransport() http.RoundTripper {
+	if testTransport != nil {
+		return testTransport
+	}
+	return http.DefaultTransport
 }
 
 // errDryRun is the sentinel dryRunTransport.RoundTrip returns, so no

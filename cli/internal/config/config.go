@@ -28,15 +28,17 @@ const (
 // overrides them. Never a client secret or a token -- see the package
 // doc comment.
 type Context struct {
-	Account      string `yaml:"account,omitempty"`
-	Business     string `yaml:"business,omitempty"`
-	BusinessUUID string `yaml:"business_uuid,omitempty"`
+	Account      string `yaml:"account,omitempty" json:"account,omitempty"`
+	Business     string `yaml:"business,omitempty" json:"business,omitempty"`
+	BusinessUUID string `yaml:"business_uuid,omitempty" json:"business_uuid,omitempty"`
 }
 
-// File is the decoded shape of config.yaml.
+// File is the decoded shape of config.yaml. Its json tags matter beyond
+// round-tripping the file itself: `freshbooks config view` marshals a
+// *File directly, so these are what -o json actually prints.
 type File struct {
-	CurrentContext string             `yaml:"current-context,omitempty"`
-	Contexts       map[string]Context `yaml:"contexts,omitempty"`
+	CurrentContext string             `yaml:"current-context,omitempty" json:"current-context,omitempty"`
+	Contexts       map[string]Context `yaml:"contexts,omitempty" json:"contexts,omitempty"`
 }
 
 // Current returns the current context, and whether one is configured.

@@ -239,6 +239,176 @@ func TestDefaultFormat(t *testing.T) {
 	})
 }
 
+func TestSortedKeys(t *testing.T) {
+	m := map[string]int{"c": 1, "a": 2, "b": 3}
+	got := SortedKeys(m)
+	want := []string{"a", "b", "c"}
+	if len(got) != len(want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("got %v, want %v", got, want)
+		}
+	}
+
+	t.Run("[edge] an empty map", func(t *testing.T) {
+		if got := SortedKeys(map[string]int{}); len(got) != 0 {
+			t.Errorf("got %v, want empty", got)
+		}
+	})
+}
+
+func TestConvertNumbers(t *testing.T) {
+	t.Run("[happy] a float leaf stays a float64", func(t *testing.T) {
+		raw := json.RawMessage(`{"amount": 12.5}`)
+		v, err := jsonToYAMLValue(raw)
+		if err != nil {
+			t.Fatal(err)
+		}
+		m := v.(map[string]any) //nolint:errcheck
+		if _, ok := m["amount"].(float64); !ok {
+			t.Errorf("amount = %#v, want float64", m["amount"])
+		}
+	})
+
+	t.Run("[happy] nested arrays and objects convert recursively", func(t *testing.T) {
+		raw := json.RawMessage(`{"items": [{"id": 1}, {"id": 2}], "total": 2}`)
+		v, err := jsonToYAMLValue(raw)
+		if err != nil {
+			t.Fatal(err)
+		}
+		m := v.(map[string]any)     //nolint:errcheck
+		items := m["items"].([]any) //nolint:errcheck
+		if len(items) != 2 {
+			t.Fatalf("got %d items", len(items))
+		}
+		first := items[0].(map[string]any) //nolint:errcheck
+		if id, ok := first["id"].(int64); !ok || id != 1 {
+			t.Errorf("id = %#v", first["id"])
+		}
+	})
+
+	t.Run("[edge] booleans and strings pass through unchanged", func(t *testing.T) {
+		raw := json.RawMessage(`{"active": true, "name": "x"}`)
+		v, err := jsonToYAMLValue(raw)
+		if err != nil {
+			t.Fatal(err)
+		}
+		m := v.(map[string]any) //nolint:errcheck
+		if m["active"] != true || m["name"] != "x" {
+			t.Errorf("got %#v", m)
+		}
+	})
+}
+
+func TestWriteTable_Extra(t *testing.T) {
+	t.Run("[edge] a bare scalar list gets one unlabeled column", func(t *testing.T) {
+		var buf bytes.Buffer
+		raw := json.RawMessage(`["a", "b", "c"]`)
+		if err := Write(&buf, raw, Options{Format: Table}); err != nil {
+			t.Fatalf("Write() error = %v", err)
+		}
+		got := buf.String()
+		if got != "a\nb\nc\n" {
+			t.Errorf("got %q", got)
+		}
+	})
+
+	t.Run("[edge] a bare number renders as a single row", func(t *testing.T) {
+		var buf bytes.Buffer
+		if err := Write(&buf, 42, Options{Format: Table}); err != nil {
+			t.Fatalf("Write() error = %v", err)
+		}
+		if strings.TrimSpace(buf.String()) != "42" {
+			t.Errorf("got %q", buf.String())
+		}
+	})
+
+	t.Run("[edge] a string value renders unquoted", func(t *testing.T) {
+		var buf bytes.Buffer
+		if err := Write(&buf, "hello", Options{Format: Table}); err != nil {
+			t.Fatalf("Write() error = %v", err)
+		}
+		if strings.TrimSpace(buf.String()) != "hello" {
+			t.Errorf("got %q", buf.String())
+		}
+	})
+
+	t.Run("[edge] a boolean cell value", func(t *testing.T) {
+		var buf bytes.Buffer
+		raw := json.RawMessage(`{"active": false}`)
+		if err := Write(&buf, raw, Options{Format: Table}); err != nil {
+			t.Fatalf("Write() error = %v", err)
+		}
+		if !strings.Contains(buf.String(), "false") {
+			t.Errorf("got %q", buf.String())
+		}
+	})
+}
+
+func TestOrderedKeys_NonObject(t *testing.T) {
+	keys, err := orderedKeys(json.RawMessage(`[1,2,3]`))
+	if err != nil {
+		t.Fatalf("orderedKeys() error = %v", err)
+	}
+	if keys != nil {
+		t.Errorf("got %v, want nil for a non-object", keys)
+	}
+}
+
+func TestWriteName_NonObjectRow(t *testing.T) {
+	var buf bytes.Buffer
+	raw := json.RawMessage(`["a", "b"]`)
+	if err := Write(&buf, raw, Options{Format: Name}); err != nil {
+		t.Fatalf("Write() error = %v", err)
+	}
+	// Neither element is an object, so decodeFields yields no id/name/uuid
+	// for either row -- two empty lines.
+	if buf.String() != "\n\n" {
+		t.Errorf("got %q", buf.String())
+	}
+}
+
+func TestWrite_MalformedRawMessage(t *testing.T) {
+	// A caller-supplied json.RawMessage that is not actually valid JSON:
+	// every format's error path should surface it, not panic.
+	bad := json.RawMessage(`{not valid`)
+
+	t.Run("json", func(t *testing.T) {
+		var buf bytes.Buffer
+		if err := Write(&buf, bad, Options{Format: JSON}); err == nil {
+			t.Fatal("Write() error = nil, want an error for malformed JSON")
+		}
+	})
+	t.Run("yaml", func(t *testing.T) {
+		var buf bytes.Buffer
+		if err := Write(&buf, bad, Options{Format: YAML}); err == nil {
+			t.Fatal("Write() error = nil, want an error for malformed JSON")
+		}
+	})
+	t.Run("table", func(t *testing.T) {
+		var buf bytes.Buffer
+		if err := Write(&buf, bad, Options{Format: Table}); err == nil {
+			t.Fatal("Write() error = nil, want an error for malformed JSON")
+		}
+	})
+	t.Run("name", func(t *testing.T) {
+		var buf bytes.Buffer
+		if err := Write(&buf, bad, Options{Format: Name}); err == nil {
+			t.Fatal("Write() error = nil, want an error for malformed JSON")
+		}
+	})
+}
+
+func TestWrite_UnmarshalableValue(t *testing.T) {
+	var buf bytes.Buffer
+	// A Go channel cannot be marshaled to JSON.
+	if err := Write(&buf, make(chan int), Options{Format: JSON}); err == nil {
+		t.Fatal("Write() error = nil, want a marshal error")
+	}
+}
+
 func TestFormatValid(t *testing.T) {
 	for _, f := range []Format{JSON, YAML, Table, Name} {
 		if !f.Valid() {

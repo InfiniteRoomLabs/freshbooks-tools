@@ -90,7 +90,7 @@ refuse to run without ` + "`--yes`" + ` when stdin is a terminal.
 
 ## The api escape hatch
 
-` + "`freshbooks api <METHOD> <path> [-f file|-] [-q key=value]...`" + ` calls the same
+` + "`freshbooks api <METHOD> <path> [-f file|-] [--query key=value]...`" + ` calls the same
 authenticated, retrying transport every registry command uses, for an
 endpoint this CLI does not model as its own command yet. path is rooted at
 the API base, e.g. ` + "`/accounting/account/ACM123/systems/systems/1`" + `.

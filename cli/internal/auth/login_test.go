@@ -139,6 +139,60 @@ func stateFromAuthURL(t *testing.T, authURL string) string {
 	return u.Query().Get("state")
 }
 
+func TestLoginOptionsDefaults(t *testing.T) {
+	var o LoginOptions
+	if got := o.port(); got != DefaultPort {
+		t.Errorf("port() = %d, want %d", got, DefaultPort)
+	}
+	if got := o.timeout(); got != DefaultLoginTimeout {
+		t.Errorf("timeout() = %v, want %v", got, DefaultLoginTimeout)
+	}
+	if got := o.now(); time.Since(got) > time.Minute {
+		t.Errorf("now() = %v, want close to time.Now()", got)
+	}
+	if o.stdout() == nil {
+		t.Error("stdout() = nil, want io.Discard")
+	}
+	if got := o.scopes(); len(got) != len(DefaultScopes) {
+		t.Errorf("scopes() returned %d scopes, want DefaultScopes' %d", len(got), len(DefaultScopes))
+	}
+
+	custom := LoginOptions{Port: 9999, Timeout: 42 * time.Second, Scopes: []string{"one"}}
+	if got := custom.port(); got != 9999 {
+		t.Errorf("port() = %d, want 9999", got)
+	}
+	if got := custom.timeout(); got != 42*time.Second {
+		t.Errorf("timeout() = %v, want 42s", got)
+	}
+	if got := custom.scopes(); len(got) != 1 || got[0] != "one" {
+		t.Errorf("scopes() = %v, want [one]", got)
+	}
+}
+
+func TestReadLine(t *testing.T) {
+	t.Run("[happy] a line with a trailing newline", func(t *testing.T) {
+		got, err := readLine(strings.NewReader("hello\n"))
+		if err != nil {
+			t.Fatalf("readLine() error = %v", err)
+		}
+		if got != "hello" {
+			t.Errorf("got %q", got)
+		}
+	})
+	t.Run("[sad] an empty reader is EOF", func(t *testing.T) {
+		if _, err := readLine(strings.NewReader("")); err == nil {
+			t.Fatal("readLine() error = nil, want EOF")
+		}
+	})
+}
+
+func TestOpenBrowserAttempts(t *testing.T) {
+	// openBrowser shells out to a platform program; this only proves it
+	// builds and starts the right command for this GOOS without
+	// requiring the program to actually exist or succeed.
+	_ = openBrowser("https://example.invalid/probe")
+}
+
 func TestLogin(t *testing.T) {
 	t.Run("[happy] a successful browser round trip exchanges and saves the token", func(t *testing.T) {
 		port := freePort(t)

@@ -51,6 +51,20 @@ func TestLoad(t *testing.T) {
 		}
 	})
 
+	t.Run("[edge] a file with no contexts key normalizes to an empty map", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "config.yaml")
+		if err := os.WriteFile(path, []byte("current-context: solo\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		f, err := Load(path)
+		if err != nil {
+			t.Fatalf("Load() error = %v", err)
+		}
+		if f.Contexts == nil {
+			t.Fatal("Contexts is nil, want an initialized empty map")
+		}
+	})
+
 	t.Run("[sad] an unreadable file is an error", func(t *testing.T) {
 		if runtime.GOOS == "windows" {
 			t.Skip("permission bits behave differently on windows")
@@ -93,6 +107,17 @@ func TestSave(t *testing.T) {
 		}
 		if perm := fileInfo.Mode().Perm(); perm != fileMode {
 			t.Errorf("file mode = %o, want %o", perm, fileMode)
+		}
+	})
+
+	t.Run("[sad] renaming over an existing directory of the same name is an error", func(t *testing.T) {
+		dir := t.TempDir()
+		path := filepath.Join(dir, "config.yaml")
+		if err := os.Mkdir(path, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := Save(path, &File{}); err == nil {
+			t.Fatal("Save() error = nil, want a rename error when the target is a directory")
 		}
 	})
 

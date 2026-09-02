@@ -42,6 +42,33 @@ func TestCredentialsPath(t *testing.T) {
 	})
 }
 
+func TestCredentialsDir(t *testing.T) {
+	t.Run("[happy] honors XDG_CONFIG_HOME", func(t *testing.T) {
+		t.Setenv("XDG_CONFIG_HOME", "/tmp/xdg-test")
+		dir, err := CredentialsDir()
+		if err != nil {
+			t.Fatalf("CredentialsDir() error = %v", err)
+		}
+		want := filepath.Join("/tmp/xdg-test", "freshbooks", "credentials")
+		if dir != want {
+			t.Fatalf("got %q, want %q", dir, want)
+		}
+	})
+
+	t.Run("[happy] falls back to ~/.config", func(t *testing.T) {
+		t.Setenv("XDG_CONFIG_HOME", "")
+		dir, err := CredentialsDir()
+		if err != nil {
+			t.Fatalf("CredentialsDir() error = %v", err)
+		}
+		home, _ := os.UserHomeDir()
+		want := filepath.Join(home, ".config", "freshbooks", "credentials")
+		if dir != want {
+			t.Fatalf("got %q, want %q", dir, want)
+		}
+	})
+}
+
 func TestDefaultScopes(t *testing.T) {
 	t.Run("[happy] carries both read and write for every object", func(t *testing.T) {
 		if len(DefaultScopes) != len(scopeObjects)*2 {

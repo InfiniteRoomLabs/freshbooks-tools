@@ -2,11 +2,34 @@ package auth
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	fbauth "github.com/InfiniteRoomLabs/freshbooks-tools/freshbooks/auth"
 )
+
+// brokenLoadStore is a fbauth.TokenStore whose Load always fails with a
+// non-ErrNoToken error, for exercising a caller's generic-error branch.
+type brokenLoadStore struct{}
+
+func (brokenLoadStore) Load(context.Context) (*fbauth.Token, error) {
+	return nil, errors.New("disk on fire")
+}
+func (brokenLoadStore) Save(context.Context, *fbauth.Token) error { return nil }
+
+// brokenSaveStore wraps a working store but always fails Save, for
+// exercising a caller's "persisting the rotated token" error branch.
+type brokenSaveStore struct{ *fbauth.MemoryStore }
+
+func (brokenSaveStore) Save(context.Context, *fbauth.Token) error {
+	return errors.New("disk full")
+}
 
 func TestStatus(t *testing.T) {
 	t.Run("[happy] a valid stored token", func(t *testing.T) {
@@ -54,6 +77,26 @@ func TestStatus(t *testing.T) {
 		}
 		if info.LoggedIn || info.Valid {
 			t.Fatalf("got %+v, want LoggedIn=false Valid=false", info)
+		}
+	})
+
+	t.Run("[happy] a nil now func defaults to time.Now for a valid token", func(t *testing.T) {
+		store := fbauth.NewMemoryStore()
+		if err := store.Save(context.Background(), &fbauth.Token{AccessToken: "tok", Expiry: time.Now().Add(time.Hour)}); err != nil {
+			t.Fatal(err)
+		}
+		info, err := Status(context.Background(), "work", "path", store, nil)
+		if err != nil {
+			t.Fatalf("Status() error = %v", err)
+		}
+		if !info.LoggedIn || !info.Valid {
+			t.Fatalf("got %+v, want LoggedIn=true Valid=true", info)
+		}
+	})
+
+	t.Run("[sad] a store error other than ErrNoToken propagates", func(t *testing.T) {
+		if _, err := Status(context.Background(), "work", "path", brokenLoadStore{}, nil); err == nil {
+			t.Fatal("Status() error = nil, want the store's error")
 		}
 	})
 }
@@ -105,6 +148,23 @@ func TestLogout(t *testing.T) {
 		}
 		if fileExists(path) {
 			t.Error("credentials file still exists after Logout")
+		}
+	})
+
+	t.Run("[sad] a removal failure other than \"missing\" is returned", func(t *testing.T) {
+		// A non-empty directory at the "credentials file" path: os.Remove
+		// fails with "directory not empty", not os.ErrNotExist.
+		dir := t.TempDir()
+		credPath := filepath.Join(dir, "not-a-file")
+		if err := os.Mkdir(credPath, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(credPath, "child"), []byte("x"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		store := fbauth.NewMemoryStore()
+		if err := Logout(context.Background(), fbauth.Config{}, credPath, store); err == nil {
+			t.Fatal("Logout() error = nil, want a removal error for a non-empty directory")
 		}
 	})
 }
@@ -162,6 +222,42 @@ func TestToken(t *testing.T) {
 		store := fbauth.NewMemoryStore()
 		if _, err := Token(context.Background(), fbauth.Config{}, store, false); err == nil {
 			t.Fatal("Token() error = nil, want an error")
+		}
+	})
+
+	t.Run("[sad] a store load error propagates", func(t *testing.T) {
+		if _, err := Token(context.Background(), fbauth.Config{}, brokenLoadStore{}, false); err == nil {
+			t.Fatal("Token() error = nil, want the store's error")
+		}
+	})
+
+	t.Run("[sad] --refresh surfaces the OAuth server's error", func(t *testing.T) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprint(w, `{"error":"invalid_grant"}`) //nolint:errcheck
+		}))
+		defer srv.Close()
+
+		store := fbauth.NewMemoryStore()
+		if err := store.Save(context.Background(), &fbauth.Token{AccessToken: "old", RefreshToken: "old-refresh"}); err != nil {
+			t.Fatal(err)
+		}
+		cfg := fbauth.Config{Endpoints: fbauth.Endpoints{TokenURL: srv.URL}}
+		if _, err := Token(context.Background(), cfg, store, true); err == nil {
+			t.Fatal("Token() error = nil, want the OAuth server's error")
+		}
+	})
+
+	t.Run("[sad] a save failure after a successful refresh is returned", func(t *testing.T) {
+		oauth := newFakeOAuthServer(t, "id", "secret", "")
+		inner := fbauth.NewMemoryStore()
+		if err := inner.Save(context.Background(), &fbauth.Token{AccessToken: "old", RefreshToken: "old-refresh"}); err != nil {
+			t.Fatal(err)
+		}
+		store := brokenSaveStore{inner}
+		cfg := fbauth.Config{ClientID: "id", ClientSecret: "secret", Endpoints: oauth.endpoints()}
+		if _, err := Token(context.Background(), cfg, store, true); err == nil {
+			t.Fatal("Token() error = nil, want the store's save error")
 		}
 	})
 }

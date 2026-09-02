@@ -42,6 +42,15 @@ func resolveClientCredentials(clientID, clientSecret string) (string, string) {
 	return clientID, clientSecret
 }
 
+// testAuthEndpoints, when non-zero, overrides the OAuth endpoint set
+// every auth subcommand's libauth.Config uses. It is only ever set by
+// this package's own tests (auth_cmd_test.go), redirecting the exchange/
+// refresh/revoke calls onto a local fixture server so no test can reach
+// the real internet; no flag or environment variable can reach it.
+var testAuthEndpoints libauth.Endpoints
+
+func authEndpoints() libauth.Endpoints { return testAuthEndpoints }
+
 func newAuthLoginCmd(state *runtimeState) *cobra.Command {
 	var scopes []string
 	var port int
@@ -71,7 +80,7 @@ func newAuthLoginCmd(state *runtimeState) *cobra.Command {
 			opts := cliauth.LoginOptions{
 				ClientID: id, ClientSecret: secret,
 				Port: port, Timeout: timeout, Store: store,
-				Stdout: cmd.OutOrStdout(),
+				Stdout: cmd.OutOrStdout(), Endpoints: authEndpoints(),
 			}
 			if len(scopes) > 0 {
 				opts.Scopes = scopes
@@ -137,7 +146,7 @@ func newAuthLogoutCmd(state *runtimeState) *cobra.Command {
 				return &runtimeError{err: err}
 			}
 			store := libauth.NewFileStore(credPath)
-			cfg := libauth.Config{ClientID: id, ClientSecret: secret}
+			cfg := libauth.Config{ClientID: id, ClientSecret: secret, Endpoints: authEndpoints()}
 			if err := cliauth.Logout(cmd.Context(), cfg, credPath, store); err != nil {
 				return &runtimeError{err: err}
 			}
@@ -167,7 +176,7 @@ func newAuthTokenCmd(state *runtimeState) *cobra.Command {
 				return &runtimeError{err: err}
 			}
 			store := libauth.NewFileStore(credPath)
-			cfg := libauth.Config{ClientID: id, ClientSecret: secret}
+			cfg := libauth.Config{ClientID: id, ClientSecret: secret, Endpoints: authEndpoints()}
 			tok, err := cliauth.Token(cmd.Context(), cfg, store, refresh)
 			if err != nil {
 				return &runtimeError{err: err}
