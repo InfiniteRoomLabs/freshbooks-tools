@@ -86,6 +86,24 @@ func TestConfigCmd(t *testing.T) {
 		}
 	})
 
+	t.Run("[sad] config view --dry-run is rejected (F3/security B3)", func(t *testing.T) {
+		t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+		var stdout, stderr bytes.Buffer
+		code := Run([]string{"config", "view", "--dry-run"}, discardStdin, &stdout, &stderr, "test")
+		if code != 2 {
+			t.Fatalf("exit = %d, want 2; stderr = %s", code, stderr.String())
+		}
+	})
+
+	t.Run("[sad] config set-context --dry-run is rejected (F3/security B3)", func(t *testing.T) {
+		t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+		var stdout, stderr bytes.Buffer
+		code := Run([]string{"config", "set-context", "work", "--account", "ACM1", "--dry-run"}, discardStdin, &stdout, &stderr, "test")
+		if code != 2 {
+			t.Fatalf("exit = %d, want 2; stderr = %s", code, stderr.String())
+		}
+	})
+
 	t.Run("[edge] contexts on an empty config prints nothing", func(t *testing.T) {
 		t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 		var stdout, stderr bytes.Buffer

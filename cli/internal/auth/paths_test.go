@@ -42,6 +42,40 @@ func TestCredentialsPath(t *testing.T) {
 	})
 }
 
+// TestValidContextName is F2/security B2: a context name reaches
+// filepath.Join from --context, FRESHBOOKS_CONTEXT, and config.yaml's
+// current-context, so a name like "../../etc/passwd" must never resolve
+// outside the credentials directory.
+func TestValidContextName(t *testing.T) {
+	valid := []string{"default", "work", "client-a", "client_b", "v1.2"}
+	for _, name := range valid {
+		if !ValidContextName(name) {
+			t.Errorf("ValidContextName(%q) = false, want true", name)
+		}
+	}
+
+	invalid := []string{"../evil", "a/b", ".", "..", "", "../../etc/passwd", "a\\b"}
+	for _, name := range invalid {
+		if ValidContextName(name) {
+			t.Errorf("ValidContextName(%q) = true, want false", name)
+		}
+	}
+}
+
+// TestCredentialsPathRejectsInvalidNames is F2/security B2: CredentialsPath
+// itself must reject the same invalid names, not just the standalone
+// validator -- a caller that skipped ValidContextName must still be
+// stopped before filepath.Join ever sees a traversal segment.
+func TestCredentialsPathRejectsInvalidNames(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", "/tmp/xdg-test")
+	for _, name := range []string{"../evil", "a/b", ".", "..", ""} {
+		path, err := CredentialsPath(name)
+		if err == nil {
+			t.Errorf("CredentialsPath(%q) = %q, nil; want an error", name, path)
+		}
+	}
+}
+
 func TestCredentialsDir(t *testing.T) {
 	t.Run("[happy] honors XDG_CONFIG_HOME", func(t *testing.T) {
 		t.Setenv("XDG_CONFIG_HOME", "/tmp/xdg-test")

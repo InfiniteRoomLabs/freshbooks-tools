@@ -232,6 +232,49 @@ func TestAuthStatusLogoutToken(t *testing.T) {
 		}
 	})
 
+	t.Run("[sad] logout --dry-run is rejected and leaves the credentials file (F3/security B3)", func(t *testing.T) {
+		dir := t.TempDir()
+		t.Setenv("XDG_CONFIG_HOME", dir)
+		path := writeCredentials(t, dir, "default", `{"access_token":"tok"}`)
+
+		var stdout, stderr bytes.Buffer
+		code := Run([]string{"auth", "logout", "--dry-run"}, discardStdin, &stdout, &stderr, "test")
+		if code != 2 {
+			t.Fatalf("exit = %d, want 2; stderr = %s", code, stderr.String())
+		}
+		if !fileExistsCLI(path) {
+			t.Error("credentials file was removed despite --dry-run")
+		}
+	})
+
+	t.Run("[sad] auth login --dry-run is rejected (F3/security B3)", func(t *testing.T) {
+		t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+		var stdout, stderr bytes.Buffer
+		args := []string{"auth", "login", "--dry-run", "--client-id", "id", "--client-secret", "secret"}
+		code := Run(args, discardStdin, &stdout, &stderr, "test")
+		if code != 2 {
+			t.Fatalf("exit = %d, want 2; stderr = %s", code, stderr.String())
+		}
+	})
+
+	t.Run("[sad] auth status --dry-run is rejected (F3/security B3)", func(t *testing.T) {
+		t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+		var stdout, stderr bytes.Buffer
+		code := Run([]string{"auth", "status", "--dry-run"}, discardStdin, &stdout, &stderr, "test")
+		if code != 2 {
+			t.Fatalf("exit = %d, want 2; stderr = %s", code, stderr.String())
+		}
+	})
+
+	t.Run("[sad] auth token --dry-run is rejected (F3/security B3)", func(t *testing.T) {
+		t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+		var stdout, stderr bytes.Buffer
+		code := Run([]string{"auth", "token", "--dry-run"}, discardStdin, &stdout, &stderr, "test")
+		if code != 2 {
+			t.Fatalf("exit = %d, want 2; stderr = %s", code, stderr.String())
+		}
+	})
+
 	t.Run("[edge] logout on a missing credentials file is not an error", func(t *testing.T) {
 		t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 		var stdout, stderr bytes.Buffer
