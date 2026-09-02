@@ -67,7 +67,7 @@ func registerGlobalFlags(root *cobra.Command) {
 	flags.Bool("dry-run", false, "print the request that would be sent and send nothing")
 	flags.Bool("yes", false, "confirm a destructive command")
 	flags.Duration("timeout", 30*time.Second, "per-request timeout")
-	flags.String("log-level", "warn", "log level: debug, info, warn, or error")
+	flags.String("log-level", "", "log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)")
 	flags.String("base-url", "", "override the FreshBooks API base URL (testing and sandboxes)")
 	if err := flags.MarkHidden("base-url"); err != nil {
 		panic(err) // a fixed, always-present flag name; only a programming error can make this fail

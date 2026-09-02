@@ -240,6 +240,31 @@ func TestLogLevelValidatedOnEveryPath(t *testing.T) {
 			t.Fatalf("exit = %d, want 2; stderr = %s", code, stderr.String())
 		}
 	})
+
+	// QA R1: --log-level used to register a non-empty default ("warn"),
+	// which config.Resolve treated as an explicit flag value, so the
+	// FRESHBOOKS_LOG_LEVEL env twin was never consulted at all.
+	t.Run("[sad] FRESHBOOKS_LOG_LEVEL is consulted and validated", func(t *testing.T) {
+		t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+		t.Setenv("FRESHBOOKS_LOG_LEVEL", "bogus")
+		var stdout, stderr bytes.Buffer
+		args := []string{"clients", "list", "--account", "ACM000TEST", "--dry-run"}
+		code := Run(args, discardStdin, &stdout, &stderr, "test")
+		if code != 2 {
+			t.Fatalf("exit = %d, want 2 (env twin ignored?); stderr = %s", code, stderr.String())
+		}
+	})
+
+	t.Run("[happy] --log-level beats FRESHBOOKS_LOG_LEVEL", func(t *testing.T) {
+		t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+		t.Setenv("FRESHBOOKS_LOG_LEVEL", "bogus")
+		var stdout, stderr bytes.Buffer
+		args := []string{"clients", "list", "--account", "ACM000TEST", "--dry-run", "--log-level", "warn"}
+		code := Run(args, discardStdin, &stdout, &stderr, "test")
+		if code != 0 {
+			t.Fatalf("exit = %d, want 0; stderr = %s", code, stderr.String())
+		}
+	})
 }
 
 // TestInvalidContextIsUsageError is G5/QA Q11: an invalid --context used

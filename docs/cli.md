@@ -157,7 +157,7 @@ freshbooks is a command-line client for the FreshBooks REST API, backed by the g
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
   -h, --help                   help for freshbooks
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -236,7 +236,7 @@ freshbooks api <METHOD> <path> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -267,7 +267,7 @@ Manage attachments
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -304,7 +304,7 @@ freshbooks attachments upload-expense-receipt [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -335,7 +335,7 @@ Log in, check status, log out, or print the access token
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -380,7 +380,7 @@ freshbooks auth login [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -416,7 +416,7 @@ freshbooks auth logout [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -451,7 +451,7 @@ freshbooks auth status [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -489,7 +489,7 @@ freshbooks auth token [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -520,7 +520,7 @@ Manage bill-payments
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -558,7 +558,7 @@ freshbooks bill-payments create [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -594,7 +594,7 @@ freshbooks bill-payments update <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -625,7 +625,7 @@ Manage bill-vendors
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -665,7 +665,7 @@ freshbooks bill-vendors create [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -700,7 +700,7 @@ freshbooks bill-vendors delete <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -740,7 +740,7 @@ freshbooks bill-vendors list [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -776,7 +776,7 @@ freshbooks bill-vendors update <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -807,7 +807,7 @@ Manage bills
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -846,7 +846,7 @@ freshbooks bills archive <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -882,7 +882,7 @@ freshbooks bills create [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -917,7 +917,7 @@ freshbooks bills delete <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -957,7 +957,7 @@ freshbooks bills list [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -988,7 +988,7 @@ Manage callbacks
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -1028,7 +1028,7 @@ freshbooks callbacks delete <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -1068,7 +1068,7 @@ freshbooks callbacks list [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -1104,7 +1104,7 @@ freshbooks callbacks register [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -1139,7 +1139,7 @@ freshbooks callbacks resend-verification <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -1175,7 +1175,7 @@ freshbooks callbacks verify <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -1206,7 +1206,7 @@ Manage clients
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -1247,7 +1247,7 @@ freshbooks clients create [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -1283,7 +1283,7 @@ freshbooks clients get <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -1324,7 +1324,7 @@ freshbooks clients list [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -1359,7 +1359,7 @@ freshbooks clients remove-all-secondary-contacts <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -1395,7 +1395,7 @@ freshbooks clients update <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -1432,7 +1432,7 @@ See each sub-command's help for details on how to use the generated script.
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -1496,7 +1496,7 @@ freshbooks completion bash
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -1547,7 +1547,7 @@ freshbooks completion fish [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -1595,7 +1595,7 @@ freshbooks completion powershell [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -1657,7 +1657,7 @@ freshbooks completion zsh [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -1688,7 +1688,7 @@ View and manage config.yaml contexts
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -1727,7 +1727,7 @@ freshbooks config contexts [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -1762,7 +1762,7 @@ freshbooks config set-context <name> [flags]
       --config string      path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string     config context to use (default: config.yaml's current-context, else "default")
       --dry-run            print the request that would be sent and send nothing
-      --log-level string   log level: debug, info, warn, or error (default "warn")
+      --log-level string   log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers         suppress the header row in table output
   -o, --output string      output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet              suppress non-result output (errors still print)
@@ -1797,7 +1797,7 @@ freshbooks config use-context <name> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -1832,7 +1832,7 @@ freshbooks config view [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -1863,7 +1863,7 @@ Manage contacts
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -1900,7 +1900,7 @@ freshbooks contacts delete <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -1936,7 +1936,7 @@ freshbooks contacts update <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -1967,7 +1967,7 @@ Manage credit-notes
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -2007,7 +2007,7 @@ freshbooks credit-notes create [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -2042,7 +2042,7 @@ freshbooks credit-notes delete <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -2082,7 +2082,7 @@ freshbooks credit-notes list [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -2118,7 +2118,7 @@ freshbooks credit-notes update <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -2149,7 +2149,7 @@ Manage estimates
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -2191,7 +2191,7 @@ freshbooks estimates accept <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -2227,7 +2227,7 @@ freshbooks estimates create [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -2262,7 +2262,7 @@ freshbooks estimates delete <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -2298,7 +2298,7 @@ freshbooks estimates get <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -2339,7 +2339,7 @@ freshbooks estimates list [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -2375,7 +2375,7 @@ freshbooks estimates send <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -2411,7 +2411,7 @@ freshbooks estimates update <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -2442,7 +2442,7 @@ Manage expense-categories
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -2481,7 +2481,7 @@ freshbooks expense-categories create [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -2517,7 +2517,7 @@ freshbooks expense-categories get <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -2557,7 +2557,7 @@ freshbooks expense-categories list [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -2588,7 +2588,7 @@ Manage expenses
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -2632,7 +2632,7 @@ freshbooks expenses create [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -2668,7 +2668,7 @@ freshbooks expenses create-recurring [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -2703,7 +2703,7 @@ freshbooks expenses delete <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -2739,7 +2739,7 @@ freshbooks expenses get <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -2779,7 +2779,7 @@ freshbooks expenses list [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -2814,7 +2814,7 @@ freshbooks expenses summaries [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -2850,7 +2850,7 @@ freshbooks expenses update <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -2885,7 +2885,7 @@ freshbooks expenses vendors [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -2916,7 +2916,7 @@ Manage gateways
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -2952,7 +2952,7 @@ freshbooks gateways get [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -2983,7 +2983,7 @@ Manage identity
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -3029,7 +3029,7 @@ freshbooks identity add-business [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -3065,7 +3065,7 @@ freshbooks identity applications [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -3101,7 +3101,7 @@ freshbooks identity create-application [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -3136,7 +3136,7 @@ freshbooks identity delete-business [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -3171,7 +3171,7 @@ freshbooks identity delete-business-subscription [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -3206,7 +3206,7 @@ freshbooks identity me [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -3242,7 +3242,7 @@ freshbooks identity provision-payments [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -3278,7 +3278,7 @@ freshbooks identity register [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -3314,7 +3314,7 @@ freshbooks identity update-application <client-id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -3349,7 +3349,7 @@ freshbooks identity whoami [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -3380,7 +3380,7 @@ Manage images
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -3418,7 +3418,7 @@ freshbooks images upload [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -3454,7 +3454,7 @@ freshbooks images upload-without-account [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -3485,7 +3485,7 @@ Manage invoice-profiles
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -3528,7 +3528,7 @@ freshbooks invoice-profiles create [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -3563,7 +3563,7 @@ freshbooks invoice-profiles delete <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -3599,7 +3599,7 @@ freshbooks invoice-profiles enable-payment-options <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -3635,7 +3635,7 @@ freshbooks invoice-profiles get <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -3675,7 +3675,7 @@ freshbooks invoice-profiles list [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -3711,7 +3711,7 @@ freshbooks invoice-profiles update <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -3742,7 +3742,7 @@ Manage invoices
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -3789,7 +3789,7 @@ freshbooks invoices create [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -3824,7 +3824,7 @@ freshbooks invoices delete <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -3860,7 +3860,7 @@ freshbooks invoices enable-payment-options <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -3896,7 +3896,7 @@ freshbooks invoices get <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -3931,7 +3931,7 @@ freshbooks invoices invoice-presentation-defaults [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -3971,7 +3971,7 @@ freshbooks invoices list [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -4008,7 +4008,7 @@ freshbooks invoices pdf <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -q, --quiet                  suppress non-result output (errors still print)
       --timeout duration       per-request timeout (default 30s)
@@ -4043,7 +4043,7 @@ freshbooks invoices send <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -4078,7 +4078,7 @@ freshbooks invoices share-link <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -4115,7 +4115,7 @@ freshbooks invoices update <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -4146,7 +4146,7 @@ Manage items
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -4187,7 +4187,7 @@ freshbooks items create [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -4222,7 +4222,7 @@ freshbooks items delete <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -4257,7 +4257,7 @@ freshbooks items get <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -4297,7 +4297,7 @@ freshbooks items list [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -4333,7 +4333,7 @@ freshbooks items update <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -4364,7 +4364,7 @@ Manage journal-entries
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -4402,7 +4402,7 @@ freshbooks journal-entries create [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -4437,7 +4437,7 @@ freshbooks journal-entries details [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -4468,7 +4468,7 @@ Manage journal-entry-accounts
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -4508,7 +4508,7 @@ freshbooks journal-entry-accounts list [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -4539,7 +4539,7 @@ Manage ledger-accounts
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -4582,7 +4582,7 @@ freshbooks ledger-accounts create [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -4617,7 +4617,7 @@ freshbooks ledger-accounts get <account-uuid> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -4652,7 +4652,7 @@ freshbooks ledger-accounts list [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -4687,7 +4687,7 @@ freshbooks ledger-accounts sub-type <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -4722,7 +4722,7 @@ freshbooks ledger-accounts sub-types [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -4757,7 +4757,7 @@ freshbooks ledger-accounts types [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -4793,7 +4793,7 @@ freshbooks ledger-accounts update <account-uuid> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -4824,7 +4824,7 @@ Manage other-income
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -4864,7 +4864,7 @@ freshbooks other-income create [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -4899,7 +4899,7 @@ freshbooks other-income delete <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -4939,7 +4939,7 @@ freshbooks other-income list [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -4975,7 +4975,7 @@ freshbooks other-income update <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -5006,7 +5006,7 @@ Manage payment-options
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -5046,7 +5046,7 @@ freshbooks payment-options fb-pay-tokenize [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -5082,7 +5082,7 @@ freshbooks payment-options save-credit-card [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -5118,7 +5118,7 @@ freshbooks payment-options stripe-create-setup-intent [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -5154,7 +5154,7 @@ freshbooks payment-options stripe-tokenize [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -5185,7 +5185,7 @@ Manage payments
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -5230,7 +5230,7 @@ freshbooks payments create [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -5266,7 +5266,7 @@ freshbooks payments create-checkout-link [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -5301,7 +5301,7 @@ freshbooks payments delete <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -5336,7 +5336,7 @@ freshbooks payments delete-checkout-link <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -5371,7 +5371,7 @@ freshbooks payments get <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -5411,7 +5411,7 @@ freshbooks payments list [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -5447,7 +5447,7 @@ freshbooks payments update <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -5483,7 +5483,7 @@ freshbooks payments update-checkout-link <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -5519,7 +5519,7 @@ freshbooks payments update-checkout-link-gateway <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -5550,7 +5550,7 @@ Manage projects
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -5594,7 +5594,7 @@ freshbooks projects abilities [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -5630,7 +5630,7 @@ freshbooks projects add-thread-comment <thread-id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -5666,7 +5666,7 @@ freshbooks projects create [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -5702,7 +5702,7 @@ freshbooks projects create-thread <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -5737,7 +5737,7 @@ freshbooks projects delete <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -5772,7 +5772,7 @@ freshbooks projects get <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -5812,7 +5812,7 @@ freshbooks projects list [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -5847,7 +5847,7 @@ freshbooks projects threads <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -5883,7 +5883,7 @@ freshbooks projects update <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -5914,7 +5914,7 @@ Manage reports
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -5964,7 +5964,7 @@ freshbooks reports accounts-aging [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -6000,7 +6000,7 @@ freshbooks reports balance-sheet [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -6036,7 +6036,7 @@ freshbooks reports bank-reconciliation-summary [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -6072,7 +6072,7 @@ freshbooks reports client-account-statement [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -6109,7 +6109,7 @@ freshbooks reports download-invoice-details-csv <download-token> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -q, --quiet                  suppress non-result output (errors still print)
       --timeout duration       per-request timeout (default 30s)
@@ -6144,7 +6144,7 @@ freshbooks reports expense-details [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -6180,7 +6180,7 @@ freshbooks reports invoice-details [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -6216,7 +6216,7 @@ freshbooks reports item-sales [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -6252,7 +6252,7 @@ freshbooks reports payments-collected [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -6288,7 +6288,7 @@ freshbooks reports profit-loss [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -6324,7 +6324,7 @@ freshbooks reports revenue-by-client [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -6360,7 +6360,7 @@ freshbooks reports sales-tax-summary [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -6395,7 +6395,7 @@ freshbooks reports time-entry-details [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -6431,7 +6431,7 @@ freshbooks reports trial-balance [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -6462,7 +6462,7 @@ Manage retainers
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -6504,7 +6504,7 @@ freshbooks retainers create [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -6539,7 +6539,7 @@ freshbooks retainers delete <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -6574,7 +6574,7 @@ freshbooks retainers get <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -6611,7 +6611,7 @@ freshbooks retainers list [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -6646,7 +6646,7 @@ freshbooks retainers undelete <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -6682,7 +6682,7 @@ freshbooks retainers update <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -6713,7 +6713,7 @@ Manage service-rates
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -6751,7 +6751,7 @@ freshbooks service-rates get <service-id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -6786,7 +6786,7 @@ freshbooks service-rates list [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -6823,7 +6823,7 @@ freshbooks service-rates update-project-rate <service-id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -6854,7 +6854,7 @@ Manage services
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -6894,7 +6894,7 @@ freshbooks services create [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -6929,7 +6929,7 @@ freshbooks services get <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -6964,7 +6964,7 @@ freshbooks services get-billable-item <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -7003,7 +7003,7 @@ freshbooks services list [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -7034,7 +7034,7 @@ Manage staff
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -7073,7 +7073,7 @@ freshbooks staff delete <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -7108,7 +7108,7 @@ freshbooks staff get <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -7143,7 +7143,7 @@ freshbooks staff list [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -7179,7 +7179,7 @@ freshbooks staff update <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -7210,7 +7210,7 @@ Manage systems
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -7246,7 +7246,7 @@ freshbooks systems get [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -7277,7 +7277,7 @@ Manage tasks
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -7318,7 +7318,7 @@ freshbooks tasks create [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -7353,7 +7353,7 @@ freshbooks tasks delete <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -7388,7 +7388,7 @@ freshbooks tasks get <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -7428,7 +7428,7 @@ freshbooks tasks list [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -7464,7 +7464,7 @@ freshbooks tasks update <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -7495,7 +7495,7 @@ Manage taxes
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -7536,7 +7536,7 @@ freshbooks taxes create [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -7571,7 +7571,7 @@ freshbooks taxes delete <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -7607,7 +7607,7 @@ freshbooks taxes get <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -7647,7 +7647,7 @@ freshbooks taxes list [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -7683,7 +7683,7 @@ freshbooks taxes update <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -7714,7 +7714,7 @@ Manage team-members
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -7755,7 +7755,7 @@ freshbooks team-members get <team-member-uuid> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -7790,7 +7790,7 @@ freshbooks team-members invitation-rates [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -7826,7 +7826,7 @@ freshbooks team-members invite [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -7866,7 +7866,7 @@ freshbooks team-members list [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -7901,7 +7901,7 @@ freshbooks team-members rates [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -7937,7 +7937,7 @@ freshbooks team-members update-rate <identity-id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -7968,7 +7968,7 @@ Manage time-entries
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -8009,7 +8009,7 @@ freshbooks time-entries create [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -8044,7 +8044,7 @@ freshbooks time-entries delete <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -8083,7 +8083,7 @@ freshbooks time-entries list [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -8121,7 +8121,7 @@ freshbooks time-entries search <query> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -8157,7 +8157,7 @@ freshbooks time-entries update <id> [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
@@ -8192,7 +8192,7 @@ freshbooks version [flags]
       --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
-      --log-level string       log level: debug, info, warn, or error (default "warn")
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
       --no-headers             suppress the header row in table output
   -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
   -q, --quiet                  suppress non-result output (errors still print)
