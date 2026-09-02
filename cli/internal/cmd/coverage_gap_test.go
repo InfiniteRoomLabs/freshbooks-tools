@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -81,9 +82,6 @@ func TestBuildClient_CorruptCredentials(t *testing.T) {
 // TestLoadConfig_UnreadableFile exercises loadConfig's error-wrapping
 // branch.
 func TestLoadConfig_UnreadableFile(t *testing.T) {
-	if os.Geteuid() == 0 {
-		t.Skip("root bypasses file permissions")
-	}
 	dir := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", dir)
 	cfgDir := filepath.Join(dir, "freshbooks")
@@ -96,9 +94,16 @@ func TestLoadConfig_UnreadableFile(t *testing.T) {
 	}
 	defer os.Chmod(cfgPath, 0o600) //nolint:errcheck // best-effort restore for TempDir cleanup
 
+	// F21/review A12: run `config view` on every platform regardless;
+	// only the exit-code assertion is conditional, since root bypasses
+	// the permission bit that makes this file unreadable (windows was
+	// never guarded here either -- os.Chmod(..., 0o000) is a no-op on
+	// windows, which behaves the same way root does on unix).
 	var stdout, stderr bytes.Buffer
 	code := Run([]string{"config", "view"}, discardStdin, &stdout, &stderr, "test")
-	if code != 1 {
+	if runtime.GOOS == "windows" || os.Geteuid() == 0 {
+		t.Logf("exit = %d, stderr = %s (windows or root bypasses file permissions, not asserting)", code, stderr.String())
+	} else if code != 1 {
 		t.Fatalf("exit = %d, want 1; stderr = %s", code, stderr.String())
 	}
 }

@@ -67,17 +67,19 @@ func TestLoad(t *testing.T) {
 	})
 
 	t.Run("[sad] an unreadable file is an error", func(t *testing.T) {
-		if runtime.GOOS == "windows" {
-			t.Skip("permission bits behave differently on windows")
-		}
-		if os.Geteuid() == 0 {
-			t.Skip("root bypasses file permissions")
-		}
+		// F21/review A12: exercise Load against the 0000 file on every
+		// platform, asserting the permission error only where the
+		// platform actually enforces the bit -- windows and root bypass
+		// it, so those log the observed behavior instead of skipping the
+		// whole test outright.
 		path := filepath.Join(t.TempDir(), "config.yaml")
 		if err := os.WriteFile(path, []byte("current-context: x\n"), 0o000); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := Load(path); err == nil {
+		_, err := Load(path)
+		if runtime.GOOS == "windows" || os.Geteuid() == 0 {
+			t.Logf("Load() error = %v (windows or root bypasses file permissions, not asserting)", err)
+		} else if err == nil {
 			t.Fatal("Load() error = nil, want a permission error")
 		}
 	})
@@ -85,9 +87,10 @@ func TestLoad(t *testing.T) {
 
 func TestSave(t *testing.T) {
 	t.Run("[happy] creates the directory 0700 and the file 0600", func(t *testing.T) {
-		if runtime.GOOS == "windows" {
-			t.Skip("permission bits behave differently on windows")
-		}
+		// F21/review A12: Save and the read-back below run on every
+		// platform; only the permission-bit assertions are conditional,
+		// since windows enforces them differently -- log the observed
+		// mode there instead of skipping the whole test.
 		dir := filepath.Join(t.TempDir(), "nested", "freshbooks")
 		path := filepath.Join(dir, "config.yaml")
 		if err := Save(path, &File{CurrentContext: "x"}); err != nil {
@@ -98,7 +101,9 @@ func TestSave(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if perm := dirInfo.Mode().Perm(); perm != dirMode {
+		if perm := dirInfo.Mode().Perm(); runtime.GOOS == "windows" {
+			t.Logf("dir mode = %o (windows enforces permission bits differently, not asserting)", perm)
+		} else if perm != dirMode {
 			t.Errorf("dir mode = %o, want %o", perm, dirMode)
 		}
 
@@ -106,7 +111,9 @@ func TestSave(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if perm := fileInfo.Mode().Perm(); perm != fileMode {
+		if perm := fileInfo.Mode().Perm(); runtime.GOOS == "windows" {
+			t.Logf("file mode = %o (windows enforces permission bits differently, not asserting)", perm)
+		} else if perm != fileMode {
 			t.Errorf("file mode = %o, want %o", perm, fileMode)
 		}
 		// F17/review A6: read the file back, not just confirm the mode --
@@ -133,19 +140,19 @@ func TestSave(t *testing.T) {
 	})
 
 	t.Run("[sad] an unwritable directory is an error", func(t *testing.T) {
-		if runtime.GOOS == "windows" {
-			t.Skip("permission bits behave differently on windows")
-		}
-		if os.Geteuid() == 0 {
-			t.Skip("root bypasses file permissions")
-		}
+		// F21/review A12: Save still runs on every platform against the
+		// chmod'd directory; only the failure assertion is conditional,
+		// since windows and root bypass the write-permission bit.
 		dir := t.TempDir()
 		if err := os.Chmod(dir, 0o500); err != nil { // #nosec G302 -- deliberately read-only+execute (no write) to force Save's CreateTemp to fail; not a file permission choice
 			t.Fatal(err)
 		}
 		defer func() { _ = os.Chmod(dir, 0o700) }() // #nosec G302 -- best-effort restore so TempDir cleanup can remove it
 		path := filepath.Join(dir, "nested", "config.yaml")
-		if err := Save(path, &File{}); err == nil {
+		err := Save(path, &File{})
+		if runtime.GOOS == "windows" || os.Geteuid() == 0 {
+			t.Logf("Save() error = %v (windows or root bypasses file permissions, not asserting)", err)
+		} else if err == nil {
 			t.Fatal("Save() error = nil, want an error for an unwritable directory")
 		}
 	})
