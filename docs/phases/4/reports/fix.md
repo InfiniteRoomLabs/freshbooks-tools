@@ -105,3 +105,51 @@ done
 `diff /tmp/reports-before.txt /tmp/reports-after.txt` -- **empty**. The `reportOptions[O]` refactor (F28 #1) is behavior-preserving.
 
 The docs-generation before/after diff (`freshbooks docs`) was **not** run as a byte-identity check, per the triage's own note: "The help tree and `docs/cli.md` WILL change in this fix ... so a byte-identical check is not the criterion this time." `TestDocsUpToDate` (the actual criterion) is green against the regenerated file instead.
+
+## Round 2 (after QA, 2026-09-02)
+
+QA came back NEEDS WORK: 2 blocking (Q1, Q2), 20 advisory. Applied `docs/phases/4/triage.md`'s Round 2 fix order, G1-G6, in one commit `fix(cli): apply the QA findings` (`de81644`).
+
+### Per-item status
+
+- **G1** (QA Q1) -- done. `buildClient` (`state.go`) now calls `s.buildLogger(cmd)` -- which validates `--log-level` -- before the `dry-run` branch and before `credentialStore`/`store.Load`, so an unrecognized level is exit 2 on all three paths instead of 0 (dry-run), 3 (no credentials), 2 (credentials, the only one that was already right). New `TestLogLevelValidatedOnEveryPath` covers all three.
+- **G2** (QA Q2) -- done. `api_cmd.go` now runs `json.Valid(raw)` on the `-f`/stdin body before `buildClient`, returning the identical `"--file does not contain valid JSON"` usage error (exit 2) the registry path uses, instead of letting the lib's `json.RawMessage` marshal fail (exit 1, echoing a body fragment). New test asserts both the exit code and that no body fragment reaches stderr, against a machine with zero stored credentials (proving the check runs before `buildClient`).
+- **G3** (QA Q3, Q5) -- done. `config contexts` on an empty config now asserts `stdout` trimmed equals `"[]"` (an empty, non-nil slice marshals to `[]`, not `null`). `TestBuildClient_CorruptCredentials` now asserts `stderr` contains `"parsing"` and the credentials filename, closing the mutation-blind gap QA demonstrated (a corrupt file and a missing file both reach the unroutable `--base-url` and both exit 1; only the message tells them apart).
+- **G4** (QA Q6, Q7) -- done. New `cli/internal/cmd/inventory_match_test.go`: loads `freshbooks/internal/inventory/testdata/inventory.json` once, and for every command carrying at least one `Keys` entry, resolves `Keys[0]` against the vendor record and asserts the recorded HTTP method and path (after substituting `{accountId}`/`{businessId}`/`{businessUuid}` with the test scope and every other placeholder -- both `{curly}` and the one `<angle_bracket>` holdout -- with the probe id) match the vendor's own `method`/`pathTemplate`. `identity/whoami` (no inventory key) is skipped as it always was. One command, `projects/delete`, cannot be matched mechanically: the vendor's Postman capture for "Projects/Delete Project" is tagged `family: "internal"` (every sibling `Projects/*` entry is `"business"`) and its `pathTemplate` (`/comments/business/{businessId}/project/{projectId}`) disagrees with the implemented, documented path (`/projects/business/.../project/...`) -- and `freshbooks/projects.go`'s own `ProjectsService.Delete` doc comment already records that this was a deliberate choice ("the docs win"), unconfirmed live either way. Allowlisted with that reasoning (`inventoryMismatchAllowlist`), logged via `t.Logf` rather than silently skipped or force-matched, per the fix order's own instruction. This subsumes F16's write-body-marker gap: the cross-check now verifies real request shape independently of the implementation's own `Run` closures, which is what that gap was ultimately about.
+- **G5** (QA Q10, Q11) -- done. `StatusInfo` (`cli/internal/auth/status.go`) now carries snake_case `json` tags (`context`, `credentials_path`, `logged_in`, `valid`, `expiry`, `scopes`), matching the D8 fold's convention; new `TestStatusInfoJSONTags` asserts both the presence of the snake_case keys and the absence of the Go-cased ones. `credentialStore`'s `CredentialsPath` failure (an invalid `--context`) is now `newUsageErrorf` (exit 2) instead of `&runtimeError{}` (exit 1), matching every other bad global flag value; new `TestInvalidContextIsUsageError` drives `--context ../evil` through the live `buildClient` path end to end.
+- **G6** (QA Q13, Q14, Q16, Q18) -- done. `docs/cli.md`'s env table: the `FRESHBOOKS_OUTPUT` row now notes it does not apply to the two Binary commands (they read their local `-o` file-path flag directly); the `FRESHBOOKS_BASE_URL` row now notes `--base-url` itself is `MarkHidden`. The `~/.config/freshbooks/...` fallback (already implemented, previously undocumented) is now mentioned in the First-login section, the `FRESHBOOKS_CONFIG` env-table row, and `--config`'s own flag help text (`root.go`). `errors.go`'s `runtimeError` doc comment no longer claims it wraps "a filesystem failure reading `--file`" -- verified all three read sites (`registry.go`, `api_cmd.go`, `invocation.go`'s `OpenUpload`) return `usageError` -- and now names real examples (corrupt credentials/config.yaml, docs generation, client construction, writing a Binary result).
+
+### Not applied (per the triage's own "Not applied now" list -- Phase 5 backlog)
+
+Q4, Q8, Q9, Q12, Q15, Q17, Q20, Q21, Q22 were explicitly left for Phase 5. Q19 (root `CHANGELOG.md`'s missing Phase 4 entry) is the lead's GOAL stage-4 ship step, not a branch defect -- untouched here, as the triage says.
+
+### mise run check (final, clean tree)
+
+Same shape as the Round 1 report's: all three modules' `fmt-check`/`vet`/`lint` (0 issues) /`test`/`cover`/`vuln` green, `inventory-check` for `freshbooks` unchanged (`implemented 213, ignored 0, todo 0, uncovered 0, double-covered 0, stale 0, unknown 0`), `actionlint` clean, all 12 cross-compile `build` targets OK. Coverage: `cli` 91.6% (auth 88.7%, cmd 87.7%, config 85.2%, output 93.3%), `freshbooks` 91.8%, `mcp` 91.9% -- all above the 90% floor. `TestDocsUpToDate` green after `mise run docs`.
+
+### git log --oneline main..phase-4/cli (head)
+
+```
+de81644 fix(cli): apply the QA findings
+a0c320d docs(phase-4): add the QA report (NEEDS WORK) and the round-2 fix order
+46a5bc4 docs(phase-4): add the spec section 7 callout and reorder the mcp changelog (F7, F22)
+4412775 docs(phase-4): add the fix report
+43c46db test(cli): add the missing F1-F3 evidence tests the QA re-gate expects
+4304a45 fix(cli): synchronize the F26 header-capture test against a data race
+1f6853b docs(cli): regenerate docs/cli.md for the review-gate fixes
+a3f8a65 fix(cli): apply the review-gate findings (F28)
+e546801 fix(cli): apply the review-gate findings (F29)
+5eb92b1 fix(cli): apply the review-gate findings (F24-F27, F30)
+8aca6c5 fix(cli): apply the review-gate findings (F22-F23)
+7a74646 fix(cli): apply the review-gate findings (F21)
+e944ee6 fix(cli): apply the review-gate findings (F20)
+fe31e6b fix(cli): apply the review-gate findings (F18-F19)
+f1291d9 fix(cli): apply the review-gate findings (F13-F17)
+2a14c3e fix(cli): apply the review-gate findings (F1-F12)
+8375699 docs(phase-4): add the lane reports and the review-gate triage
+... (12 earlier phase-4 commits, unchanged)
+```
+
+### git status --porcelain
+
+Empty (clean tree). `go.work.sum` was not modified.
