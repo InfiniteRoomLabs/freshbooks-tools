@@ -53,10 +53,38 @@ creates or updates one; ` + "`freshbooks config use-context <name>`" + ` switche
 a secret -- credentials are a separate file per context, managed by
 ` + "`freshbooks auth`" + `.
 
-Every scope field and every global flag resolves in this order: an
-explicit flag, then an environment variable, then the current context's
-config.yaml value, then a built-in default. An empty environment variable
-counts as unset, not as an explicit empty value.
+The scope flags (` + "`--account`/`--business`/`--business-uuid`" + `) and ` + "`--context`" + `
+resolve in this order: an explicit flag, then an environment variable,
+then the current context's config.yaml value, then (for ` + "`--context`" + `) the
+built-in default ` + "`\"default\"`" + `. An empty environment variable counts as
+unset, not as an explicit empty value. Every other global flag resolves
+flag then env then its own built-in default -- config.yaml is consulted
+only for the scope fields and the current context, never for
+` + "`--output`, `--base-url`, `--timeout`, or `--log-level`" + `. The remaining
+global flags are booleans (` + "`--dry-run`, `--yes`, `--no-headers`, `-q/--quiet`" + `)
+and have no environment twin at all; nobody has asked for one
+(` + "`FRESHBOOKS_YES`" + `, say), and adding one before someone needs it would
+just be more surface to keep documented.
+
+The nine environment variables the resolution chain above actually reads:
+
+| Variable | Resolves | Falls back to |
+|---|---|---|
+| ` + "`FRESHBOOKS_CONTEXT`" + ` | ` + "`--context`" + ` | config.yaml ` + "`current-context`" + `, then ` + "`\"default\"`" + ` |
+| ` + "`FRESHBOOKS_ACCOUNT_ID`" + ` | ` + "`--account`" + ` | the current context's config.yaml account |
+| ` + "`FRESHBOOKS_BUSINESS_ID`" + ` | ` + "`--business`" + ` | the current context's config.yaml business |
+| ` + "`FRESHBOOKS_BUSINESS_UUID`" + ` | ` + "`--business-uuid`" + ` | the current context's config.yaml business-uuid |
+| ` + "`FRESHBOOKS_CONFIG`" + ` | ` + "`--config`" + ` | ` + "`$XDG_CONFIG_HOME/freshbooks/config.yaml`" + ` |
+| ` + "`FRESHBOOKS_OUTPUT`" + ` | ` + "`-o/--output`" + ` | ` + "`table`" + ` on a TTY, ` + "`json`" + ` otherwise |
+| ` + "`FRESHBOOKS_BASE_URL`" + ` | ` + "`--base-url`" + ` | the lib's default API base URL |
+| ` + "`FRESHBOOKS_TIMEOUT`" + ` | ` + "`--timeout`" + ` | ` + "`30s`" + ` |
+| ` + "`FRESHBOOKS_LOG_LEVEL`" + ` | ` + "`--log-level`" + ` | ` + "`warn`" + ` |
+
+` + "`FRESHBOOKS_CLIENT_ID`" + ` and ` + "`FRESHBOOKS_CLIENT_SECRET`" + ` are read too, but outside
+this chain: registry commands have no ` + "`--client-id`/`--client-secret`" + ` flags
+of their own (only ` + "`auth login`/`auth token`/`auth logout`" + ` take those
+directly), so a registry command's token-refresh path falls back to these
+two env vars with nothing above them to override.
 
 ## Output formats
 
@@ -72,7 +100,7 @@ non-result chatter (never errors).
 |---|---|
 | 0 | success |
 | 1 | an API or other runtime error |
-| 2 | a usage error: a bad flag, a malformed --file body, a missing scope, or --all combined with --page/--per-page |
+| 2 | a usage error: a bad flag, an unrecognized --log-level, a malformed --file body, a missing scope, --all combined with --page/--per-page, --dry-run on an auth or config command, a destructive command run without --yes on a TTY, or -o/--output on a binary command refusing to overwrite an existing file (without --force) or write to a TTY |
 | 3 | an auth error: no stored credentials for the context, or the API answered 401 |
 | 4 | the API answered 404 |
 
@@ -85,8 +113,17 @@ Otherwise it is one human-readable line on stderr.
 Every registry command accepts ` + "`--dry-run`" + `, which prints the request's
 method and URL (and its body, for a write) to stdout and sends nothing --
 useful for verifying a command's shape before running it for real.
-Destructive commands (the D-annotated ones in the command reference below)
+` + "`auth`" + ` and ` + "`config`" + ` commands reject ` + "`--dry-run`" + ` outright (exit 2) instead of
+silently ignoring it: there is no request to preview, and ` + "`auth logout`" + `
+in particular really does revoke and delete on every run.
+
+Destructive commands -- the ones whose ` + "`Short`" + ` help line in the command
+reference below ends with " (destructive: requires --yes on a TTY)" --
 refuse to run without ` + "`--yes`" + ` when stdin is a terminal.
+
+A Binary command's ` + "`-o <file>`" + ` (` + "`invoices pdf`, `reports download-invoice-details-csv`" + `)
+refuses to overwrite an existing file without ` + "`--force`" + `, and refuses
+` + "`-o -`" + ` when stdout is a terminal (binary bytes would corrupt it).
 
 ## The api escape hatch
 

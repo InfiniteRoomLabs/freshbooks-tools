@@ -365,17 +365,30 @@ func (s *runtimeState) buildDryRunClient(cmd *cobra.Command, timeout time.Durati
 }
 
 // writeBinaryResult writes a Binary command's []byte result to the local
-// -o/--output path (or stdout for "-"/unset).
-func writeBinaryResult(cmd *cobra.Command, result any, path string) error {
+// -o/--output path (or stdout for "-"/unset). F18/review A8: "-" on a TTY
+// stdout is refused (binary bytes would corrupt the terminal), and an
+// existing file at path is never silently overwritten -- --force is
+// required.
+func writeBinaryResult(cmd *cobra.Command, result any, path string, force bool) error {
 	b, ok := result.([]byte)
 	if !ok {
 		return &runtimeError{err: fmt.Errorf("internal error: binary command returned %T, want []byte", result)}
 	}
 	if path == "" || path == "-" {
+		if stdoutIsTerminal(cmd.OutOrStdout()) {
+			return newUsageError("binary output would corrupt your terminal; redirect it or pass -o <file>")
+		}
 		if _, err := cmd.OutOrStdout().Write(b); err != nil {
 			return &runtimeError{err: err}
 		}
 		return nil
+	}
+	if !force {
+		if _, err := os.Stat(path); err == nil {
+			return newUsageErrorf("%s already exists; pass --force to overwrite it", path)
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return &runtimeError{err: fmt.Errorf("checking %s: %w", path, err)}
+		}
 	}
 	if err := os.WriteFile(path, b, 0o600); err != nil {
 		return &runtimeError{err: fmt.Errorf("writing %s: %w", path, err)}

@@ -144,7 +144,7 @@ func TestWriteBinaryResult(t *testing.T) {
 	t.Run("[happy] writes to a file path", func(t *testing.T) {
 		path := filepath.Join(t.TempDir(), "out.pdf")
 		cc := &cobra.Command{}
-		if err := writeBinaryResult(cc, []byte("%PDF-1.4"), path); err != nil {
+		if err := writeBinaryResult(cc, []byte("%PDF-1.4"), path, false); err != nil {
 			t.Fatal(err)
 		}
 		data, err := os.ReadFile(path)
@@ -156,11 +156,11 @@ func TestWriteBinaryResult(t *testing.T) {
 		}
 	})
 
-	t.Run("[happy] writes to stdout for \"-\"", func(t *testing.T) {
+	t.Run("[happy] writes to stdout for \"-\" on a non-TTY", func(t *testing.T) {
 		cc := &cobra.Command{}
 		var buf bytes.Buffer
 		cc.SetOut(&buf)
-		if err := writeBinaryResult(cc, []byte("hello"), "-"); err != nil {
+		if err := writeBinaryResult(cc, []byte("hello"), "-", false); err != nil {
 			t.Fatal(err)
 		}
 		if buf.String() != "hello" {
@@ -170,15 +170,68 @@ func TestWriteBinaryResult(t *testing.T) {
 
 	t.Run("[sad] a non-[]byte result is an internal error", func(t *testing.T) {
 		cc := &cobra.Command{}
-		if err := writeBinaryResult(cc, "not bytes", "-"); err == nil {
+		if err := writeBinaryResult(cc, "not bytes", "-", false); err == nil {
 			t.Fatal("writeBinaryResult() error = nil, want one for a non-[]byte result")
 		}
 	})
 
 	t.Run("[sad] an unwritable path is an error", func(t *testing.T) {
 		cc := &cobra.Command{}
-		if err := writeBinaryResult(cc, []byte("x"), "/nonexistent-dir-xyz/out.bin"); err == nil {
+		if err := writeBinaryResult(cc, []byte("x"), "/nonexistent-dir-xyz/out.bin", false); err == nil {
 			t.Fatal("writeBinaryResult() error = nil, want a write error")
+		}
+	})
+
+	t.Run("[sad] refuses to overwrite an existing file without --force", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "out.pdf")
+		if err := os.WriteFile(path, []byte("old"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		cc := &cobra.Command{}
+		var usageErr *usageError
+		err := writeBinaryResult(cc, []byte("new"), path, false)
+		if !errors.As(err, &usageErr) {
+			t.Fatalf("writeBinaryResult() error = %v, want a *usageError", err)
+		}
+		data, readErr := os.ReadFile(path)
+		if readErr != nil {
+			t.Fatal(readErr)
+		}
+		if string(data) != "old" {
+			t.Errorf("file was overwritten: got %q, want the original \"old\"", data)
+		}
+	})
+
+	t.Run("[happy] --force overwrites an existing file", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "out.pdf")
+		if err := os.WriteFile(path, []byte("old"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		cc := &cobra.Command{}
+		if err := writeBinaryResult(cc, []byte("new"), path, true); err != nil {
+			t.Fatal(err)
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(data) != "new" {
+			t.Errorf("got %q, want \"new\"", data)
+		}
+	})
+
+	t.Run("[sad] refuses \"-\" on a TTY stdout", func(t *testing.T) {
+		withTerminals(t, nil, boolPtr(true))
+		cc := &cobra.Command{}
+		var buf bytes.Buffer
+		cc.SetOut(&buf)
+		var usageErr *usageError
+		err := writeBinaryResult(cc, []byte("hello"), "-", false)
+		if !errors.As(err, &usageErr) {
+			t.Fatalf("writeBinaryResult() error = %v, want a *usageError", err)
+		}
+		if buf.Len() != 0 {
+			t.Errorf("stdout = %q, want nothing written on refusal", buf.String())
 		}
 	})
 }

@@ -223,7 +223,11 @@ func (c Command) registerFlags(cc *cobra.Command) {
 		cc.Flags().String("file", "", "path to the local file to upload (required)")
 	}
 	if c.Binary {
-		cc.Flags().StringP("output", "o", "-", "write the result to this file, or - for stdout")
+		// This -o/--output shadows the global -o/--output format flag on
+		// this one command (F18/review A8): a binary result has no
+		// format to select, so the local flag takes a file path instead.
+		cc.Flags().StringP("output", "o", "-", "write the result to this file, or - for stdout (shadows the global -o/--output format flag on this command); refuses to overwrite an existing file without --force, and refuses - on a TTY")
+		cc.Flags().Bool("force", false, "overwrite an existing -o/--output file")
 	}
 	if c.ExtraFlags != nil {
 		c.ExtraFlags(cc.Flags())
@@ -375,7 +379,8 @@ func (c Command) execute(cmd *cobra.Command, args []string, state *runtimeState)
 
 	if c.Binary {
 		path, _ := cmd.Flags().GetString("output")
-		return writeBinaryResult(cmd, result, path)
+		force, _ := cmd.Flags().GetBool("force")
+		return writeBinaryResult(cmd, result, path, force)
 	}
 	return state.writeResult(cmd, result)
 }
