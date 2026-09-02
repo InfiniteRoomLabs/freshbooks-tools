@@ -193,6 +193,9 @@ raw, err := c.Do(ctx, http.MethodGet, "/accounting/account/"+string(acct)+"/syst
 - **Errors:** lib `*Error` maps to MCP tool errors (`isError: true`) with `{code, message, field, status}` in the content; transport/auth failures map to JSON-RPC errors.
 - **Dependencies:** go-sdk, cobra, lib.
 
+
+> **STATE AS OF 2026-09-01** (Phase 3 stage 1, unattended): go-sdk v1.7.0 is the current release, so the pin holds. Three corrections to the paragraphs above, all decided in `docs/phases/3/plan.md`: (1) there are no `_all` tools -- the 17 lib `All` iterators are conveniences over `List`, and an unbounded page walk is the wrong shape for a model context, so `ReadOnlyHint` applies to `list/get/search/reports`; (2) go-sdk's `jsonschema` reflection cannot derive schemas for 54 of the 169 lib types because `Date`/`DateTime` embed `time.Time` and `ProfitLossLine` is recursive, so input schemas are built once with `jsonschema.ForType` plus three `TypeSchemas` overrides (verified 169/169) and set on `Tool.InputSchema` explicitly, and the `Out` type is `any` (no output schema; the lib value goes out as `StructuredContent` + JSON text); (3) the tool surface is 168 tools carrying 212 of the 213 inventory keys -- `Authorization/Revoke Refresh Token` lives on `auth.Config.Revoke`, and the MCP is a token consumer, so it is not a tool. The definitive list is `docs/phases/3/tools.md`.
+
 ## 7. CLI design (`freshbooks`)
 
 ```
