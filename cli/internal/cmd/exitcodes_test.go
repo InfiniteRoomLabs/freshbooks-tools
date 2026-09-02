@@ -129,6 +129,36 @@ func TestExitCodes(t *testing.T) {
 		}
 	})
 
+	t.Run("[sad] 2 when a required --file is missing on a Body command", func(t *testing.T) {
+		t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+		var stdout, stderr bytes.Buffer
+		args := []string{"clients", "create", "--account", "ACM000TEST"}
+		code := Run(args, discardStdin, &stdout, &stderr, "test")
+		if code != 2 {
+			t.Fatalf("exit = %d, want 2; stderr = %s", code, stderr.String())
+		}
+	})
+
+	t.Run("[sad] 2 when a required --file is missing on an Upload command", func(t *testing.T) {
+		t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+		var stdout, stderr bytes.Buffer
+		args := []string{"images", "upload", "--account", "ACM000TEST"}
+		code := Run(args, discardStdin, &stdout, &stderr, "test")
+		if code != 2 {
+			t.Fatalf("exit = %d, want 2; stderr = %s", code, stderr.String())
+		}
+	})
+
+	t.Run("[sad] 2 on an invalid --output value", func(t *testing.T) {
+		t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+		var stdout, stderr bytes.Buffer
+		args := []string{"config", "view", "--output", "bogus"}
+		code := Run(args, discardStdin, &stdout, &stderr, "test")
+		if code != 2 {
+			t.Fatalf("exit = %d, want 2; stderr = %s", code, stderr.String())
+		}
+	})
+
 	t.Run("[sad] 3 when no credentials are stored for the context", func(t *testing.T) {
 		t.Setenv("XDG_CONFIG_HOME", t.TempDir()) // empty: no credentials file exists
 		var stdout, stderr bytes.Buffer

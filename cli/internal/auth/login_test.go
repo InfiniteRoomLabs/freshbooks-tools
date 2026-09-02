@@ -451,6 +451,65 @@ func TestLogin(t *testing.T) {
 			t.Errorf("Login() took %v, want it to return promptly after the timeout", elapsed)
 		}
 	})
+
+	t.Run("[sad] a Store.Save failure surfaces after a successful exchange", func(t *testing.T) {
+		// F20/review A11: the exchange succeeds but persisting it fails
+		// (disk full, permissions) -- the caller must see that error, not
+		// a token silently returned as if it were saved.
+		port := freePort(t)
+		oauth := newFakeOAuthServer(t, "client-1", "secret-1", fmt.Sprintf("https://localhost:%d/callback", port))
+		store := brokenSaveStore{fbauth.NewMemoryStore()}
+
+		opts := LoginOptions{
+			ClientID: "client-1", ClientSecret: "secret-1",
+			Port: port, Timeout: 3 * time.Second,
+			Endpoints: oauth.endpoints(), Store: store,
+			OpenBrowser: func(rawURL string) error {
+				state := stateFromAuthURL(t, rawURL)
+				go func() {
+					resp, err := insecureBrowserClient.Get(fmt.Sprintf("https://127.0.0.1:%d/callback?code=test-auth-code&state=%s", port, state))
+					if err == nil {
+						_ = resp.Body.Close()
+					}
+				}()
+				return nil
+			},
+		}
+
+		_, err := Login(context.Background(), opts)
+		if err == nil {
+			t.Fatal("Login() error = nil, want the Store.Save failure surfaced")
+		}
+		if !strings.Contains(err.Error(), "disk full") {
+			t.Errorf("error = %v, want it to wrap the Store.Save error", err)
+		}
+	})
+
+	t.Run("[sad] net.Listen failure (port already in use)", func(t *testing.T) {
+		// F20/review A11: something else is already bound to the port
+		// --callback-port names -- Login must report that, not hang or
+		// panic.
+		ln, err := net.Listen("tcp", "127.0.0.1:0")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = ln.Close() }()
+		port := ln.Addr().(*net.TCPAddr).Port
+
+		opts := LoginOptions{
+			ClientID: "client-1", ClientSecret: "secret-1",
+			Port: port, Timeout: 3 * time.Second,
+			OpenBrowser: func(string) error { return nil },
+		}
+
+		_, err = Login(context.Background(), opts)
+		if err == nil {
+			t.Fatal("Login() error = nil, want the port-in-use error")
+		}
+		if !strings.Contains(err.Error(), "loopback listener") {
+			t.Errorf("error = %v, want it to name the loopback listener", err)
+		}
+	})
 }
 
 func TestLoginNoBrowser(t *testing.T) {
@@ -534,6 +593,62 @@ func TestLoginNoBrowser(t *testing.T) {
 
 		if loginErr == nil {
 			t.Fatal("LoginNoBrowser() error = nil, want a state mismatch error")
+		}
+	})
+
+	t.Run("[sad] an empty pasted line has no code to exchange", func(t *testing.T) {
+		// F20/review A11: parsePastedInput's bare-code branch on an empty
+		// line yields code == "", which finishExchange must reject
+		// rather than exchange an empty code against the token endpoint.
+		oauth := newFakeOAuthServer(t, "client-1", "secret-1", "")
+		var stdout syncBuffer
+		opts := LoginOptions{ClientID: "client-1", ClientSecret: "secret-1", Endpoints: oauth.endpoints(), Stdout: &stdout}
+
+		pr, pw := writerPipe(t)
+		done := make(chan struct{})
+		var loginErr error
+		go func() {
+			_, loginErr = LoginNoBrowser(context.Background(), opts, pr)
+			close(done)
+		}()
+		waitForState(t, &stdout)
+		fmt.Fprintln(pw) //nolint:errcheck // an empty pasted line
+		_ = pw.Close()
+		<-done
+
+		if loginErr == nil {
+			t.Fatal("LoginNoBrowser() error = nil, want a \"no authorization code\" error")
+		}
+		if !strings.Contains(loginErr.Error(), "no authorization code") {
+			t.Errorf("error = %v, want it to say no authorization code was provided", loginErr)
+		}
+	})
+
+	t.Run("[sad] a Store.Save failure surfaces after a successful exchange", func(t *testing.T) {
+		// F20/review A11: same guarantee as Login's browser path -- a
+		// persistence failure must not be silently swallowed.
+		oauth := newFakeOAuthServer(t, "client-1", "secret-1", "")
+		store := brokenSaveStore{fbauth.NewMemoryStore()}
+		var stdout syncBuffer
+		opts := LoginOptions{ClientID: "client-1", ClientSecret: "secret-1", Endpoints: oauth.endpoints(), Store: store, Stdout: &stdout}
+
+		pr, pw := writerPipe(t)
+		done := make(chan struct{})
+		var loginErr error
+		go func() {
+			_, loginErr = LoginNoBrowser(context.Background(), opts, pr)
+			close(done)
+		}()
+		waitForState(t, &stdout)
+		fmt.Fprintln(pw, "bare-code-value") //nolint:errcheck
+		_ = pw.Close()
+		<-done
+
+		if loginErr == nil {
+			t.Fatal("LoginNoBrowser() error = nil, want the Store.Save failure surfaced")
+		}
+		if !strings.Contains(loginErr.Error(), "disk full") {
+			t.Errorf("error = %v, want it to wrap the Store.Save error", loginErr)
 		}
 	})
 }

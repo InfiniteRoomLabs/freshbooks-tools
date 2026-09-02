@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -98,6 +99,16 @@ func TestAuthLoginNoBrowser(t *testing.T) {
 		}
 		if data, err := os.ReadFile(credPath); err != nil || !strings.Contains(string(data), "fixture-access-token") {
 			t.Errorf("credentials file = %s, err = %v", data, err)
+		}
+		// F20/review A11: the credentials file must be owner-only.
+		if runtime.GOOS != "windows" {
+			info, err := os.Stat(credPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if perm := info.Mode().Perm(); perm != 0o600 {
+				t.Errorf("credentials file mode = %o, want 0600", perm)
+			}
 		}
 	})
 
