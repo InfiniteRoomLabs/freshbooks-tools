@@ -705,6 +705,7 @@ func TestRoundTrip(t *testing.T) {
 			assertMethodMatchesAnnotation(t, c, req.method)
 			assertProbesInQuery(t, c, req.rawQuery)
 			assertWantPath(t, c, req)
+			assertInventoryMatch(t, c, req)
 
 			if c.Class != ClassRO && c.Class != ClassD {
 				// A non-read-only, non-delete command with a required

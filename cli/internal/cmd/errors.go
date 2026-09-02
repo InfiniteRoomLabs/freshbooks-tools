@@ -44,10 +44,16 @@ func (e *authError) Error() string { return e.msg }
 func (e *authError) ExitCode() int { return 3 }
 
 // runtimeError wraps any error this package's own plumbing produces that
-// is not a usage, auth, or API problem (a filesystem failure reading
-// --file, a cancelled context, an output-formatting failure). Exit code 1.
-// A *freshbooks.Error is never wrapped in this: exitCodeFor inspects it
-// directly so its status code (401/404/other) drives the exit code.
+// is not a usage, auth, or API problem: a corrupt (unparseable)
+// credentials or config.yaml file, a docs-generation failure, building
+// the *freshbooks.Client itself, or writing a Binary command's result to
+// a local file. Exit code 1. (Q16/G6: this comment used to say "a
+// filesystem failure reading --file" -- every one of those is actually a
+// usageError, exit 2: registry.go's body read, api_cmd.go's, and
+// invocation.go's OpenUpload all reject a bad --file as the caller's
+// mistake, not a runtime failure.) A *freshbooks.Error is never wrapped
+// in this: exitCodeFor inspects it directly so its status code
+// (401/404/other) drives the exit code.
 type runtimeError struct{ err error }
 
 func (e *runtimeError) Error() string { return e.err.Error() }

@@ -205,6 +205,58 @@ func TestExitCodes(t *testing.T) {
 	})
 }
 
+// TestLogLevelValidatedOnEveryPath is G1/QA Q1: buildClient's dry-run and
+// no-credential branches both returned before buildLogger's own
+// validation ran, so --log-level bogus silently succeeded (dry-run) or
+// surfaced as an auth error (no credentials) instead of exit 2 on every
+// path.
+func TestLogLevelValidatedOnEveryPath(t *testing.T) {
+	t.Run("[sad] --dry-run", func(t *testing.T) {
+		t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+		var stdout, stderr bytes.Buffer
+		args := []string{"clients", "list", "--account", "ACM000TEST", "--log-level", "bogus", "--dry-run"}
+		code := Run(args, discardStdin, &stdout, &stderr, "test")
+		if code != 2 {
+			t.Fatalf("exit = %d, want 2; stdout = %s stderr = %s", code, stdout.String(), stderr.String())
+		}
+	})
+
+	t.Run("[sad] no stored credentials", func(t *testing.T) {
+		t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+		var stdout, stderr bytes.Buffer
+		args := []string{"clients", "list", "--account", "ACM000TEST", "--log-level", "bogus"}
+		code := Run(args, discardStdin, &stdout, &stderr, "test")
+		if code != 2 {
+			t.Fatalf("exit = %d, want 2; stderr = %s", code, stderr.String())
+		}
+	})
+
+	t.Run("[sad] valid stored credentials", func(t *testing.T) {
+		setupCredentials(t)
+		var stdout, stderr bytes.Buffer
+		args := []string{"clients", "list", "--account", "ACM000TEST", "--log-level", "bogus"}
+		code := Run(args, discardStdin, &stdout, &stderr, "test")
+		if code != 2 {
+			t.Fatalf("exit = %d, want 2; stderr = %s", code, stderr.String())
+		}
+	})
+}
+
+// TestInvalidContextIsUsageError is G5/QA Q11: an invalid --context used
+// to reach buildClient's live path and surface as exit 1 (a runtimeError
+// wrapping CredentialsPath's rejection), inconsistent with every other
+// bad global flag value (--output, --log-level, --sort, --timeout), all
+// of which are exit 2.
+func TestInvalidContextIsUsageError(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	var stdout, stderr bytes.Buffer
+	args := []string{"clients", "get", "123", "--account", "ACM000TEST", "--context", "../evil"}
+	code := Run(args, discardStdin, &stdout, &stderr, "test")
+	if code != 2 {
+		t.Fatalf("exit = %d, want 2; stderr = %s", code, stderr.String())
+	}
+}
+
 // TestJSONErrorObject checks the -o json error shape D6 documents:
 // {"error": {"status", "code", "message", "field", "family", "exit"}}.
 func TestJSONErrorObject(t *testing.T) {

@@ -12,23 +12,28 @@ import (
 
 // StatusInfo is what `auth status` reports. It never carries the token
 // itself -- see Token for the one command that prints it.
+//
+// G5/QA Q10: snake_case json tags, matching the D8 fold's Page[T]/User/
+// Membership -- without them `auth status -o json` printed Go-cased field
+// names (Context, LoggedIn, ...) instead of the wire-shape convention
+// every other command's -o json output follows.
 type StatusInfo struct {
 	// Context is the context this status was checked for.
-	Context string
+	Context string `json:"context"`
 	// CredentialsPath is the file the context's credentials live in,
 	// whether or not it exists yet.
-	CredentialsPath string
+	CredentialsPath string `json:"credentials_path"`
 	// LoggedIn reports whether a token is stored at all.
-	LoggedIn bool
+	LoggedIn bool `json:"logged_in"`
 	// Valid reports whether the stored access token is present and not
 	// expiring within the lib's DefaultExpirySkew. False when
 	// LoggedIn is false.
-	Valid bool
+	Valid bool `json:"valid"`
 	// Expiry is the stored access token's expiry, zero if unknown or
 	// non-expiring.
-	Expiry time.Time
+	Expiry time.Time `json:"expiry"`
 	// Scopes are the scopes the stored token actually carries.
-	Scopes []string
+	Scopes []string `json:"scopes"`
 }
 
 // Status reports a context's credential state without ever touching the

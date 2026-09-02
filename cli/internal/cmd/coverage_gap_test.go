@@ -77,6 +77,13 @@ func TestBuildClient_CorruptCredentials(t *testing.T) {
 	if code != 1 {
 		t.Fatalf("exit = %d, want 1 (a runtime error, not a clean auth error); stderr = %s", code, stderr.String())
 	}
+	// G3/QA Q5: without this, deleting the non-ErrNoToken branch entirely
+	// and treating a corrupt file as an empty token would still exit 1
+	// against this same unroutable --base-url (a real request attempt
+	// fails too) -- assert the message actually names the parse failure.
+	if !strings.Contains(stderr.String(), "parsing") || !strings.Contains(stderr.String(), "default.json") {
+		t.Errorf("stderr = %s, want it to name the credentials parse failure", stderr.String())
+	}
 }
 
 // TestLoadConfig_UnreadableFile exercises loadConfig's error-wrapping

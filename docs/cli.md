@@ -24,8 +24,10 @@ from source: `go build ./cli/cmd/freshbooks` from the repository root
    this one callback, in-process, and never writes it to disk. Accept the
    warning to continue.
 4. On success the CLI stores the token under
-   `$XDG_CONFIG_HOME/freshbooks/credentials/<context>.json` (0600), and prints
-   nothing from the token itself.
+   `$XDG_CONFIG_HOME/freshbooks/credentials/<context>.json` (falling back to
+   `~/.config/freshbooks/credentials/<context>.json` if `$XDG_CONFIG_HOME` is
+   unset -- the common case on macOS and most Linux desktops), mode 0600,
+   and prints nothing from the token itself.
 5. Over SSH or in an environment with no browser, pass `--no-browser`: the
    CLI prints the authorization URL and reads either the full redirected
    URL or a bare authorization code from stdin instead of listening.
@@ -61,9 +63,9 @@ The nine environment variables the resolution chain above actually reads:
 | `FRESHBOOKS_ACCOUNT_ID` | `--account` | the current context's config.yaml account |
 | `FRESHBOOKS_BUSINESS_ID` | `--business` | the current context's config.yaml business |
 | `FRESHBOOKS_BUSINESS_UUID` | `--business-uuid` | the current context's config.yaml business-uuid |
-| `FRESHBOOKS_CONFIG` | `--config` | `$XDG_CONFIG_HOME/freshbooks/config.yaml` |
-| `FRESHBOOKS_OUTPUT` | `-o/--output` | `table` on a TTY, `json` otherwise |
-| `FRESHBOOKS_BASE_URL` | `--base-url` | the lib's default API base URL |
+| `FRESHBOOKS_CONFIG` | `--config` | `$XDG_CONFIG_HOME/freshbooks/config.yaml`, or `~/.config/freshbooks/config.yaml` if `$XDG_CONFIG_HOME` is unset |
+| `FRESHBOOKS_OUTPUT` | `-o/--output` | `table` on a TTY, `json` otherwise (G6/QA Q13: does not apply to the two Binary commands, which read their local `-o` file-path flag directly and ignore this one entirely) |
+| `FRESHBOOKS_BASE_URL` | `--base-url` | the lib's default API base URL (G6/QA Q18: `--base-url` itself is hidden from `--help` -- it exists for testing and sandboxes, not everyday use) |
 | `FRESHBOOKS_TIMEOUT` | `--timeout` | `30s` |
 | `FRESHBOOKS_LOG_LEVEL` | `--log-level` | `warn` |
 
@@ -151,7 +153,7 @@ freshbooks is a command-line client for the FreshBooks REST API, backed by the g
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
   -h, --help                   help for freshbooks
@@ -231,7 +233,7 @@ freshbooks api <METHOD> <path> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -262,7 +264,7 @@ Manage attachments
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -299,7 +301,7 @@ freshbooks attachments upload-expense-receipt [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -330,7 +332,7 @@ Log in, check status, log out, or print the access token
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -375,7 +377,7 @@ freshbooks auth login [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -411,7 +413,7 @@ freshbooks auth logout [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -446,7 +448,7 @@ freshbooks auth status [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -484,7 +486,7 @@ freshbooks auth token [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -515,7 +517,7 @@ Manage bill-payments
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -553,7 +555,7 @@ freshbooks bill-payments create [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -589,7 +591,7 @@ freshbooks bill-payments update <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -620,7 +622,7 @@ Manage bill-vendors
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -660,7 +662,7 @@ freshbooks bill-vendors create [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -695,7 +697,7 @@ freshbooks bill-vendors delete <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -735,7 +737,7 @@ freshbooks bill-vendors list [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -771,7 +773,7 @@ freshbooks bill-vendors update <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -802,7 +804,7 @@ Manage bills
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -841,7 +843,7 @@ freshbooks bills archive <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -877,7 +879,7 @@ freshbooks bills create [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -912,7 +914,7 @@ freshbooks bills delete <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -952,7 +954,7 @@ freshbooks bills list [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -983,7 +985,7 @@ Manage callbacks
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -1023,7 +1025,7 @@ freshbooks callbacks delete <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -1063,7 +1065,7 @@ freshbooks callbacks list [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -1099,7 +1101,7 @@ freshbooks callbacks register [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -1134,7 +1136,7 @@ freshbooks callbacks resend-verification <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -1170,7 +1172,7 @@ freshbooks callbacks verify <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -1201,7 +1203,7 @@ Manage clients
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -1242,7 +1244,7 @@ freshbooks clients create [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -1278,7 +1280,7 @@ freshbooks clients get <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -1319,7 +1321,7 @@ freshbooks clients list [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -1354,7 +1356,7 @@ freshbooks clients remove-all-secondary-contacts <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -1390,7 +1392,7 @@ freshbooks clients update <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -1427,7 +1429,7 @@ See each sub-command's help for details on how to use the generated script.
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -1491,7 +1493,7 @@ freshbooks completion bash
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -1542,7 +1544,7 @@ freshbooks completion fish [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -1590,7 +1592,7 @@ freshbooks completion powershell [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -1652,7 +1654,7 @@ freshbooks completion zsh [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -1683,7 +1685,7 @@ View and manage config.yaml contexts
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -1722,7 +1724,7 @@ freshbooks config contexts [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -1757,7 +1759,7 @@ freshbooks config set-context <name> [flags]
 ### Options inherited from parent commands
 
 ```
-      --config string      path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string      path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string     config context to use (default: config.yaml's current-context, else "default")
       --dry-run            print the request that would be sent and send nothing
       --log-level string   log level: debug, info, warn, or error (default "warn")
@@ -1792,7 +1794,7 @@ freshbooks config use-context <name> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -1827,7 +1829,7 @@ freshbooks config view [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -1858,7 +1860,7 @@ Manage contacts
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -1895,7 +1897,7 @@ freshbooks contacts delete <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -1931,7 +1933,7 @@ freshbooks contacts update <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -1962,7 +1964,7 @@ Manage credit-notes
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -2002,7 +2004,7 @@ freshbooks credit-notes create [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -2037,7 +2039,7 @@ freshbooks credit-notes delete <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -2077,7 +2079,7 @@ freshbooks credit-notes list [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -2113,7 +2115,7 @@ freshbooks credit-notes update <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -2144,7 +2146,7 @@ Manage estimates
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -2186,7 +2188,7 @@ freshbooks estimates accept <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -2222,7 +2224,7 @@ freshbooks estimates create [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -2257,7 +2259,7 @@ freshbooks estimates delete <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -2293,7 +2295,7 @@ freshbooks estimates get <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -2334,7 +2336,7 @@ freshbooks estimates list [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -2370,7 +2372,7 @@ freshbooks estimates send <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -2406,7 +2408,7 @@ freshbooks estimates update <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -2437,7 +2439,7 @@ Manage expense-categories
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -2476,7 +2478,7 @@ freshbooks expense-categories create [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -2512,7 +2514,7 @@ freshbooks expense-categories get <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -2552,7 +2554,7 @@ freshbooks expense-categories list [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -2583,7 +2585,7 @@ Manage expenses
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -2627,7 +2629,7 @@ freshbooks expenses create [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -2663,7 +2665,7 @@ freshbooks expenses create-recurring [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -2698,7 +2700,7 @@ freshbooks expenses delete <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -2734,7 +2736,7 @@ freshbooks expenses get <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -2774,7 +2776,7 @@ freshbooks expenses list [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -2809,7 +2811,7 @@ freshbooks expenses summaries [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -2845,7 +2847,7 @@ freshbooks expenses update <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -2880,7 +2882,7 @@ freshbooks expenses vendors [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -2911,7 +2913,7 @@ Manage gateways
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -2947,7 +2949,7 @@ freshbooks gateways get [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -2978,7 +2980,7 @@ Manage identity
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -3024,7 +3026,7 @@ freshbooks identity add-business [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -3060,7 +3062,7 @@ freshbooks identity applications [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -3096,7 +3098,7 @@ freshbooks identity create-application [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -3131,7 +3133,7 @@ freshbooks identity delete-business [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -3166,7 +3168,7 @@ freshbooks identity delete-business-subscription [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -3201,7 +3203,7 @@ freshbooks identity me [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -3237,7 +3239,7 @@ freshbooks identity provision-payments [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -3273,7 +3275,7 @@ freshbooks identity register [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -3309,7 +3311,7 @@ freshbooks identity update-application <client-id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -3344,7 +3346,7 @@ freshbooks identity whoami [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -3375,7 +3377,7 @@ Manage images
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -3413,7 +3415,7 @@ freshbooks images upload [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -3449,7 +3451,7 @@ freshbooks images upload-without-account [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -3480,7 +3482,7 @@ Manage invoice-profiles
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -3523,7 +3525,7 @@ freshbooks invoice-profiles create [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -3558,7 +3560,7 @@ freshbooks invoice-profiles delete <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -3594,7 +3596,7 @@ freshbooks invoice-profiles enable-payment-options <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -3630,7 +3632,7 @@ freshbooks invoice-profiles get <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -3670,7 +3672,7 @@ freshbooks invoice-profiles list [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -3706,7 +3708,7 @@ freshbooks invoice-profiles update <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -3737,7 +3739,7 @@ Manage invoices
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -3784,7 +3786,7 @@ freshbooks invoices create [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -3819,7 +3821,7 @@ freshbooks invoices delete <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -3855,7 +3857,7 @@ freshbooks invoices enable-payment-options <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -3891,7 +3893,7 @@ freshbooks invoices get <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -3926,7 +3928,7 @@ freshbooks invoices invoice-presentation-defaults [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -3966,7 +3968,7 @@ freshbooks invoices list [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -4003,7 +4005,7 @@ freshbooks invoices pdf <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -4038,7 +4040,7 @@ freshbooks invoices send <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -4073,7 +4075,7 @@ freshbooks invoices share-link <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -4110,7 +4112,7 @@ freshbooks invoices update <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -4141,7 +4143,7 @@ Manage items
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -4182,7 +4184,7 @@ freshbooks items create [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -4217,7 +4219,7 @@ freshbooks items delete <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -4252,7 +4254,7 @@ freshbooks items get <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -4292,7 +4294,7 @@ freshbooks items list [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -4328,7 +4330,7 @@ freshbooks items update <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -4359,7 +4361,7 @@ Manage journal-entries
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -4397,7 +4399,7 @@ freshbooks journal-entries create [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -4432,7 +4434,7 @@ freshbooks journal-entries details [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -4463,7 +4465,7 @@ Manage journal-entry-accounts
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -4503,7 +4505,7 @@ freshbooks journal-entry-accounts list [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -4534,7 +4536,7 @@ Manage ledger-accounts
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -4577,7 +4579,7 @@ freshbooks ledger-accounts create [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -4612,7 +4614,7 @@ freshbooks ledger-accounts get <account-uuid> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -4647,7 +4649,7 @@ freshbooks ledger-accounts list [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -4682,7 +4684,7 @@ freshbooks ledger-accounts sub-type <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -4717,7 +4719,7 @@ freshbooks ledger-accounts sub-types [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -4752,7 +4754,7 @@ freshbooks ledger-accounts types [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -4788,7 +4790,7 @@ freshbooks ledger-accounts update <account-uuid> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -4819,7 +4821,7 @@ Manage other-income
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -4859,7 +4861,7 @@ freshbooks other-income create [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -4894,7 +4896,7 @@ freshbooks other-income delete <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -4934,7 +4936,7 @@ freshbooks other-income list [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -4970,7 +4972,7 @@ freshbooks other-income update <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -5001,7 +5003,7 @@ Manage payment-options
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -5041,7 +5043,7 @@ freshbooks payment-options fb-pay-tokenize [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -5077,7 +5079,7 @@ freshbooks payment-options save-credit-card [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -5113,7 +5115,7 @@ freshbooks payment-options stripe-create-setup-intent [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -5149,7 +5151,7 @@ freshbooks payment-options stripe-tokenize [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -5180,7 +5182,7 @@ Manage payments
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -5225,7 +5227,7 @@ freshbooks payments create [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -5261,7 +5263,7 @@ freshbooks payments create-checkout-link [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -5296,7 +5298,7 @@ freshbooks payments delete <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -5331,7 +5333,7 @@ freshbooks payments delete-checkout-link <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -5366,7 +5368,7 @@ freshbooks payments get <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -5406,7 +5408,7 @@ freshbooks payments list [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -5442,7 +5444,7 @@ freshbooks payments update <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -5478,7 +5480,7 @@ freshbooks payments update-checkout-link <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -5514,7 +5516,7 @@ freshbooks payments update-checkout-link-gateway <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -5545,7 +5547,7 @@ Manage projects
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -5589,7 +5591,7 @@ freshbooks projects abilities [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -5625,7 +5627,7 @@ freshbooks projects add-thread-comment <thread-id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -5661,7 +5663,7 @@ freshbooks projects create [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -5697,7 +5699,7 @@ freshbooks projects create-thread <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -5732,7 +5734,7 @@ freshbooks projects delete <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -5767,7 +5769,7 @@ freshbooks projects get <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -5807,7 +5809,7 @@ freshbooks projects list [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -5842,7 +5844,7 @@ freshbooks projects threads <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -5878,7 +5880,7 @@ freshbooks projects update <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -5909,7 +5911,7 @@ Manage reports
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -5959,7 +5961,7 @@ freshbooks reports accounts-aging [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -5995,7 +5997,7 @@ freshbooks reports balance-sheet [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -6031,7 +6033,7 @@ freshbooks reports bank-reconciliation-summary [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -6067,7 +6069,7 @@ freshbooks reports client-account-statement [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -6104,7 +6106,7 @@ freshbooks reports download-invoice-details-csv <download-token> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -6139,7 +6141,7 @@ freshbooks reports expense-details [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -6175,7 +6177,7 @@ freshbooks reports invoice-details [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -6211,7 +6213,7 @@ freshbooks reports item-sales [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -6247,7 +6249,7 @@ freshbooks reports payments-collected [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -6283,7 +6285,7 @@ freshbooks reports profit-loss [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -6319,7 +6321,7 @@ freshbooks reports revenue-by-client [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -6355,7 +6357,7 @@ freshbooks reports sales-tax-summary [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -6390,7 +6392,7 @@ freshbooks reports time-entry-details [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -6426,7 +6428,7 @@ freshbooks reports trial-balance [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -6457,7 +6459,7 @@ Manage retainers
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -6499,7 +6501,7 @@ freshbooks retainers create [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -6534,7 +6536,7 @@ freshbooks retainers delete <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -6569,7 +6571,7 @@ freshbooks retainers get <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -6606,7 +6608,7 @@ freshbooks retainers list [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -6641,7 +6643,7 @@ freshbooks retainers undelete <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -6677,7 +6679,7 @@ freshbooks retainers update <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -6708,7 +6710,7 @@ Manage service-rates
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -6746,7 +6748,7 @@ freshbooks service-rates get <service-id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -6781,7 +6783,7 @@ freshbooks service-rates list [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -6818,7 +6820,7 @@ freshbooks service-rates update-project-rate <service-id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -6849,7 +6851,7 @@ Manage services
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -6889,7 +6891,7 @@ freshbooks services create [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -6924,7 +6926,7 @@ freshbooks services get <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -6959,7 +6961,7 @@ freshbooks services get-billable-item <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -6998,7 +7000,7 @@ freshbooks services list [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -7029,7 +7031,7 @@ Manage staff
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -7068,7 +7070,7 @@ freshbooks staff delete <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -7103,7 +7105,7 @@ freshbooks staff get <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -7138,7 +7140,7 @@ freshbooks staff list [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -7174,7 +7176,7 @@ freshbooks staff update <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -7205,7 +7207,7 @@ Manage systems
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -7241,7 +7243,7 @@ freshbooks systems get [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -7272,7 +7274,7 @@ Manage tasks
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -7313,7 +7315,7 @@ freshbooks tasks create [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -7348,7 +7350,7 @@ freshbooks tasks delete <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -7383,7 +7385,7 @@ freshbooks tasks get <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -7423,7 +7425,7 @@ freshbooks tasks list [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -7459,7 +7461,7 @@ freshbooks tasks update <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -7490,7 +7492,7 @@ Manage taxes
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -7531,7 +7533,7 @@ freshbooks taxes create [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -7566,7 +7568,7 @@ freshbooks taxes delete <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -7602,7 +7604,7 @@ freshbooks taxes get <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -7642,7 +7644,7 @@ freshbooks taxes list [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -7678,7 +7680,7 @@ freshbooks taxes update <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -7709,7 +7711,7 @@ Manage team-members
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -7750,7 +7752,7 @@ freshbooks team-members get <team-member-uuid> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -7785,7 +7787,7 @@ freshbooks team-members invitation-rates [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -7821,7 +7823,7 @@ freshbooks team-members invite [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -7861,7 +7863,7 @@ freshbooks team-members list [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -7896,7 +7898,7 @@ freshbooks team-members rates [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -7932,7 +7934,7 @@ freshbooks team-members update-rate <identity-id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -7963,7 +7965,7 @@ Manage time-entries
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -8004,7 +8006,7 @@ freshbooks time-entries create [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -8039,7 +8041,7 @@ freshbooks time-entries delete <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -8078,7 +8080,7 @@ freshbooks time-entries list [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -8116,7 +8118,7 @@ freshbooks time-entries search <query> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -8152,7 +8154,7 @@ freshbooks time-entries update <id> [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")
@@ -8187,7 +8189,7 @@ freshbooks version [flags]
       --account string         FreshBooks account id (accounting-family scope)
       --business string        FreshBooks business id (business-family scope)
       --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
-      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
       --context string         config context to use (default: config.yaml's current-context, else "default")
       --dry-run                print the request that would be sent and send nothing
       --log-level string       log level: debug, info, warn, or error (default "warn")

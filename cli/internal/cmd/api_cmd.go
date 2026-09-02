@@ -39,6 +39,15 @@ func newAPICmd(state *runtimeState) *cobra.Command {
 					return newUsageErrorf("reading --file: %v", err)
 				}
 				if len(raw) > 0 {
+					// G2/QA Q2: validated the same way and with the same
+					// message as the registry path (registry.go), and
+					// before buildClient below -- a bad body is a usage
+					// error (exit 2) regardless of whether this machine
+					// has any credentials, never the lib's own marshal
+					// error (which would echo a fragment of the body).
+					if !json.Valid(raw) {
+						return newUsageError("--file does not contain valid JSON")
+					}
 					bodyVal = json.RawMessage(raw)
 				}
 			}

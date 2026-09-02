@@ -37,8 +37,10 @@ from source: ` + "`go build ./cli/cmd/freshbooks`" + ` from the repository root
    this one callback, in-process, and never writes it to disk. Accept the
    warning to continue.
 4. On success the CLI stores the token under
-   ` + "`$XDG_CONFIG_HOME/freshbooks/credentials/<context>.json`" + ` (0600), and prints
-   nothing from the token itself.
+   ` + "`$XDG_CONFIG_HOME/freshbooks/credentials/<context>.json`" + ` (falling back to
+   ` + "`~/.config/freshbooks/credentials/<context>.json`" + ` if ` + "`$XDG_CONFIG_HOME`" + ` is
+   unset -- the common case on macOS and most Linux desktops), mode 0600,
+   and prints nothing from the token itself.
 5. Over SSH or in an environment with no browser, pass ` + "`--no-browser`" + `: the
    CLI prints the authorization URL and reads either the full redirected
    URL or a bare authorization code from stdin instead of listening.
@@ -74,9 +76,9 @@ The nine environment variables the resolution chain above actually reads:
 | ` + "`FRESHBOOKS_ACCOUNT_ID`" + ` | ` + "`--account`" + ` | the current context's config.yaml account |
 | ` + "`FRESHBOOKS_BUSINESS_ID`" + ` | ` + "`--business`" + ` | the current context's config.yaml business |
 | ` + "`FRESHBOOKS_BUSINESS_UUID`" + ` | ` + "`--business-uuid`" + ` | the current context's config.yaml business-uuid |
-| ` + "`FRESHBOOKS_CONFIG`" + ` | ` + "`--config`" + ` | ` + "`$XDG_CONFIG_HOME/freshbooks/config.yaml`" + ` |
-| ` + "`FRESHBOOKS_OUTPUT`" + ` | ` + "`-o/--output`" + ` | ` + "`table`" + ` on a TTY, ` + "`json`" + ` otherwise |
-| ` + "`FRESHBOOKS_BASE_URL`" + ` | ` + "`--base-url`" + ` | the lib's default API base URL |
+| ` + "`FRESHBOOKS_CONFIG`" + ` | ` + "`--config`" + ` | ` + "`$XDG_CONFIG_HOME/freshbooks/config.yaml`" + `, or ` + "`~/.config/freshbooks/config.yaml`" + ` if ` + "`$XDG_CONFIG_HOME`" + ` is unset |
+| ` + "`FRESHBOOKS_OUTPUT`" + ` | ` + "`-o/--output`" + ` | ` + "`table`" + ` on a TTY, ` + "`json`" + ` otherwise (G6/QA Q13: does not apply to the two Binary commands, which read their local ` + "`-o`" + ` file-path flag directly and ignore this one entirely) |
+| ` + "`FRESHBOOKS_BASE_URL`" + ` | ` + "`--base-url`" + ` | the lib's default API base URL (G6/QA Q18: ` + "`--base-url`" + ` itself is hidden from ` + "`--help`" + ` -- it exists for testing and sandboxes, not everyday use) |
 | ` + "`FRESHBOOKS_TIMEOUT`" + ` | ` + "`--timeout`" + ` | ` + "`30s`" + ` |
 | ` + "`FRESHBOOKS_LOG_LEVEL`" + ` | ` + "`--log-level`" + ` | ` + "`warn`" + ` |
 

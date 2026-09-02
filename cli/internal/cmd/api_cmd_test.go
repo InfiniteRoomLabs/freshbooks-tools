@@ -64,6 +64,25 @@ func TestAPICmd(t *testing.T) {
 		}
 	})
 
+	t.Run("[sad] a malformed --file body is a usage error, not a lib marshal error (G2/QA Q2)", func(t *testing.T) {
+		// No stored credentials at all: the validation must run before
+		// buildClient, so this is exit 2, never the auth-error path.
+		t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+		var stdout, stderr bytes.Buffer
+		args := []string{"api", "POST", "/accounting/account/ACM000TEST/users/clients", "-f", "-", "--base-url", "http://127.0.0.1:1"}
+		stdin := strings.NewReader(`{not valid json`)
+		code := Run(args, stdin, &stdout, &stderr, "test")
+		if code != 2 {
+			t.Fatalf("exit = %d, want 2; stderr = %s", code, stderr.String())
+		}
+		if !strings.Contains(stderr.String(), "--file does not contain valid JSON") {
+			t.Errorf("stderr = %s, want the same message the registry path uses", stderr.String())
+		}
+		if strings.Contains(stderr.String(), "not valid json") {
+			t.Errorf("stderr = %s, want no fragment of the body content echoed back", stderr.String())
+		}
+	})
+
 	t.Run("[sad] a malformed --query pair is a usage error", func(t *testing.T) {
 		setupCredentials(t)
 		var stdout, stderr bytes.Buffer

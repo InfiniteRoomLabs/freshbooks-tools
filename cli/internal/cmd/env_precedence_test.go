@@ -40,7 +40,7 @@ func TestEnvPrecedence(t *testing.T) {
 			if code != 0 {
 				t.Fatalf("exit = %d, stderr = %s", code, stderr.String())
 			}
-			if !strings.Contains(stdout.String(), `"Context": "ctx-flag"`) {
+			if !strings.Contains(stdout.String(), `"context": "ctx-flag"`) {
 				t.Errorf("stdout = %s, want Context ctx-flag", stdout.String())
 			}
 		})
@@ -55,7 +55,7 @@ func TestEnvPrecedence(t *testing.T) {
 			if code != 0 {
 				t.Fatalf("exit = %d, stderr = %s", code, stderr.String())
 			}
-			if !strings.Contains(stdout.String(), `"Context": "ctx-env"`) {
+			if !strings.Contains(stdout.String(), `"context": "ctx-env"`) {
 				t.Errorf("stdout = %s, want Context ctx-env", stdout.String())
 			}
 		})
@@ -70,7 +70,7 @@ func TestEnvPrecedence(t *testing.T) {
 			if code != 0 {
 				t.Fatalf("exit = %d, stderr = %s", code, stderr.String())
 			}
-			if !strings.Contains(stdout.String(), `"Context": "ctx-file"`) {
+			if !strings.Contains(stdout.String(), `"context": "ctx-file"`) {
 				t.Errorf("stdout = %s, want Context ctx-file (the config.yaml current-context)", stdout.String())
 			}
 		})

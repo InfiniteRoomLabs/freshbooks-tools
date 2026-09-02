@@ -117,10 +117,12 @@ func (s *runtimeState) resolveScope(cmd *cobra.Command, sf ScopeFamily) (Scope, 
 
 // credentialStore resolves the current context and opens its credentials
 // FileStore: the prologue auth login|status|logout|token and buildClient
-// all share (D5 -- one lib FileStore per context). The two error paths
-// keep their existing shapes: contextName's error is already typed, and a
-// CredentialsPath failure (including an invalid context name -- F2) is a
-// runtimeError (exit 1).
+// all share (D5 -- one lib FileStore per context). contextName's error is
+// already typed; a CredentialsPath failure (an invalid context name --
+// F2/G5/QA Q11) is a usage error (exit 2), the same as every other bad
+// flag value (--output, --log-level, --sort, --timeout), not a
+// runtimeError (exit 1) -- an invalid --context is exactly as much the
+// caller's mistake as those.
 func (s *runtimeState) credentialStore(cmd *cobra.Command) (ctxName, credPath string, store libauth.TokenStore, err error) {
 	ctxName, err = s.contextName(cmd)
 	if err != nil {
@@ -128,7 +130,7 @@ func (s *runtimeState) credentialStore(cmd *cobra.Command) (ctxName, credPath st
 	}
 	credPath, err = cliauth.CredentialsPath(ctxName)
 	if err != nil {
-		return "", "", nil, &runtimeError{err: err}
+		return "", "", nil, newUsageErrorf("invalid --context %q: %v", ctxName, err)
 	}
 	return ctxName, credPath, libauth.NewFileStore(credPath), nil
 }
@@ -251,6 +253,15 @@ func (s *runtimeState) buildClient(cmd *cobra.Command) (*freshbooks.Client, erro
 	}
 	baseURL := s.resolveBaseURL(cmd)
 
+	// G1/QA Q1: validate --log-level before the dry-run and credential
+	// branches, both of which return before buildLogger's own validation
+	// ever ran -- an unrecognized level must be exit 2 on every path
+	// (dry-run, no credentials, credentials alike), not 0 or 3.
+	logger, err := s.buildLogger(cmd)
+	if err != nil {
+		return nil, err
+	}
+
 	if dryRun {
 		return s.buildDryRunClient(cmd, timeout, baseURL)
 	}
@@ -268,11 +279,6 @@ func (s *runtimeState) buildClient(cmd *cobra.Command) (*freshbooks.Client, erro
 			return nil, newAuthErrorf("no credentials for context %q; run 'freshbooks auth login'", ctxName)
 		}
 		return nil, &runtimeError{err: err}
-	}
-
-	logger, err := s.buildLogger(cmd)
-	if err != nil {
-		return nil, err
 	}
 
 	clientID, clientSecret := clientIDCredentials()

@@ -104,12 +104,19 @@ func TestConfigCmd(t *testing.T) {
 		}
 	})
 
-	t.Run("[edge] contexts on an empty config prints nothing", func(t *testing.T) {
+	t.Run("[edge] contexts on an empty config prints an empty array", func(t *testing.T) {
+		// G3/QA Q3: assert the actual printed content, the same F17 bug
+		// class as "view on a missing config file" above -- this sibling
+		// subtest passed with a "null", "[]", or bare header just as
+		// well as with the correct empty array.
 		t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 		var stdout, stderr bytes.Buffer
 		code := Run([]string{"config", "contexts", "--output", "json"}, discardStdin, &stdout, &stderr, "test")
 		if code != 0 {
 			t.Fatalf("exit = %d, stderr = %s", code, stderr.String())
+		}
+		if got := strings.TrimSpace(stdout.String()); got != "[]" {
+			t.Errorf("stdout = %q, want %q", got, "[]")
 		}
 	})
 }

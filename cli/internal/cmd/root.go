@@ -61,7 +61,7 @@ func registerGlobalFlags(root *cobra.Command) {
 	flags.String("business", "", "FreshBooks business id (business-family scope)")
 	flags.String("business-uuid", "", "FreshBooks business UUID (ledger-accounts scope)")
 	flags.String("context", "", "config context to use (default: config.yaml's current-context, else \"default\")")
-	flags.String("config", "", "path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml)")
+	flags.String("config", "", "path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)")
 	flags.Bool("no-headers", false, "suppress the header row in table output")
 	flags.BoolP("quiet", "q", false, "suppress non-result output (errors still print)")
 	flags.Bool("dry-run", false, "print the request that would be sent and send nothing")

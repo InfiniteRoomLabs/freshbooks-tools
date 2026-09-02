@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -30,6 +32,34 @@ type brokenSaveStore struct{ *fbauth.MemoryStore }
 
 func (brokenSaveStore) Save(context.Context, *fbauth.Token) error {
 	return errors.New("disk full")
+}
+
+// TestStatusInfoJSONTags is G5/QA Q10: StatusInfo must marshal to
+// snake_case keys, matching the D8 fold's Page[T]/User/Membership
+// convention, not the Go-cased field names json.Marshal defaults to
+// without explicit tags.
+func TestStatusInfoJSONTags(t *testing.T) {
+	info := StatusInfo{
+		Context: "work", CredentialsPath: "/path/to/creds.json",
+		LoggedIn: true, Valid: true,
+		Expiry: time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC),
+		Scopes: []string{"user:clients:read"},
+	}
+	data, err := json.Marshal(info)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(data)
+	for _, want := range []string{`"context"`, `"credentials_path"`, `"logged_in"`, `"valid"`, `"expiry"`, `"scopes"`} {
+		if !strings.Contains(got, want) {
+			t.Errorf("json = %s, want %s", got, want)
+		}
+	}
+	for _, notWant := range []string{`"Context"`, `"CredentialsPath"`, `"LoggedIn"`, `"Valid"`, `"Expiry"`, `"Scopes"`} {
+		if strings.Contains(got, notWant) {
+			t.Errorf("json = %s, want no Go-cased field name %s", got, notWant)
+		}
+	}
 }
 
 func TestStatus(t *testing.T) {
