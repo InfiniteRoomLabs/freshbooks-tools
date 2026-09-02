@@ -37,8 +37,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   schema) as JSON, sorted by name.
 - Security: `identity_create_application`, `identity_applications`, and
   `identity_update_application` zero `client_secret` before it reaches a
-  result; the four tokenization tools never echo their input into a
-  result, an error, or a log.
+  result; the four tokenization tools and `identity_update_application`
+  are registered through a sensitive-input path that validates and decodes
+  arguments itself, so neither this module nor the SDK's argument
+  validator ever quotes their input back into a result, an error, or a
+  log (review-gate finding; the generic SDK validator does quote a
+  malformed value for the other 163 tools, which is what a model needs to
+  self-correct).
+- Review-gate hardening: `--transport http` rejects a default scope from
+  `FRESHBOOKS_ACCOUNT_ID`/`FRESHBOOKS_BUSINESS_ID`/`FRESHBOOKS_BUSINESS_UUID`
+  (multi-tenant confused-scope hazard; stdio only), validates `--path`
+  (leading `/`) and `--addr` (`host:port`), rejects a malformed
+  `FRESHBOOKS_BUSINESS_ID` at startup instead of silently zeroing it, sets
+  `CrossOriginProtection` explicitly, returns HTTP 400 (not a tool-less
+  server) when per-request client construction fails, and builds the
+  logger once per process.
 - `docs/mcp.md`: install, stdio setup for Claude Desktop and Claude Code,
   HTTP setup with a `curl` example, the env/flag table, tool naming and
   scope defaults, the error shape, and the two security constraints.
