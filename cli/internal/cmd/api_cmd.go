@@ -29,7 +29,7 @@ func newAPICmd(state *runtimeState) *cobra.Command {
 
 			fullPath, err := appendQuery(path, queryPairs)
 			if err != nil {
-				return newUsageErrorf("parsing -q/--query: %v", err)
+				return newUsageErrorf("parsing --query: %v", err)
 			}
 
 			var bodyVal any
@@ -79,7 +79,7 @@ func appendQuery(path string, pairs []string) (string, error) {
 	for _, p := range pairs {
 		k, v, ok := strings.Cut(p, "=")
 		if !ok {
-			return "", newUsageErrorf("invalid -q/--query %q: want key=value", p)
+			return "", newUsageErrorf("invalid --query %q: want key=value", p)
 		}
 		q.Add(k, v)
 	}

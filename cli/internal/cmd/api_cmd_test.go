@@ -10,7 +10,7 @@ import (
 )
 
 func TestAPICmd(t *testing.T) {
-	t.Run("[happy] GET with -q query pairs merged onto the path", func(t *testing.T) {
+	t.Run("[happy] GET with --query pairs merged onto the path", func(t *testing.T) {
 		setupCredentials(t)
 		var gotPath, gotQuery string
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -64,7 +64,7 @@ func TestAPICmd(t *testing.T) {
 		}
 	})
 
-	t.Run("[sad] a malformed -q pair is a usage error", func(t *testing.T) {
+	t.Run("[sad] a malformed --query pair is a usage error", func(t *testing.T) {
 		setupCredentials(t)
 		var stdout, stderr bytes.Buffer
 		args := []string{"api", "GET", "/foo", "--query", "no-equals-sign", "--base-url", "http://127.0.0.1:1"}

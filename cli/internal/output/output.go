@@ -206,7 +206,7 @@ func writeTable(w io.Writer, raw json.RawMessage, noHeaders bool) error {
 		return nil
 	}
 
-	cols, err := orderedKeys(items[0])
+	cols, err := unionKeys(items)
 	if err != nil {
 		return fmt.Errorf("output: %w", err)
 	}
@@ -284,6 +284,29 @@ func decodeFields(raw json.RawMessage) (map[string]json.RawMessage, error) {
 		return nil, err
 	}
 	return m, nil
+}
+
+// unionKeys returns the table's column set: every key appearing in any of
+// items' rows, in order of first appearance across rows in order (F23/
+// review A6 -- table output previously derived columns from items[0]
+// alone, silently dropping any key a later, heterogeneous row carried
+// that the first row did not).
+func unionKeys(items []json.RawMessage) ([]string, error) {
+	var cols []string
+	seen := make(map[string]bool)
+	for _, item := range items {
+		keys, err := orderedKeys(item)
+		if err != nil {
+			return nil, err
+		}
+		for _, k := range keys {
+			if !seen[k] {
+				seen[k] = true
+				cols = append(cols, k)
+			}
+		}
+	}
+	return cols, nil
 }
 
 // orderedKeys returns a JSON object's top-level keys in the order they

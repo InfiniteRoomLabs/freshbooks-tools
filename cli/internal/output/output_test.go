@@ -345,6 +345,29 @@ func TestWriteTable_Extra(t *testing.T) {
 			t.Errorf("got %q", buf.String())
 		}
 	})
+
+	t.Run("[edge] columns are the union of every row's keys, not just the first row's", func(t *testing.T) {
+		// F23/review A6: the first row carries only "id"/"name"; the
+		// second also carries "email". A column-set derived from row 0
+		// alone would silently drop "email" instead of rendering an
+		// empty cell for the row that lacks it.
+		var buf bytes.Buffer
+		raw := json.RawMessage(`[{"id":1,"name":"a"},{"id":2,"name":"b","email":"b@example.com"}]`)
+		if err := Write(&buf, raw, Options{Format: Table}); err != nil {
+			t.Fatalf("Write() error = %v", err)
+		}
+		got := buf.String()
+		if !strings.Contains(got, "EMAIL") {
+			t.Errorf("got %q, want an EMAIL column from row 2", got)
+		}
+		if !strings.Contains(got, "b@example.com") {
+			t.Errorf("got %q, want row 2's email value", got)
+		}
+		lines := strings.Split(strings.TrimRight(got, "\n"), "\n")
+		if len(lines) != 3 {
+			t.Fatalf("got %d lines, want a header plus 2 rows: %q", len(lines), got)
+		}
+	})
 }
 
 func TestOrderedKeys_NonObject(t *testing.T) {

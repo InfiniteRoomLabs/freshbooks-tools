@@ -24,9 +24,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   scope and context resolution (flag > env > the current context in
   `config.yaml` > default); credentials live one `FileStore`-backed JSON
   file per context, never in `config.yaml`.
+- List commands: `--page`/`--per-page`, `--search key=value` (repeatable),
+  `--all` (walks every page, rejecting `--page`/`--per-page`), and
+  `--sort field[:asc|desc]` on the List commands whose lib method takes
+  `extra ...RequestOption`; `--include` (repeatable) on every List and
+  single-resource `get`/`create`/`update` command whose lib method
+  supports it.
+- `-f/--file <path>|-` supplies a write command's JSON request body (a
+  file path or stdin); the 13 report commands take it as an optional
+  filter-options body instead of a required one.
 - `--dry-run`: prints the request's method, URL, and body (never a
-  header) and sends nothing.
-- `--yes` gates every destructive command when stdin is a terminal.
+  header) and sends nothing; rejected outright (exit 2) on `auth` and
+  `config` commands, which have no request to preview.
+- `--yes` gates every destructive command when stdin is a terminal; the
+  command reference marks each one with a trailing
+  " (destructive: requires --yes on a TTY)" on its `Short` help line.
+- A Binary command's local `-o <file>` (`invoices pdf`,
+  `reports download-invoice-details-csv`) refuses to overwrite an
+  existing file without `--force`, and refuses `-o -` when stdout is a
+  terminal.
 - Exit codes 0/1/2/3/4 per the design (usage/auth/not-found distinguished
   from a generic API or runtime error), with a JSON error object on
   stderr under `-o json`.
