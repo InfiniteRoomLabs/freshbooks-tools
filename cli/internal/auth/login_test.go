@@ -287,6 +287,43 @@ func TestLogin(t *testing.T) {
 		}
 	})
 
+	t.Run("[happy] the callback response carries Cache-Control and Referrer-Policy (F26/security A8)", func(t *testing.T) {
+		port := freePort(t)
+		oauth := newFakeOAuthServer(t, "client-1", "secret-1", fmt.Sprintf("https://localhost:%d/callback", port))
+		store := fbauth.NewMemoryStore()
+
+		var respHeader http.Header
+		opts := LoginOptions{
+			ClientID: "client-1", ClientSecret: "secret-1",
+			Port: port, Timeout: 3 * time.Second,
+			Endpoints: oauth.endpoints(), Store: store,
+			OpenBrowser: func(rawURL string) error {
+				state := stateFromAuthURL(t, rawURL)
+				go func() {
+					resp, err := insecureBrowserClient.Get(fmt.Sprintf("https://127.0.0.1:%d/callback?code=test-auth-code&state=%s", port, state))
+					if err == nil {
+						respHeader = resp.Header
+						_ = resp.Body.Close()
+					}
+				}()
+				return nil
+			},
+		}
+
+		if _, err := Login(context.Background(), opts); err != nil {
+			t.Fatalf("Login() error = %v", err)
+		}
+		if respHeader == nil {
+			t.Fatal("never captured the callback response")
+		}
+		if got := respHeader.Get("Cache-Control"); got != "no-store" {
+			t.Errorf("Cache-Control = %q, want %q", got, "no-store")
+		}
+		if got := respHeader.Get("Referrer-Policy"); got != "no-referrer" {
+			t.Errorf("Referrer-Policy = %q, want %q", got, "no-referrer")
+		}
+	})
+
 	t.Run("[sad] a state mismatch is rejected and nothing is saved", func(t *testing.T) {
 		port := freePort(t)
 		oauth := newFakeOAuthServer(t, "client-1", "secret-1", "")
@@ -446,6 +483,16 @@ func TestLogin(t *testing.T) {
 		}
 		if !strings.Contains(err.Error(), "timed out") {
 			t.Errorf("error = %v, want a timeout error", err)
+		}
+		// F27/security A7: the message points at the dual-stack loopback
+		// gap (a browser resolving "localhost" to ::1 while the listener
+		// only bound 127.0.0.1) and the workaround, since that gap is
+		// backlog rather than fixed here.
+		if !strings.Contains(err.Error(), "::1") {
+			t.Errorf("error = %v, want it to mention the ::1/127.0.0.1 mismatch", err)
+		}
+		if !strings.Contains(err.Error(), "--no-browser") {
+			t.Errorf("error = %v, want it to suggest --no-browser", err)
 		}
 		if elapsed := time.Since(start); elapsed > 2*time.Second {
 			t.Errorf("Login() took %v, want it to return promptly after the timeout", elapsed)

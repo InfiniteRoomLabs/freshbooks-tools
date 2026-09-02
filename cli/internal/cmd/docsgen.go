@@ -140,6 +140,13 @@ the API base, e.g. ` + "`/accounting/account/ACM123/systems/systems/1`" + `.
 - Credentials files are written 0600 inside a 0700 directory.
 - The loopback login listener's TLS certificate is generated fresh for
   each login, in-process, and never touches disk.
+- ` + "`identity applications`" + ` redacts every ` + "`client_secret`" + ` in its output by
+  default; pass ` + "`--show-secrets`" + ` to include them. ` + "`identity create-application`" + `
+  and ` + "`identity update-application`" + ` always print the ` + "`client_secret`" + ` in their
+  result -- that is the only time it is shown, since it cannot be
+  retrieved later. Passing ` + "`--client-secret`" + ` (or ` + "`--client-id`" + `) on the command
+  line to ` + "`auth login`/`auth token`/`auth logout`" + ` puts it in ` + "`ps`" + ` output and
+  shell history; prefer ` + "`FRESHBOOKS_CLIENT_ID`/`FRESHBOOKS_CLIENT_SECRET`" + ` instead.
 
 ## Command reference
 

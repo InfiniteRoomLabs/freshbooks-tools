@@ -346,6 +346,42 @@ func TestWriteTable_Extra(t *testing.T) {
 		}
 	})
 
+	t.Run("[corner] table strips ESC and TAB from a string cell value", func(t *testing.T) {
+		// F24/security A1: an API response value carrying a raw ESC
+		// (0x1b, the start of an ANSI escape sequence) or an embedded
+		// TAB must not reach the terminal or corrupt the tabwriter's own
+		// column alignment.
+		payload, err := json.Marshal(map[string]string{"name": "probe\x1b[31mred\x1b[0m\tinjected"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		var buf bytes.Buffer
+		if err := Write(&buf, json.RawMessage(payload), Options{Format: Table}); err != nil {
+			t.Fatalf("Write() error = %v", err)
+		}
+		got := buf.String()
+		if strings.ContainsAny(got, "\x1b\t") {
+			t.Errorf("got %q, want no ESC or TAB in the rendered output", got)
+		}
+		if !strings.Contains(got, "probe[31mred[0minjected") {
+			t.Errorf("got %q, want the surrounding text preserved with the control characters stripped", got)
+		}
+	})
+
+	t.Run("[corner] name output also strips control characters", func(t *testing.T) {
+		payload, err := json.Marshal(map[string]any{"id": 1, "name": "probe\x1b[31minjected"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		var buf bytes.Buffer
+		if err := Write(&buf, json.RawMessage(payload), Options{Format: Name}); err != nil {
+			t.Fatalf("Write() error = %v", err)
+		}
+		if strings.Contains(buf.String(), "\x1b") {
+			t.Errorf("got %q, want no ESC in name output", buf.String())
+		}
+	})
+
 	t.Run("[edge] columns are the union of every row's keys, not just the first row's", func(t *testing.T) {
 		// F23/review A6: the first row carries only "id"/"name"; the
 		// second also carries "email". A column-set derived from row 0

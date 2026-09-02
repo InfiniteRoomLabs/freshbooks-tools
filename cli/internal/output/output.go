@@ -339,6 +339,23 @@ func orderedKeys(raw json.RawMessage) ([]string, error) {
 	return keys, nil
 }
 
+// stripControlChars removes every C0 control character (0x00-0x1F) and
+// DEL (0x7F) from s (F24/security A1): table and name output feed API
+// response values straight into a terminal, and a value carrying a raw
+// ESC (e.g. the start of an ANSI escape sequence) or embedded tabs/
+// newlines could otherwise corrupt the display or the tabwriter's own
+// column alignment. json/yaml output is untouched -- those formats quote
+// and escape control characters themselves, and a consumer parsing
+// structured output should see the value FreshBooks actually sent.
+func stripControlChars(s string) string {
+	return strings.Map(func(r rune) rune {
+		if r < 0x20 || r == 0x7f {
+			return -1
+		}
+		return r
+	}, s)
+}
+
 // cellValue renders one JSON value as a table/name cell: a bare string
 // unquoted, a number or boolean in its original literal form (avoiding a
 // float64 round trip that would lose precision on a large integer id), an
@@ -351,7 +368,7 @@ func cellValue(raw json.RawMessage) string {
 	case strings.HasPrefix(s, `"`):
 		var str string
 		if err := json.Unmarshal(raw, &str); err == nil {
-			return str
+			return stripControlChars(str)
 		}
 		return s
 	case strings.HasPrefix(s, "{"):

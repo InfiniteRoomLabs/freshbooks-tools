@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/InfiniteRoomLabs/freshbooks-tools/freshbooks"
+	"github.com/spf13/pflag"
 )
 
 // identityCommands wrap *freshbooks.IdentityService.
@@ -95,8 +96,12 @@ var identityCommands = []Command{
 		},
 	},
 	{
+		// F25/security A3-A4: this is the one moment a create actually
+		// needs to show the generated client_secret -- there is no other
+		// way to retrieve it later, since `applications` redacts it by
+		// default -- so it is never redacted here.
 		Group: "identity", Verb: "create-application",
-		Short:   "Register a new developer application",
+		Short:   "Register a new developer application (prints the generated client_secret -- it is shown only here and on update)",
 		Service: "Identity", Method: "CreateApplication",
 		Keys:  []string{"Settings/Developer/Create new application"},
 		Class: ClassW, Body: true,
@@ -109,18 +114,38 @@ var identityCommands = []Command{
 		},
 	},
 	{
+		// F25/security A3-A4: client_secret is redacted by default --
+		// visible in `ps`/shell history via --client-secret elsewhere in
+		// this CLI, and this list is the one place a caller could
+		// otherwise dump every registered application's secret at once.
 		Group: "identity", Verb: "applications",
-		Short:   "List developer applications",
+		Short:   "List developer applications (client_secret redacted unless --show-secrets)",
 		Service: "Identity", Method: "Applications",
 		Keys:  []string{"Settings/Developer/Get all applications"},
 		Class: ClassRO,
+		ExtraFlags: func(fs *pflag.FlagSet) {
+			fs.Bool("show-secrets", false, "include each application's client_secret in the output instead of redacting it")
+		},
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
-			return c.Identity.Applications(ctx)
+			apps, err := c.Identity.Applications(ctx)
+			if err != nil {
+				return nil, err
+			}
+			show, _ := inv.Flags.GetBool("show-secrets")
+			if !show {
+				for i := range apps {
+					apps[i].ClientSecret = ""
+				}
+			}
+			return apps, nil
 		},
 	},
 	{
+		// F25/security A3-A4: same as create-application -- this is the
+		// only other command that can legitimately need to show a
+		// client_secret (rotating it), so it is never redacted here.
 		Group: "identity", Verb: "update-application",
-		Short:   "Update a developer application",
+		Short:   "Update a developer application (prints its client_secret -- it is shown only here and on create)",
 		Service: "Identity", Method: "UpdateApplication",
 		Keys:  []string{"Settings/Developer/Modify existing application"},
 		Class: ClassI, HasID: true, IDKind: "string", IDName: "client-id", Body: true,
