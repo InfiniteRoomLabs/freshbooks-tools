@@ -41,7 +41,9 @@ func NewRootCmd(version string) *cobra.Command {
 	root.AddCommand(newAuthCmd(state))
 	root.AddCommand(newConfigCmd(state))
 	root.AddCommand(newAPICmd(state))
-	root.AddCommand(newDocsCmd(root))
+	for _, extra := range extraCommands {
+		root.AddCommand(extra(root))
+	}
 	BuildTree(root, state)
 
 	return root

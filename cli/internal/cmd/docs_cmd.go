@@ -1,10 +1,22 @@
+//go:build docsgen
+
 package cmd
 
 import (
 	"os"
 
+	"github.com/InfiniteRoomLabs/freshbooks-tools/cli/internal/docsgen"
 	"github.com/spf13/cobra"
 )
+
+// This file only compiles with -tags docsgen (see scripts/docs.sh); it is
+// the sole place cli/internal/docsgen -- and therefore cobra/doc -- is
+// imported outside of tests, so a plain `go build ./cmd/freshbooks` never
+// links cobra/doc, go-md2man, or blackfriday into the release binary (D6).
+
+func init() {
+	extraCommands = append(extraCommands, newDocsCmd)
+}
 
 // newDocsCmd builds the hidden `docs <file>` command scripts/docs.sh
 // (mise run docs) uses to regenerate docs/cli.md. root is the same
@@ -19,7 +31,7 @@ func newDocsCmd(root *cobra.Command) *cobra.Command {
 		Hidden: true,
 		Args:   cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			content, err := GenerateDocs(root)
+			content, err := docsgen.Generate(root)
 			if err != nil {
 				return &runtimeError{err: err}
 			}

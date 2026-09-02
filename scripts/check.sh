@@ -39,7 +39,9 @@ run_test() {
   local module="$1"
   echo "== test: $module =="
   (cd "$repo_root/$module" && go test -race -coverprofile=coverage.out -covermode=atomic ./...)
-  (cd "$repo_root/$module" && go test -race -tags integration ./...)
+  # docsgen is a no-op tag outside cli/ (only cli/internal/cmd's docs_cmd.go
+  # and docs_test.go are //go:build docsgen); harmless to pass everywhere.
+  (cd "$repo_root/$module" && go test -race -tags integration,docsgen ./...)
 }
 
 run_cover() {
