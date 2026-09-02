@@ -407,3 +407,59 @@ The allowlist is the right call, logged via `t.Logf` at `roundtrip_test.go:708` 
 ## Final verdict
 
 **NEEDS WORK** -- on R1 alone. G1-G6 are otherwise complete and correct, Q2 is fully resolved, and G4 delivered exactly the independent oracle Q6/Q7 asked for. R1 is a one-line code change plus a one-line test; alternatively, correct the three false statements and carry the behaviour to Phase 5.
+
+---
+
+# Round 3 -- R1 re-probe (`3fad379`, fix commit `1d8d349`)
+
+**FINAL VERDICT: PASS.**
+
+Gate not run this round (the lead ran `mise run check` concurrently); this section is the focused black-box R1 probe only, against a freshly built binary.
+
+## The fix
+
+`cli/internal/cmd/root.go:70` -- `flags.String("log-level", "warn", ...)` becomes `flags.String("log-level", "", "... (default warn; env twin FRESHBOOKS_LOG_LEVEL)")`. `resolveLogLevel` (`state.go:207-210`) is untouched and did not need to change: `"warn"` was already sitting in `config.Resolve`'s `def` slot, so dropping the flag default hands the same default back while letting the env branch become reachable. This is the minimal correct fix and it restores the convention the comment at `root.go:55-57` states -- `--log-level` is no longer the odd string flag out.
+
+## Probe results -- every case correct
+
+```
+### env twin validated on all three paths
+FRESHBOOKS_LOG_LEVEL=bogus  clients list --dry-run          -> exit 2  invalid --log-level "bogus": want debug, info, warn, or error
+FRESHBOOKS_LOG_LEVEL=bogus  clients list  (credentials)     -> exit 2  same message
+FRESHBOOKS_LOG_LEVEL=bogus  clients list  (no credentials)  -> exit 2  same message
+
+### env twin actually takes effect
+--log-level debug           -> 2 'level=DEBUG' lines on stderr
+FRESHBOOKS_LOG_LEVEL=debug  -> 2 'level=DEBUG' lines on stderr    (was 0 at 45a1d7c)
+
+### flag beats env
+--log-level warn + FRESHBOOKS_LOG_LEVEL=bogus  -> exit 0            (flag wins, env not validated)
+--log-level warn + FRESHBOOKS_LOG_LEVEL=debug  -> 0 'level=DEBUG'   (flag wins, no debug output)
+
+### regression guards
+no flag, no env (default warn)      -> exit 0
+--log-level bogus (flag validation) -> exit 2   (still works after the default change)
+FRESHBOOKS_LOG_LEVEL= (empty=unset) -> exit 0   (empty env is not a validation error)
+```
+
+The env twin now behaves exactly like the other eight variables: flag beats env, env beats default, empty env counts as unset.
+
+## The three previously false statements are now true
+
+| Statement | Status |
+|---|---|
+| `docs/cli.md:70` -- `\| FRESHBOOKS_LOG_LEVEL \| --log-level \| warn \|` | **TRUE** -- the variable resolves `--log-level` and falls back to `warn`; both halves probed above |
+| `cli/internal/cmd/state.go:212-215` -- "An unrecognized `--log-level`/`FRESHBOOKS_LOG_LEVEL` value is a usage error (exit 2), not a silent fall-back to warn" | **TRUE** -- exit 2 on all three paths via the env twin, and via the flag |
+| `fix.md` G1's claim that the validation covers the env twin | **TRUE** as of `1d8d349` |
+
+`docs/cli.md` was regenerated: the help text now reads `log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)` at every one of its occurrences, and the built binary's live `--help` matches that string exactly -- so the drift test and reality agree.
+
+Two new subtests landed in `cli/internal/cmd/exitcodes_test.go`: `[sad] FRESHBOOKS_LOG_LEVEL is consulted and validated` (asserts exit 2, with a failure message that names the regression -- "env twin ignored?") and `[happy] --log-level beats FRESHBOOKS_LOG_LEVEL`. Both assert behaviour rather than shape, and the first would have failed at `45a1d7c`.
+
+## Final state
+
+`git status --porcelain` -> only `M docs/phases/4/reports/qa.md` (this section; the round-2 report is committed at `3fad379`). Probe binary `/tmp/qa-fb` deleted, fixture server stopped, scratch credentials removed, nothing written inside the repo.
+
+## Final verdict
+
+**PASS.** R1 is fixed correctly and minimally, with the docs and code comments now matching behaviour. Combined with the round-2 re-verification -- gate green on a clean tree, `go.work.sum` untouched, 168/168 round-trip subtests, 166 commands cross-checked against the vendor inventory for method and path, Q1-Q3, Q5, Q6, Q7, Q10, Q11, Q13, Q14, Q16 and Q18 all resolved -- `phase-4/cli` is ready to merge. The remaining advisories (Q4, Q8, Q9, Q12, Q15, Q17, Q20, Q21, Q22) are the agreed Phase 5 backlog, and Q19 (the root `CHANGELOG.md` Phase 4 entry) remains the lead's GOAL stage-4 ship step.
