@@ -6,6 +6,12 @@ import (
 	"testing"
 )
 
+// discardStdin is what every root_test.go case that never reads from
+// stdin passes for Run's stdin parameter -- an already-closed reader, so
+// a command that unexpectedly tried to read from it would see EOF
+// immediately rather than hang.
+var discardStdin = strings.NewReader("")
+
 func TestVersionCommand(t *testing.T) {
 	t.Run("[happy] prints the given version", func(t *testing.T) {
 		root := NewRootCmd("9.9.9")
@@ -43,7 +49,7 @@ func TestCompletionCommand(t *testing.T) {
 func TestRun(t *testing.T) {
 	t.Run("[happy] version command exits 0", func(t *testing.T) {
 		var stdout, stderr bytes.Buffer
-		code := Run([]string{"version"}, &stdout, &stderr, "9.9.9")
+		code := Run([]string{"version"}, discardStdin, &stdout, &stderr, "9.9.9")
 		if code != 0 {
 			t.Fatalf("Run() exit = %d, stderr = %s", code, stderr.String())
 		}
@@ -52,11 +58,11 @@ func TestRun(t *testing.T) {
 		}
 	})
 
-	t.Run("[sad] unknown subcommand exits 1 and reports to stderr", func(t *testing.T) {
+	t.Run("[sad] unknown subcommand exits 2 (a usage problem, per D6) and reports to stderr", func(t *testing.T) {
 		var stdout, stderr bytes.Buffer
-		code := Run([]string{"this-command-does-not-exist"}, &stdout, &stderr, "0.0.0-dev")
-		if code != 1 {
-			t.Fatalf("Run() exit = %d, want 1", code)
+		code := Run([]string{"this-command-does-not-exist"}, discardStdin, &stdout, &stderr, "0.0.0-dev")
+		if code != 2 {
+			t.Fatalf("Run() exit = %d, want 2", code)
 		}
 		if stderr.Len() == 0 {
 			t.Fatal("Run() wrote nothing to stderr for a failing command")

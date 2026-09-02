@@ -178,8 +178,13 @@ var sensitiveCases = []sensitiveCase{
 			return []string{"tok_super_secret_saved_card_token"}
 		},
 		mutateInvalid: func(args map[string]any) []string {
-			args["body"] = "not-an-object"
-			return nil
+			body := args["body"].(map[string]any) //nolint:errcheck
+			// credit_card_tokens as a bare string, where the schema wants
+			// an array: schema-invalid, but still carries a sensitive
+			// value to check never reaches the generic "invalid
+			// arguments" error path.
+			body["credit_card_tokens"] = "tok_super_secret_invalid_shape"
+			return []string{"tok_super_secret_invalid_shape"}
 		},
 	},
 	{
@@ -224,6 +229,9 @@ func TestSensitiveToolsNeverEchoInput(t *testing.T) {
 				if err != nil {
 					t.Fatalf("CallTool: %v", err)
 				}
+				if result.IsError {
+					t.Fatalf("well-typed call returned IsError: %s", errorContentText(result))
+				}
 				assertNoLeak(t, result, logBuf.String(), sensitive)
 			})
 
@@ -264,6 +272,16 @@ func assertNoLeak(t *testing.T, result *mcp.CallToolResult, logs string, sensiti
 		}
 		if strings.Contains(structured, s) {
 			t.Errorf("StructuredContent leaked %q: %s", s, structured)
+		}
+		// An empty log buffer is not evidence of redaction, only evidence
+		// that nothing was logged at Debug level for this call (the
+		// schema-invalid path returns before the transport's own
+		// DebugContext call site ever runs, so its buffer is empty by
+		// construction, not because redaction worked). Skip the
+		// containment check rather than let that vacuous case masquerade
+		// as a real pass.
+		if logs == "" {
+			continue
 		}
 		if strings.Contains(logs, s) {
 			t.Errorf("log output leaked %q: %s", s, logs)

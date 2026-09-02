@@ -42,7 +42,7 @@ description = "Cross-compile the mcp and cli binaries into dist/ (gitignored)"
 run = "scripts/build.sh"
 
 [tasks.docs]
-description = "Regenerate generated docs (stub until Phase 4 adds cobra/doc)"
+description = "Regenerate docs/cli.md from the cobra command tree (cobra/doc)"
 run = "scripts/docs.sh"
 
 [tasks.check]
