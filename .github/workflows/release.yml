@@ -108,7 +108,7 @@ jobs:
         # instead of gh publishing a release missing its checksums or SBOMs.
         run: |
           shopt -s failglob
-          gh release create "$TAG_NAME" --verify-tag --notes-file /tmp/release-notes.md \
+          gh release create "$TAG_NAME" --title "$TAG_NAME" --verify-tag --notes-file /tmp/release-notes.md \
             dist/*.tar.gz dist/*.zip dist/checksums.txt dist/*.sbom.json
 
       - name: Create the lib release
@@ -117,4 +117,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG_NAME: ${{ github.ref_name }}
         run: |
-          gh release create "$TAG_NAME" --verify-tag --notes-file /tmp/release-notes.md
+          gh release create "$TAG_NAME" --title "$TAG_NAME" --verify-tag --notes-file /tmp/release-notes.md

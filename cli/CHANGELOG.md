@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-09-02
+
 ### Added
 
 - The full 168-command registry (`internal/cmd`, data-driven, one `Command` per `freshbooks` client-library method) built into a cobra tree grouped by resource, plus the non-registry commands: `auth login|status|logout|token`, `config view|contexts|use-context|set-context`, `api <METHOD> <path>` (the escape hatch for endpoints not yet modeled as their own command), and `version` (falls back to the Go module version via `debug.ReadBuildInfo` when built without `-ldflags -X main.version=...`, so a `go install .../freshbooks@<tag>` build reports the tag instead of a placeholder).

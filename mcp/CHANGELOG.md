@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-09-02
+
 ### Added
 
 - `internal/tools`: 168 MCP tools, one per `freshbooks` client-library method (minus the 17 `All` iterators and the auth-owned `Authorization/Revoke Refresh Token`), built by a generic, data-driven `newSpec[In]` constructor rather than 168 hand-rolled handlers. Input schemas are computed once at package init via `jsonschema.ForType` with three type overrides (`freshbooks.Date`, `freshbooks.DateTime`, `freshbooks.ProfitLossLine`) that the SDK's default reflection cannot handle, and shared across every server this process builds through one `mcp.SchemaCache`. Every tool falls back to a configured default `account_id`/`business_id`/`business_uuid` and names the missing field when neither the call nor the default supplies it.
