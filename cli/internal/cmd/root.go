@@ -19,8 +19,9 @@ import (
 )
 
 // NewRootCmd builds the freshbooks root command: every global flag, the
-// non-registry commands (auth, config, api, version, docs), and the full
-// 168-command registry tree. version is embedded so `freshbooks version`
+// non-registry commands (auth, config, api, version, plus any build-tag
+// gated extras registered in extraCommands -- the hidden docs command under
+// -tags docsgen), and the full 168-command registry tree. version is embedded so `freshbooks version`
 // reports the binary that was actually built.
 func NewRootCmd(version string) *cobra.Command {
 	state := &runtimeState{version: version}

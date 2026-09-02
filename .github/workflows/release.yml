@@ -73,6 +73,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
         with:
@@ -99,15 +100,16 @@ jobs:
 
       - name: Publish the module release
         if: needs.guard.outputs.module == 'mcp' || needs.guard.outputs.module == 'cli'
+        working-directory: ${{ needs.guard.outputs.module }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG_NAME: ${{ github.ref_name }}
+        # failglob: an unmatched pattern aborts before the release exists,
+        # instead of gh publishing a release missing its checksums or SBOMs.
         run: |
+          shopt -s failglob
           gh release create "$TAG_NAME" --verify-tag --notes-file /tmp/release-notes.md \
-            ${{ needs.guard.outputs.module }}/dist/*.tar.gz \
-            ${{ needs.guard.outputs.module }}/dist/*.zip \
-            ${{ needs.guard.outputs.module }}/dist/checksums.txt \
-            ${{ needs.guard.outputs.module }}/dist/*.sbom.json
+            dist/*.tar.gz dist/*.zip dist/checksums.txt dist/*.sbom.json
 
       - name: Create the lib release
         if: needs.guard.outputs.module == 'freshbooks'

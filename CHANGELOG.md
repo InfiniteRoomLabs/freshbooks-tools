@@ -22,7 +22,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - MIT license.
 - Phase 0 review-gate artifacts: work order, lead triage, and the implementer / code-review / simplification / security / QA reports under `docs/phases/0/`.
 - `GOAL.md` treadmill (phase 0 goal block + phase 1-5 roadmap), root `CLAUDE.md`, `docs/progress.md`, and the five review-gate work-order templates under `docs/phases/_templates/`.
-- syft (mise-pinned) generates a CycloneDX SBOM per release archive; the `docsgen` build tag keeps `cobra/doc` (and its `go-md2man`/`blackfriday` dependents) out of the release `freshbooks` binary while still letting `mise run docs` regenerate `docs/cli.md` (see `cli/CHANGELOG.md`).
+- syft (mise-pinned) generates an SPDX 2.3 JSON SBOM per release archive; the `docsgen` build tag keeps `cobra/doc` (and its `go-md2man`/`blackfriday` dependents) out of the release `freshbooks` binary while still letting `mise run docs` regenerate `docs/cli.md` (see `cli/CHANGELOG.md`).
 
 ### Changed
 

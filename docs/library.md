@@ -67,7 +67,7 @@ client.Invoices.List(ctx, acct,
 
 > The design spec calls the page-selecting option `Page`, which cannot coexist in Go with the `Page[T]` pagination type. The type keeps the short name because it appears in every `List` signature; the option is `PageNumber`.
 
-> The accounting family's `search[field]=value` spelling is confirmed against the live API; the business-scoped family's bare `field=value` is inferred from the FreshBooks documentation and has not been exercised live. Phase 2's first business-scoped list endpoint confirms it.
+> The accounting family's `search[field]=value` spelling is confirmed against the live API; the business-scoped family's bare `field=value` is taken from the FreshBooks documentation and has not been exercised live.
 
 `List` returns `Page[T]{Items, Page, Pages, PerPage, Total}`. `All` is the auto-paginating iterator:
 

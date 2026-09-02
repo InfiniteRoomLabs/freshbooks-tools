@@ -3,6 +3,7 @@ package auth
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 )
 
@@ -115,16 +116,8 @@ func TestDefaultScopes(t *testing.T) {
 	})
 
 	t.Run("[happy] contains a known read scope and a known write scope", func(t *testing.T) {
-		want := []string{"user:clients:read", "user:invoices:write"}
-		for _, w := range want {
-			found := false
-			for _, s := range DefaultScopes {
-				if s == w {
-					found = true
-					break
-				}
-			}
-			if !found {
+		for _, w := range []string{"user:clients:read", "user:invoices:write"} {
+			if !slices.Contains(DefaultScopes, w) {
 				t.Errorf("DefaultScopes missing %q", w)
 			}
 		}

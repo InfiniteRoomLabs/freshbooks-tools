@@ -95,10 +95,10 @@ For Claude Desktop or Claude Code (stdio transport), add `freshbooks-mcp serve` 
 }
 ```
 
-For a shared deployment, run the stateless HTTP transport behind TLS and call it directly:
+For a shared deployment, run the stateless HTTP transport on loopback behind a TLS-terminating reverse proxy and call it through the proxy. The server itself speaks plain HTTP and the bearer token travels in the clear, so never expose it without TLS in front:
 
 ```sh
-freshbooks-mcp serve --transport http --addr 0.0.0.0:8080
+freshbooks-mcp serve --transport http --addr 127.0.0.1:8080
 
 curl -s https://mcp.example.com/mcp \
   -H "Authorization: Bearer $FRESHBOOKS_ACCESS_TOKEN" \
