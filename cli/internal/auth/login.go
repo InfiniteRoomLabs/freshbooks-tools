@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"html"
 	"io"
+	"log"
 	"math/big"
 	"net"
 	"net/http"
@@ -351,7 +352,11 @@ func runCallbackServer(port int, now time.Time) (<-chan callbackResult, func() e
 		}
 		writeCallbackPage(w, res.err)
 	})
-	srv := &http.Server{Handler: mux, ReadHeaderTimeout: 10 * time.Second}
+	// ErrorLog is discarded: the browser's first request is rejected by the
+	// user's own certificate warning, which surfaces here as a raw
+	// "tls: bad certificate" handshake line on every login; the prompt above
+	// already explains the warning.
+	srv := &http.Server{Handler: mux, ReadHeaderTimeout: 10 * time.Second, ErrorLog: log.New(io.Discard, "", 0)}
 	go func() { _ = srv.Serve(tlsLn) }()
 
 	stop := func() error {

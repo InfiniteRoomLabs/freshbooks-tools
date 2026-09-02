@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- `auth login` no longer prints a raw `http: TLS handshake error ... tls: bad certificate` line when the browser rejects the self-signed loopback certificate on its first attempt (the prompt already explains that warning); the loopback server's error log is discarded.
+- The command reference and `docs/getting-started.md` now say that every requested scope must be enabled on the app in the FreshBooks developer portal, the cause of "The requested scope is invalid, unknown, or malformed" at consent (found on the first real login with the released CLI).
+
 ## [0.1.0] - 2026-09-02
 
 ### Added

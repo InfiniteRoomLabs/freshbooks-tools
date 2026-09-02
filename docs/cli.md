@@ -58,7 +58,7 @@ Every registry command accepts `--dry-run`, which prints the request's method an
 
 Destructive commands -- the ones whose `Short` help line in the command reference below ends with " (destructive: requires --yes on a TTY)" -- refuse to run without `--yes` when stdin is a terminal.
 
-A Binary command's `-o <file>` (`invoices pdf`, `reports download-invoice-details-csv`) refuses to overwrite an existing file without `--force`, and refuses `-o -` when stdout is a terminal (binary bytes would corrupt it). This `-o` is a different flag from the global `-o/--output` formatting flag above and shadows it locally on these two commands; similarly, `auth login --login-timeout` (how long to wait for the browser callback) is a different flag from the global `--timeout` (per-request timeout) -- named differently precisely so it does not shadow it.
+A Binary command's `-o <file>` (`invoices pdf`, `reports download-invoice-details-csv`) refuses to overwrite an existing file without `--force`, and refuses `-o -` when stdout is a terminal (binary bytes would corrupt it). This `-o` is a different flag from the global `-o/--output` formatting flag above and shadows it locally on these two commands; similarly, `auth login --login-timeout` (how long to wait for the browser callback) is a different flag from the global `--timeout` (per-request timeout) -- named differently precisely so it does not shadow it. The scopes `auth login` requests (the full documented set by default, or an explicit `--scopes` list) must all be enabled on the app in the FreshBooks developer portal; otherwise the consent page answers "The requested scope is invalid, unknown, or malformed" and nothing is stored.
 
 ## The api escape hatch
 
