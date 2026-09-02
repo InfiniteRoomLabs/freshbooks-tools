@@ -35,7 +35,7 @@ PKCE S256 is accepted by both authorize endpoints. Whether FreshBooks *rejects* 
 
 ## Redirect URIs must be HTTPS
 
-The developer portal rejects `http://localhost:...` outright, contradicting several third-party guides. The registered development redirect is `https://localhost:8765/callback`. The CLI's loopback listener therefore serves an ephemeral self-signed certificate on `127.0.0.1` (the browser shows a one-time warning) and always offers a paste-the-redirected-URL fallback that needs no listener at all. See `cli/internal/auth/` once Phase 4 lands.
+The developer portal rejects `http://localhost:...` outright, contradicting several third-party guides. The registered development redirect is `https://localhost:8765/callback`. The CLI's loopback listener therefore serves an ephemeral self-signed certificate on `127.0.0.1` (the browser shows a one-time warning) and always offers a paste-the-redirected-URL fallback that needs no listener at all. See `cli/internal/auth/` and `docs/cli.md`'s "First login" section.
 
 ## Token lifetimes and rotation
 
@@ -78,7 +78,7 @@ The library never owns a storage decision. `auth.TokenStore` is an interface wit
 
 `auth.StaticTokenSource(accessToken)` is the third shape: no refresh, no store, for a process that was handed a token and is not responsible for its lifecycle. That is what the MCP server uses.
 
-The CLI owns login and the token file. The MCP server is a token consumer only. Neither ships in Phase 1.
+The CLI owns login and the credentials file (`freshbooks auth login`, `cli/internal/auth/`). The MCP server is a token consumer only -- it never runs a login flow itself; see `docs/mcp.md` for how it receives a bearer token.
 
 ## Keeping tokens out of logs
 

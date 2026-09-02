@@ -22,7 +22,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - MIT license.
 - Phase 0 review-gate artifacts: work order, lead triage, and the implementer / code-review / simplification / security / QA reports under `docs/phases/0/`.
 - `GOAL.md` treadmill (phase 0 goal block + phase 1-5 roadmap), root `CLAUDE.md`, `docs/progress.md`, and the five review-gate work-order templates under `docs/phases/_templates/`.
+- syft (mise-pinned) generates an SPDX 2.3 JSON SBOM per release archive; the `docsgen` build tag keeps `cobra/doc` (and its `go-md2man`/`blackfriday` dependents) out of the release `freshbooks` binary while still letting `mise run docs` regenerate `docs/cli.md` (see `cli/CHANGELOG.md`).
 
 ### Changed
 
 - Spec section 3/7: the FreshBooks developer portal rejects `http://localhost` redirect URIs; the CLI loopback flow now uses ephemeral self-signed TLS on `https://localhost:8765/callback` with a paste-the-URL fallback.
+- Release flow reworked so `mcp`/`cli` publish onto their prefixed tags (`mcp/vX.Y.Z`, `cli/vX.Y.Z`): goreleaser OSS cannot release a prefixed tag itself, so it now only builds (`--skip=publish,validate`) and `gh release create --verify-tag` publishes the archives, `checksums.txt`, and SBOMs; `project_name` is set per module so the two modules' default-named archives stop colliding; GitHub Actions pinned by commit SHA and the release notes artifact round-trip dropped in favor of the release job re-running `scripts/changelog-section.sh` itself; the dirty-tree guard in `scripts/check.sh` now excludes `docs/phases/*/reports/*`, since the QA lane writes its report while the gate it is part of is still running.

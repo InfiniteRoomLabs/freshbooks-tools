@@ -17,6 +17,17 @@ import (
 // written to the same stderr the CLI's own error output goes to) is part
 // of what gets checked, and every one asserts the fixture access token,
 // refresh token, and client secret never appear in stdout or stderr.
+//
+// Q20 (Phase 4 QA): asserting only absence cannot distinguish "redacted"
+// from "nothing was logged". Three of five scenarios (config view, auth
+// status, a --dry-run) never call clientIDCredentials -- the only place
+// FRESHBOOKS_CLIENT_SECRET is read -- so asserting it never leaks there
+// was vacuous; dropped from those three. The three scenarios that build
+// and issue an *http.Request (a --dry-run, whose request goes to
+// dryRunTransport instead of the network; an API 500 and a 401, which
+// hit a real httptest server) each also get one positive marker
+// assertion, so a regression that stopped logging anything could not
+// pass by leaving both the leak and the marker checks vacuously true.
 func TestRedactionSweep(t *testing.T) {
 	const (
 		fixtureAccess       = "fixture-secret-access-token-abc123"
@@ -24,10 +35,10 @@ func TestRedactionSweep(t *testing.T) {
 		fixtureClientSecret = "fixture-secret-client-secret-ghi789"
 	)
 
-	assertNoLeak := func(t *testing.T, stdout, stderr string) {
+	assertNoLeak := func(t *testing.T, stdout, stderr string, secrets ...string) {
 		t.Helper()
 		combined := stdout + "\n" + stderr
-		for _, secret := range []string{fixtureAccess, fixtureRefresh, fixtureClientSecret} {
+		for _, secret := range secrets {
 			if strings.Contains(combined, secret) {
 				t.Errorf("leaked %q\nstdout: %s\nstderr: %s", secret, stdout, stderr)
 			}
@@ -37,7 +48,6 @@ func TestRedactionSweep(t *testing.T) {
 	t.Run("config view", func(t *testing.T) {
 		dir := t.TempDir()
 		t.Setenv("XDG_CONFIG_HOME", dir)
-		t.Setenv("FRESHBOOKS_CLIENT_SECRET", fixtureClientSecret)
 		writeCredentials(t, dir, "default", `{"access_token":"`+fixtureAccess+`","refresh_token":"`+fixtureRefresh+`"}`)
 
 		var stdout, stderr bytes.Buffer
@@ -45,13 +55,12 @@ func TestRedactionSweep(t *testing.T) {
 		if code != 0 {
 			t.Fatalf("exit = %d, stderr = %s", code, stderr.String())
 		}
-		assertNoLeak(t, stdout.String(), stderr.String())
+		assertNoLeak(t, stdout.String(), stderr.String(), fixtureAccess, fixtureRefresh)
 	})
 
 	t.Run("auth status", func(t *testing.T) {
 		dir := t.TempDir()
 		t.Setenv("XDG_CONFIG_HOME", dir)
-		t.Setenv("FRESHBOOKS_CLIENT_SECRET", fixtureClientSecret)
 		writeCredentials(t, dir, "default", `{"access_token":"`+fixtureAccess+`","refresh_token":"`+fixtureRefresh+`"}`)
 
 		var stdout, stderr bytes.Buffer
@@ -59,13 +68,12 @@ func TestRedactionSweep(t *testing.T) {
 		if code != 0 {
 			t.Fatalf("exit = %d, stderr = %s", code, stderr.String())
 		}
-		assertNoLeak(t, stdout.String(), stderr.String())
+		assertNoLeak(t, stdout.String(), stderr.String(), fixtureAccess, fixtureRefresh)
 	})
 
 	t.Run("a --dry-run", func(t *testing.T) {
 		dir := t.TempDir()
 		t.Setenv("XDG_CONFIG_HOME", dir)
-		t.Setenv("FRESHBOOKS_CLIENT_SECRET", fixtureClientSecret)
 		writeCredentials(t, dir, "default", `{"access_token":"`+fixtureAccess+`","refresh_token":"`+fixtureRefresh+`"}`)
 		bodyPath := filepath.Join(t.TempDir(), "body.json")
 		if err := os.WriteFile(bodyPath, []byte(`{"fname":"Ada"}`), 0o600); err != nil {
@@ -78,7 +86,14 @@ func TestRedactionSweep(t *testing.T) {
 		if code != 0 {
 			t.Fatalf("exit = %d, stderr = %s", code, stderr.String())
 		}
-		assertNoLeak(t, stdout.String(), stderr.String())
+		assertNoLeak(t, stdout.String(), stderr.String(), fixtureAccess, fixtureRefresh)
+		// Positive marker: dryRunTransport prints "METHOD URL" for the
+		// request it intercepts (state.go), so a regression that stopped
+		// printing anything (and thus could never leak anything either)
+		// would otherwise pass this scenario vacuously.
+		if !strings.Contains(stdout.String(), "POST") || !strings.Contains(stdout.String(), "ACM000TEST") {
+			t.Errorf("expected the dry-run request line in stdout, got: %s", stdout.String())
+		}
 	})
 
 	t.Run("an API 500", func(t *testing.T) {
@@ -98,7 +113,12 @@ func TestRedactionSweep(t *testing.T) {
 		if code != 1 {
 			t.Fatalf("exit = %d, want 1; stderr = %s", code, stderr.String())
 		}
-		assertNoLeak(t, stdout.String(), stderr.String())
+		assertNoLeak(t, stdout.String(), stderr.String(), fixtureAccess, fixtureRefresh, fixtureClientSecret)
+		// Positive marker: freshbooks/transport.go logs "freshbooks
+		// request" at debug level for every attempt.
+		if !strings.Contains(stderr.String(), "freshbooks request") {
+			t.Errorf("expected a debug request-log line in stderr, got: %s", stderr.String())
+		}
 	})
 
 	t.Run("a 401", func(t *testing.T) {
@@ -118,6 +138,9 @@ func TestRedactionSweep(t *testing.T) {
 		if code != 3 {
 			t.Fatalf("exit = %d, want 3; stderr = %s", code, stderr.String())
 		}
-		assertNoLeak(t, stdout.String(), stderr.String())
+		assertNoLeak(t, stdout.String(), stderr.String(), fixtureAccess, fixtureRefresh, fixtureClientSecret)
+		if !strings.Contains(stderr.String(), "freshbooks request") {
+			t.Errorf("expected a debug request-log line in stderr, got: %s", stderr.String())
+		}
 	})
 }

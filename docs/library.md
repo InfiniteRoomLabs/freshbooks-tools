@@ -25,7 +25,7 @@ A `*Client` is safe for concurrent use.
 
 ## Services and ID types
 
-Every resource is an exported field on `*Client` -- `client.Invoices`, `client.Projects`, `client.TimeEntries`, and so on. All 36 are declared and wired from Phase 1; Phase 2 fills in their methods.
+Every resource is an exported field on `*Client` -- `client.Invoices`, `client.Projects`, `client.TimeEntries`, and so on: 36 services covering all 213 documented FreshBooks endpoints.
 
 The FreshBooks API is two API families that never share an identifier, so the library gives each its own type:
 
@@ -46,7 +46,7 @@ memberships, err := client.Identity.Me(ctx)
 ## Values on the wire
 
 - `Money{Amount, Code}` keeps the amount as the string the API sent, so no precision is lost. `Money.Rat()` parses it into an exact `*big.Rat`.
-- `Date` is `YYYY-MM-DD`. `DateTime` accepts all three formats FreshBooks uses -- RFC 3339, `YYYY-MM-DD HH:MM:SS`, and a bare date -- and *remembers which one it decoded from*, so a value read from one family and written back to it round-trips in that family's spelling. `NewDateTime` defaults to RFC 3339; `InLayout` overrides it.
+- `Date` is `YYYY-MM-DD`. `DateTime` accepts all four formats FreshBooks uses -- RFC 3339, `YYYY-MM-DD HH:MM:SS`, a bare date, and the zoneless `YYYY-MM-DDTHH:MM:SS` the Projects and Time Tracking family emits -- and *remembers which one it decoded from*, so a value read from one family and written back to it round-trips in that family's spelling. `NewDateTime` defaults to RFC 3339; `InLayout` overrides it.
 - `VisState` names the visibility states (`active`, `deleted`, `archived`).
 
 ## Requests, pagination, and errors
@@ -67,7 +67,7 @@ client.Invoices.List(ctx, acct,
 
 > The design spec calls the page-selecting option `Page`, which cannot coexist in Go with the `Page[T]` pagination type. The type keeps the short name because it appears in every `List` signature; the option is `PageNumber`.
 
-> The accounting family's `search[field]=value` spelling is confirmed against the live API; the business-scoped family's bare `field=value` is inferred from the FreshBooks documentation and has not been exercised live. Phase 2's first business-scoped list endpoint confirms it.
+> The accounting family's `search[field]=value` spelling is confirmed against the live API; the business-scoped family's bare `field=value` is taken from the FreshBooks documentation and has not been exercised live.
 
 `List` returns `Page[T]{Items, Page, Pages, PerPage, Total}`. `All` is the auto-paginating iterator:
 
@@ -130,4 +130,4 @@ err := client.Do(ctx, http.MethodGet,
 
 ## Examples
 
-The package `Example` and `ExampleAll` in `example_test.go` are runnable and appear on pkg.go.dev. Per-resource examples land with Phase 2.
+The package `Example` and `ExampleAll` in `example_test.go` are runnable and appear on pkg.go.dev.

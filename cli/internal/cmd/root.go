@@ -19,8 +19,9 @@ import (
 )
 
 // NewRootCmd builds the freshbooks root command: every global flag, the
-// non-registry commands (auth, config, api, version, docs), and the full
-// 168-command registry tree. version is embedded so `freshbooks version`
+// non-registry commands (auth, config, api, version, plus any build-tag
+// gated extras registered in extraCommands -- the hidden docs command under
+// -tags docsgen), and the full 168-command registry tree. version is embedded so `freshbooks version`
 // reports the binary that was actually built.
 func NewRootCmd(version string) *cobra.Command {
 	state := &runtimeState{version: version}
@@ -41,7 +42,9 @@ func NewRootCmd(version string) *cobra.Command {
 	root.AddCommand(newAuthCmd(state))
 	root.AddCommand(newConfigCmd(state))
 	root.AddCommand(newAPICmd(state))
-	root.AddCommand(newDocsCmd(root))
+	for _, extra := range extraCommands {
+		root.AddCommand(extra(root))
+	}
 	BuildTree(root, state)
 
 	return root
@@ -80,7 +83,7 @@ func registerGlobalFlags(root *cobra.Command) {
 // is testable without exercising os.Exit itself. stdin feeds --file -
 // bodies and the `auth login --no-browser` paste prompt.
 func Run(args []string, stdin io.Reader, stdout, stderr io.Writer, version string) int {
-	root := NewRootCmd(version)
+	root := NewRootCmd(resolveVersion(version))
 	root.SetArgs(args)
 	root.SetIn(stdin)
 	root.SetOut(stdout)

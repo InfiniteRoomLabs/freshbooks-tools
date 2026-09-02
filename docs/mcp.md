@@ -49,7 +49,7 @@ Set the token/scope environment variables in the shell `claude` runs from, or wi
 
 ## HTTP setup
 
-Run `freshbooks-mcp serve --transport http --addr 0.0.0.0:8080` behind a TLS-terminating reverse proxy -- the server itself speaks plain HTTP; nothing about stateless mode changes what carries the bearer token over the wire, so it must not be exposed without TLS in front of it. Every request under `--path` (default `/mcp`) requires `Authorization: Bearer <token>`; a missing or malformed header gets `401` with `WWW-Authenticate: Bearer` before any JSON-RPC parsing happens. `GET /healthz` is unauthenticated and always `200`.
+Run `freshbooks-mcp serve --transport http --addr 127.0.0.1:8080` behind a TLS-terminating reverse proxy on the same host (bind `0.0.0.0` only inside a container that the proxy reaches by network) -- the server itself speaks plain HTTP; nothing about stateless mode changes what carries the bearer token over the wire, so it must not be exposed without TLS in front of it. Every request under `--path` (default `/mcp`) requires `Authorization: Bearer <token>`; a missing or malformed header gets `401` with `WWW-Authenticate: Bearer` before any JSON-RPC parsing happens. `GET /healthz` is unauthenticated and always `200`.
 
 A `claude.ai` custom connector needs a reachable HTTPS URL and a bearer header -- point it at the proxy in front of `freshbooks-mcp`, not at the bare HTTP process.
 

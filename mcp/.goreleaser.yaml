@@ -1,15 +1,20 @@
 version: 2
 
-# NOTE: goreleaser OSS has no monorepo tag-prefix/dir support (that is a
-# Pro-only feature); the release workflow instead runs `goreleaser release`
-# with `workdir: mcp` and GORELEASER_CURRENT_TAG set to the version parsed
-# from the "mcp/vX.Y.Z" tag. Phase 5 (release hardening) does a real dry
-# run against a pushed tag and fixes anything this assumption gets wrong.
+# NOTE: goreleaser OSS cannot release a prefixed tag ("mcp/vX.Y.Z"); the
+# release workflow runs `goreleaser release --skip=publish,validate` with
+# GORELEASER_CURRENT_TAG set to the bare "vX.Y.Z", then `gh release create`
+# publishes the archives onto the real tag. See docs/building.md.
+
+project_name: freshbooks-mcp
 
 builds:
   - id: freshbooks-mcp
     main: ./cmd/freshbooks-mcp
     binary: freshbooks-mcp
+    env:
+      - CGO_ENABLED=0
+      - GOWORK=off
+    mod_timestamp: "{{ .CommitTimestamp }}"
     ldflags:
       - -s -w -X main.version={{.Version}}
     goos:
