@@ -129,10 +129,10 @@ func TestSave(t *testing.T) {
 			t.Skip("root bypasses file permissions")
 		}
 		dir := t.TempDir()
-		if err := os.Chmod(dir, 0o500); err != nil {
+		if err := os.Chmod(dir, 0o500); err != nil { // #nosec G302 -- deliberately read-only+execute (no write) to force Save's CreateTemp to fail; not a file permission choice
 			t.Fatal(err)
 		}
-		defer os.Chmod(dir, 0o700) //nolint:errcheck // best-effort restore so TempDir cleanup can remove it
+		defer func() { _ = os.Chmod(dir, 0o700) }() // #nosec G302 -- best-effort restore so TempDir cleanup can remove it
 		path := filepath.Join(dir, "nested", "config.yaml")
 		if err := Save(path, &File{}); err == nil {
 			t.Fatal("Save() error = nil, want an error for an unwritable directory")

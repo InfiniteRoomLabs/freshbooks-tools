@@ -49,7 +49,7 @@ func freePort(t *testing.T) int {
 	if err != nil {
 		t.Fatalf("freePort: %v", err)
 	}
-	defer ln.Close()
+	defer func() { _ = ln.Close() }()
 	return ln.Addr().(*net.TCPAddr).Port
 }
 
@@ -213,7 +213,7 @@ func TestLogin(t *testing.T) {
 				go func() {
 					resp, err := insecureBrowserClient.Get(fmt.Sprintf("https://127.0.0.1:%d/callback?code=test-auth-code&state=%s", port, state))
 					if err == nil {
-						resp.Body.Close()
+						_ = resp.Body.Close()
 					}
 				}()
 				return nil
@@ -253,7 +253,7 @@ func TestLogin(t *testing.T) {
 				go func() {
 					resp, err := insecureBrowserClient.Get(fmt.Sprintf("https://127.0.0.1:%d/callback?code=test-auth-code&state=wrong-state", port))
 					if err == nil {
-						resp.Body.Close()
+						_ = resp.Body.Close()
 					}
 				}()
 				return nil
@@ -284,7 +284,7 @@ func TestLogin(t *testing.T) {
 				go func() {
 					resp, err := insecureBrowserClient.Get(fmt.Sprintf("https://127.0.0.1:%d/callback?error=access_denied&state=%s", port, state))
 					if err == nil {
-						resp.Body.Close()
+						_ = resp.Body.Close()
 					}
 				}()
 				return nil
@@ -349,7 +349,7 @@ func TestLoginNoBrowser(t *testing.T) {
 
 		state := waitForState(t, &stdout)
 		fmt.Fprintf(pw, "https://localhost:8765/callback?code=pasted-code&state=%s\n", state) //nolint:errcheck
-		pw.Close()
+		_ = pw.Close()
 		<-done
 
 		if loginErr != nil {
@@ -375,7 +375,7 @@ func TestLoginNoBrowser(t *testing.T) {
 		}()
 		waitForState(t, &stdout)
 		fmt.Fprintln(pw, "bare-code-value") //nolint:errcheck
-		pw.Close()
+		_ = pw.Close()
 		<-done
 
 		if loginErr != nil {
@@ -400,7 +400,7 @@ func TestLoginNoBrowser(t *testing.T) {
 		}()
 		waitForState(t, &stdout)
 		fmt.Fprintln(pw, "https://localhost:8765/callback?code=x&state=totally-wrong") //nolint:errcheck
-		pw.Close()
+		_ = pw.Close()
 		<-done
 
 		if loginErr == nil {
@@ -413,7 +413,7 @@ func TestLoginNoBrowser(t *testing.T) {
 func writerPipe(t *testing.T) (*io.PipeReader, *io.PipeWriter) {
 	t.Helper()
 	r, w := io.Pipe()
-	t.Cleanup(func() { r.Close() })
+	t.Cleanup(func() { _ = r.Close() })
 	return r, w
 }
 

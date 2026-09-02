@@ -24,7 +24,7 @@ func TestIsTerminalIO(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 		// Exercises isTerminalFile's real term.IsTerminal call, not just
 		// the *os.File type assertion.
 		if isTerminalIO(f) {

@@ -294,10 +294,10 @@ func (t dryRunTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	if req.Body != nil {
 		body, _ = io.ReadAll(req.Body) //nolint:errcheck // best-effort: printed for the operator, not decoded
 	}
-	fmt.Fprintf(t.out, "%s %s\n", req.Method, req.URL.String()) //nolint:errcheck
+	fmt.Fprintf(t.out, "%s %s\n", req.Method, req.URL.String()) //nolint:errcheck // best-effort progress output; a write failure here has nothing more useful to do
 	if len(body) > 0 {
-		t.out.Write(body)   //nolint:errcheck
-		fmt.Fprintln(t.out) //nolint:errcheck
+		_, _ = t.out.Write(body) // #nosec G104 -- best-effort progress output, same as above
+		fmt.Fprintln(t.out)      //nolint:errcheck // best-effort progress output
 	}
 	return nil, errDryRun
 }

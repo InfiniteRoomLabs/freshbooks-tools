@@ -102,9 +102,11 @@ func (inv *Invocation) Search() freshbooks.Search {
 	return freshbooks.Search(inv.search)
 }
 
-// Page and PerPage return the --page/--per-page values (0 when unset,
-// which every ListOptions.opts() in the lib already treats as "omit").
-func (inv *Invocation) Page() int    { return inv.page }
+// Page returns the --page value (0 when unset, which every
+// ListOptions.opts() in the lib already treats as "omit").
+func (inv *Invocation) Page() int { return inv.page }
+
+// PerPage returns the --per-page value (0 when unset, same as Page).
 func (inv *Invocation) PerPage() int { return inv.perPage }
 
 // Include returns the --include values, in the order given.

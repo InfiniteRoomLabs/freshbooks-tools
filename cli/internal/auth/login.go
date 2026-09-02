@@ -164,7 +164,7 @@ func Login(ctx context.Context, o LoginOptions) (*fbauth.Token, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer stop()
+	defer func() { _ = stop() }() //nolint:errcheck // best-effort shutdown; the process is returning either way
 
 	fmt.Fprintf(o.stdout(), "Open this URL to authorize the CLI:\n\n  %s\n\nWaiting for the browser callback (the browser will warn about a self-signed certificate on localhost -- that is expected; accept it to continue)...\n", authURL) //nolint:errcheck // best-effort progress output
 
@@ -386,11 +386,11 @@ func openBrowser(rawURL string) error {
 	var cmd *exec.Cmd
 	switch runtime.GOOS {
 	case "darwin":
-		cmd = exec.Command("open", rawURL)
+		cmd = exec.Command("open", rawURL) // #nosec G204 -- the program is a fixed literal; rawURL is the CLI's own generated authorization URL, passed as one argv element, never through a shell
 	case "windows":
-		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", rawURL)
+		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", rawURL) // #nosec G204 -- same as above
 	default:
-		cmd = exec.Command("xdg-open", rawURL)
+		cmd = exec.Command("xdg-open", rawURL) // #nosec G204 -- same as above
 	}
 	return cmd.Start()
 }
