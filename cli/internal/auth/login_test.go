@@ -293,6 +293,7 @@ func TestLogin(t *testing.T) {
 		store := fbauth.NewMemoryStore()
 
 		var respHeader http.Header
+		getDone := make(chan struct{})
 		opts := LoginOptions{
 			ClientID: "client-1", ClientSecret: "secret-1",
 			Port: port, Timeout: 3 * time.Second,
@@ -300,6 +301,7 @@ func TestLogin(t *testing.T) {
 			OpenBrowser: func(rawURL string) error {
 				state := stateFromAuthURL(t, rawURL)
 				go func() {
+					defer close(getDone)
 					resp, err := insecureBrowserClient.Get(fmt.Sprintf("https://127.0.0.1:%d/callback?code=test-auth-code&state=%s", port, state))
 					if err == nil {
 						respHeader = resp.Header
@@ -312,6 +314,16 @@ func TestLogin(t *testing.T) {
 
 		if _, err := Login(context.Background(), opts); err != nil {
 			t.Fatalf("Login() error = %v", err)
+		}
+		// Login() returning only means the server side (a different
+		// goroutine from the client Get() call above) sent to
+		// resultCh -- wait for the client goroutine to actually finish
+		// populating respHeader before reading it, or the race detector
+		// (correctly) flags an unsynchronized access.
+		select {
+		case <-getDone:
+		case <-time.After(2 * time.Second):
+			t.Fatal("timed out waiting for the browser client's GET to complete")
 		}
 		if respHeader == nil {
 			t.Fatal("never captured the callback response")
