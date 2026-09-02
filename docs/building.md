@@ -35,11 +35,19 @@ Each step is also its own task (`mise run fmt-check`, `mise run vet`, `mise run 
 
 Each module tags and releases independently: `freshbooks/vX.Y.Z`, `mcp/vX.Y.Z`, `cli/vX.Y.Z`. Pushing a matching tag runs `.github/workflows/release.yml`:
 
-1. **guard** -- parses the module and version out of the tag, rejects anything that isn't strict semver, confirms the tag commit is an ancestor of `origin/main`, and extracts the module's `## [X.Y.Z]` changelog section (`scripts/changelog-section.sh`) as the release notes body.
+1. **guard** -- parses the module and version out of the tag, rejects anything that isn't strict semver, confirms the tag commit is an ancestor of `origin/main`, and fails fast if the module's `## [X.Y.Z]` changelog section (`scripts/changelog-section.sh`) doesn't exist.
 2. **ci** -- re-runs the full CI workflow via `workflow_call`; a red gate blocks the release.
-3. **release** -- `mcp`/`cli` build and publish via [goreleaser](https://goreleaser.com/) (`<module>/.goreleaser.yaml`); `freshbooks` gets a plain `gh release create` (the Go module proxy picks up the tag on its own).
+3. **release** -- extracts the changelog section again as the release notes body, then publishes.
 
-goreleaser OSS has no monorepo tag-prefix support (that's a paid Pro feature), so the release job sets `GORELEASER_CURRENT_TAG` to the parsed plain-semver version before invoking it, stripping the `<module>/` prefix so `{{.Version}}` and archive names come out right. This hasn't been exercised against a real tag push yet -- Phase 5 (release hardening) does that dry run.
+goreleaser OSS cannot release a prefixed tag: it validates with `git describe --exact-match --match <tag>` against the *current* tag it is told about, and its GitHub-release pipe would create the release on that same tag -- neither works against `mcp/v0.1.0` or `cli/v0.1.0`. So goreleaser only builds; `gh` publishes. For `mcp`/`cli`, the release job runs, from the module directory:
+
+```sh
+GORELEASER_CURRENT_TAG=v<version> mise exec -- goreleaser release --skip=publish,validate --clean
+```
+
+`GORELEASER_CURRENT_TAG` strips the `<module>/` prefix so `{{.Version}}` and archive names come out as plain semver. `--skip=validate` skips both the exact-match tag check (which would fail against a prefixed tag) and goreleaser's dirty-tree check -- moot here, since the CI checkout is pristine and `guard` already enforced semver plus on-`main`. `--skip=publish` stops goreleaser from creating its own GitHub release. Each `.goreleaser.yaml` sets `project_name` explicitly (`freshbooks-mcp`, `freshbooks`) so the two modules' archives never collide, and builds with `GOWORK=off` so the binary is built against the module's own `go.mod` -- the same lib pseudo-version a `go install .../<module>/...@<tag>` user gets, not the workspace's sibling checkout. SBOMs (CycloneDX via [syft](https://github.com/anchore/syft), mise-pinned) are generated per archive.
+
+Then `gh release create "$TAG_NAME" --verify-tag --notes-file <notes> <module>/dist/*.tar.gz <module>/dist/*.zip <module>/dist/checksums.txt <module>/dist/*.sbom.json` publishes the archives, `checksums.txt`, and SBOMs onto the real prefixed tag. `freshbooks` has no binary to build, so it skips the goreleaser step and goes straight to `gh release create --verify-tag` (the Go module proxy picks up the tag on its own).
 
 ## Docs generation
 

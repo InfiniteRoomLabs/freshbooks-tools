@@ -83,19 +83,31 @@ jobs:
         run: |
           scripts/changelog-section.sh "${{ needs.guard.outputs.module }}" "${{ needs.guard.outputs.version }}" > /tmp/release-notes.md
 
-      - name: Run goreleaser
+      # goreleaser OSS cannot release a prefixed tag ("mcp/vX.Y.Z", "cli/vX.Y.Z"):
+      # `--skip=validate` skips its `git describe --exact-match` check (which
+      # would fail against a prefixed tag) and its dirty-tree check (moot --
+      # this checkout is pristine and `guard` already enforced semver + on-main);
+      # `--skip=publish` stops it from creating its own GitHub release against a
+      # tag it does not control. It only builds dist/ here; gh publishes below.
+      - name: Build with goreleaser
         if: needs.guard.outputs.module == 'mcp' || needs.guard.outputs.module == 'cli'
-        uses: goreleaser/goreleaser-action@v6
-        with:
-          workdir: ${{ needs.guard.outputs.module }}
-          args: release --clean --release-notes=/tmp/release-notes.md
+        working-directory: ${{ needs.guard.outputs.module }}
+        env:
+          GORELEASER_CURRENT_TAG: v${{ needs.guard.outputs.version }}
+        run: |
+          mise exec -- goreleaser release --skip=publish,validate --clean
+
+      - name: Publish the module release
+        if: needs.guard.outputs.module == 'mcp' || needs.guard.outputs.module == 'cli'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # goreleaser OSS has no monorepo tag-prefix support (Pro-only);
-          # this strips the "<module>/" prefix so {{.Version}} and archive
-          # names come out as plain semver. See the NOTE in
-          # <module>/.goreleaser.yaml -- Phase 5 verifies this end to end.
-          GORELEASER_CURRENT_TAG: v${{ needs.guard.outputs.version }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          gh release create "$TAG_NAME" --verify-tag --notes-file /tmp/release-notes.md \
+            ${{ needs.guard.outputs.module }}/dist/*.tar.gz \
+            ${{ needs.guard.outputs.module }}/dist/*.zip \
+            ${{ needs.guard.outputs.module }}/dist/checksums.txt \
+            ${{ needs.guard.outputs.module }}/dist/*.sbom.json
 
       - name: Create the lib release
         if: needs.guard.outputs.module == 'freshbooks'
@@ -103,4 +115,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG_NAME: ${{ github.ref_name }}
         run: |
-          gh release create "$TAG_NAME" --notes-file /tmp/release-notes.md
+          gh release create "$TAG_NAME" --verify-tag --notes-file /tmp/release-notes.md
