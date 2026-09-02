@@ -15,5 +15,5 @@ import (
 var version = "0.0.0-dev"
 
 func main() {
-	os.Exit(cmd.Run(os.Args[1:], os.Stdout, os.Stderr, version))
+	os.Exit(cmd.Run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr, version))
 }
