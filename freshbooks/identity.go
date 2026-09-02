@@ -19,30 +19,30 @@ type IdentityService struct{ client *Client }
 // are never interchangeable.
 type Membership struct {
 	// AccountID addresses /accounting/account/{account_id}/....
-	AccountID AccountID
+	AccountID AccountID `json:"account_id"`
 	// BusinessID addresses /projects/business/{business_id}/... and its
 	// siblings.
-	BusinessID BusinessID
+	BusinessID BusinessID `json:"business_id"`
 	// BusinessUUID addresses
 	// /accounting/businesses/{business_uuid}/ledger_accounts/....
-	BusinessUUID BusinessUUID
+	BusinessUUID BusinessUUID `json:"business_uuid"`
 	// Name is the business's display name.
-	Name string
+	Name string `json:"name"`
 	// Role is the user's role in the business, e.g. "owner".
-	Role string
+	Role string `json:"role"`
 }
 
 // User is the authenticated identity behind a token.
 type User struct {
 	// ID is the identity's numeric id.
-	ID int64
+	ID int64 `json:"id"`
 	// Email is the identity's email address.
-	Email string
+	Email string `json:"email"`
 	// FirstName and LastName are the identity's given and family names.
-	FirstName string
-	LastName  string
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
 	// Memberships are the businesses this identity belongs to.
-	Memberships []Membership
+	Memberships []Membership `json:"memberships"`
 }
 
 // identityResponse is the auth family's users/me payload, after the

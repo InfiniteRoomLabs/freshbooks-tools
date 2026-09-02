@@ -11,15 +11,15 @@ import (
 // object.
 type Page[T any] struct {
 	// Items are the resources on this page.
-	Items []T
+	Items []T `json:"items"`
 	// Page is the 1-based index of this page.
-	Page int
+	Page int `json:"page"`
 	// Pages is the total number of pages.
-	Pages int
+	Pages int `json:"pages"`
 	// PerPage is the page size the server used.
-	PerPage int
+	PerPage int `json:"per_page"`
 	// Total is the total number of matching resources.
-	Total int
+	Total int `json:"total"`
 }
 
 // PageMeta is the pagination block both families return, ready to embed in a

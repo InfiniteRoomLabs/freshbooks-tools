@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `Page[T]` (`items`, `page`, `pages`, `per_page`, `total`) and
+  `identity.go`'s `User`/`Membership` (`id`, `email`, `first_name`,
+  `last_name`, `memberships` / `account_id`, `business_id`,
+  `business_uuid`, `name`, `role`) now carry `json` tags, so marshaling
+  either (the MCP server and the CLI's table/json/yaml output both do)
+  produces the documented snake_case wire shape instead of Go-cased field
+  names. No decode path changes: both types are built by hand from
+  separate wire structs, never unmarshaled directly.
+
 ### Added
 
 - `InvoicesService` (`List`, `All`, `Get`, `Create`, `Update`, `Delete`,

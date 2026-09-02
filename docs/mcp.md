@@ -105,6 +105,8 @@ Every tool that needs one takes optional `account_id` (string), `business_id` (i
 
 Annotations follow the MCP hints: `readOnlyHint` on list/get/search/report tools, `destructiveHint` on delete/archive tools, `idempotentHint` on update/verify/undelete tools, and `openWorldHint` on all of them (FreshBooks is an external service, never a closed domain). The 17 `All`-iterator conveniences the lib exposes are not tools -- an unbounded page walk is the wrong shape for a model context; use the paginated `*_list` tool's `page`/`per_page` fields instead. Four `*_list` tools have no `page`/`per_page` fields, because the FreshBooks endpoint behind them takes none: `retainers_list`, `ledger_accounts_list`, `staff_list`, and `service_rates_list` always return their full result in one call.
 
+A paginated list tool's result is the lib's `Page[T]` marshaled as `{"items": [...], "page", "pages", "per_page", "total"}`; the non-paginated `*_list` tools above and every `_get`/single-resource tool return the resource itself with no such envelope.
+
 ## Errors and security
 
 A `*freshbooks.Error` from the API maps to an `isError: true` tool result whose content is `{"status": <http status>, "code": <errno>, "message": ..., "field": ..., "family": ...}`; any other error (a network failure, invalid input, a missing scope field) becomes `isError: true` with that error's plain text. Tool handlers never panic and never return a Go error for an API failure -- doing so would surface as a JSON-RPC protocol error and hide the failure from the model instead of reporting it.
