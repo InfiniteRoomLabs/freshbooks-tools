@@ -273,3 +273,137 @@ ASCII-only: `grep -rnP '[^\x00-\x7F]' docs/` returns nothing. F23's em-dash clea
 Fix **Q1** and **Q2** -- both are a few lines, in `state.go` and `api_cmd.go`, plus no doc change needed once the code matches the table. Then re-run the gate and merge.
 
 Of the advisories, **Q3, Q5, Q6+Q7** are the ones worth folding into the same commit: Q3 is the F17 class recurring, and Q6+Q7 together convert the round trip's central assertion from "the CLI still does what it did" into "the CLI does what FreshBooks documents", using an oracle already sitting in the tree. The rest are documentation polish and are reasonable Phase 5 backlog.
+
+---
+
+# Re-verification -- round 2 (`45a1d7c`, fix commit `de81644`)
+
+**Verdict: NEEDS WORK** -- one new BLOCKING finding (R1). Everything the round-2 fix order set out to do (G1-G6) landed and is verified below; R1 is the half of G1's own stated scope that did not.
+
+## 1. Gate on the current clean tree
+
+`git status --porcelain` empty before the run. `mise run check` -> **exit 0**.
+
+```
+coverage-gate: freshbooks/coverage.out total = 91.8% (floor 90%)  PASS
+coverage-gate: mcp/coverage.out        total = 91.9% (floor 90%)  PASS
+coverage-gate: cli/coverage.out        total = 91.6% (floor 90%)  PASS
+   cli per-package: auth 88.7%  cmd 87.7%  config 85.2%  output 93.3%
+No vulnerabilities found (all three modules)
+inventory-check: implemented 213, ignored 0, todo 0, uncovered 0, double-covered 0, stale 0, unknown 0
+check.sh: all OK
+```
+
+`git status --porcelain` empty after; **`git diff --stat go.work.sum` empty** -- `go.work.sum` unchanged.
+
+The gate again served cached test results, so I forced an uncached race run, which is the evidence that counts:
+
+```
+mise exec -- go test -C <mod> -race -count=1 ./...
+freshbooks EXIT=0   mcp EXIT=0   cli EXIT=0
+```
+
+`TestRoundTrip` re-run verbosely: **168/168 subtests PASS**.
+
+## 2. Q1 and Q2 re-probed black-box against the rebuilt binary
+
+**Q2 -- FIXED, completely.** Exit 2 with the registry path's identical message on every path, and no body fragment anywhere. I seeded the malformed body with the marker `SECRETFRAGMENT` and grepped every captured stream for it:
+
+```
+clients create -f bad.json                      -> exit 2  "--file does not contain valid JSON"
+api POST ... -f bad.json  (no credentials)      -> exit 2  same message
+api POST ... -f bad.json  (credentials present) -> exit 2  same message
+api POST ... -f -         (stdin)               -> exit 2  same message
+grep -c SECRETFRAGMENT <all api error output>   -> 0
+```
+
+**Q1 -- FIXED for the `--log-level` flag on all three paths.**
+
+```
+clients list --log-level bogus  (credentials) -> exit 2
+clients list --log-level bogus  --dry-run     -> exit 2  "invalid --log-level \"bogus\": want debug, info, warn, or error"
+clients list --log-level bogus  (no creds)    -> exit 2  same message
+```
+
+The G1 mechanism is real: `state.go:260` hoists `s.buildLogger(cmd)` above both the dry-run branch and `credentialStore`/`store.Load`.
+
+## 3. R1 (NEW, BLOCKING) -- `FRESHBOOKS_LOG_LEVEL` is inert; three places on this branch say otherwise
+
+G1's own text, and the code comment at `cli/internal/cmd/state.go:214`, both claim an unrecognized `--log-level`**/`FRESHBOOKS_LOG_LEVEL`** is a usage error. The env half has never worked -- not the validation, the variable itself.
+
+```
+clients list --log-level bogus --dry-run     -> exit 2   (flag: validated)
+FRESHBOOKS_LOG_LEVEL=bogus clients list --dry-run       -> exit 0   (env: silently ignored)
+FRESHBOOKS_LOG_LEVEL=bogus clients list  (credentials)  -> exit 0
+FRESHBOOKS_LOG_LEVEL=bogus clients list  (no creds)     -> exit 3
+```
+
+Not merely unvalidated -- entirely ignored. Decisive proof:
+
+```
+--log-level debug          -> 2 'level=DEBUG' lines on stderr
+FRESHBOOKS_LOG_LEVEL=debug -> 0 'level=DEBUG' lines on stderr
+```
+
+**Root cause** (`cli/internal/cmd/root.go:70`): `flags.String("log-level", "warn", ...)` registers a **non-empty default**. `resolveLogLevel` (`state.go:207-210`) then calls `config.Resolve(flagVal, os.Getenv("FRESHBOOKS_LOG_LEVEL"), "", "warn")`, and `Resolve` (`config/config.go:140-142`) returns `flag` whenever it is non-empty -- which it always is. The env branch is unreachable.
+
+This breaks the file's own stated convention. The comment directly above `registerGlobalFlags` (`root.go:55-57`) says defaults are deliberately omitted "so a flag left unset is distinguishable from one set to its zero value", and `--log-level` is the **only** string flag in that function with a non-empty default.
+
+**Scope: exactly one of the nine env vars.** I audited all nine. The other seven `config.Resolve` sites (`state.go:41,65,89,97,109,142,201`) back flags registered with `""`, and `resolveTimeout` (`state.go:182-195`) correctly uses `cmd.Flags().Changed("timeout")` -- the right pattern for a flag that does have a non-empty default. `FRESHBOOKS_TIMEOUT` therefore works; `FRESHBOOKS_LOG_LEVEL` alone does not.
+
+**Why blocking, and how small the fix is.** `docs/cli.md:69` ships an env-var table row promising this variable resolves `--log-level`; it resolves nothing. It is a one-line fix -- either register `--log-level` with a `""` default (the `def` slot in `Resolve` is already `"warn"`, so behaviour is preserved) or adopt `resolveTimeout`'s `Changed()` pattern -- in a file `de81644` already touched, plus a one-line test.
+
+If the lead prefers to ship rather than re-gate, downgrading R1 to Phase 5 backlog is defensible on impact alone (log level is diagnostic-only) **provided this branch still corrects the three statements that are currently false**: the `docs/cli.md:69` table row, the `state.go:214` comment, and G1's claim in `fix.md`. Shipping the code as-is with the docs as-is is the one option I would not sign off.
+
+Note this is a defect my round-1 docs audit missed: it verified each documented env var is *read* by the code, not that the read has any effect. Worth carrying into Phase 5's docs pass as a check shape.
+
+## 4. G3-G6 confirmed
+
+| Item | Evidence | Verdict |
+|---|---|---|
+| **G3** (Q3) | `config_cmd_test.go:118` -- `if got := strings.TrimSpace(stdout.String()); got != "[]"`. Live: `config contexts -o json` on an empty config prints exactly `[]` | DONE |
+| **G3** (Q5) | `coverage_gap_test.go:84` -- asserts `stderr` contains both `"parsing"` and `"default.json"`, closing the gap I demonstrated (corrupt file and connection-refused both exit 1; only the message separates them) | DONE |
+| **G4** (Q6, Q7) | `cli/internal/cmd/inventory_match_test.go`, called at `roundtrip_test.go:708` for all 168 commands -- see section 5 | DONE |
+| **G5** (Q10) | `status.go:22-36` -- six snake_case tags. Live: `auth status -o json` emits `"context"`, `"credentials_path"`, `"logged_in"` | DONE |
+| **G5** (Q11) | Live: `auth status --context '../evil'` -> exit **2** (was 1); `clients list --context 'a/b'` -> exit **2** on the registry path too | DONE |
+| **G6** (Q13) | `docs/cli.md:67` -- `FRESHBOOKS_OUTPUT` row now states it does not apply to the two Binary commands | DONE |
+| **G6** (Q18) | `docs/cli.md:68` -- `FRESHBOOKS_BASE_URL` row now states `--base-url` is hidden from `--help` | DONE |
+| **G6** (Q14) | `~/.config/freshbooks` fallback now in `docs/cli.md:28` (First login), `:66` (`FRESHBOOKS_CONFIG` row), and `root.go:64`'s own `--config` help text | DONE |
+| **G6** (Q16) | `errors.go:46-56` -- the false "a filesystem failure reading `--file`" line is gone, replaced with real examples and an explicit note that all three `--file` read sites return `usageError` | DONE |
+
+## 5. `inventory_match_test.go` -- does it really check method AND path?
+
+Yes, for every keyed command, against the vendor collection rather than the implementation.
+
+`assertInventoryMatch` (`inventory_match_test.go:129-152`) loads `freshbooks/internal/inventory/testdata/inventory.json`, resolves `c.Keys[0]` to the vendor record, then asserts **both**:
+
+- `req.method != entry.Method` -> `t.Errorf` (line 145)
+- `req.path != resolveInventoryPath(c, entry.PathTemplate)` -> `t.Errorf` (line 149)
+
+It is called at `roundtrip_test.go:708`, inside the per-command subtest, alongside the existing assertions. Coverage: 168 commands, minus `identity whoami` (no key, returns early at line 133), minus one allowlisted -> **166 commands cross-checked against the vendor's own method and path**.
+
+Placeholder substitution (`resolveInventoryPath`, lines 76-100) handles `{accountId}`/`{businessId}`/`{businessUuid}` from the test scope and maps every other placeholder to the positional id, with a named special case for `service-rates update-project-rate` (two ids). An unrecognised placeholder is left **unsubstituted**, so it fails loudly rather than passing silently. It matches both `{curly}` and the collection's one `<angle_bracket>` holdout via `inventoryPlaceholderRE` (line 68).
+
+**Non-vacuity is proven by the allowlist's existence**: the one genuine divergence in the tree had to be explicitly allowlisted, which is only necessary if the assertion actually fires.
+
+**Three spot-checks, computed by me from `inventory.json` against live-recorded requests:**
+
+| command | `Keys[0]` | vendor | observed |
+|---|---|---|---|
+| `clients get` | `Clients/Single Client` | `GET /accounting/account/{accountId}/users/clients/{customerId}` | `GET /accounting/account/ACM000TEST/users/clients/123` |
+| `invoices create` | `Invoices/Create Invoice with Expense` | `POST /accounting/account/{accountId}/invoices/invoices` | `POST /accounting/account/ACM000TEST/invoices/invoices` |
+| `time-entries list` | `Time Tracking/List Entries` | `GET /timetracking/business/{businessId}/time_entries` | `GET /timetracking/business/9000001/time_entries` |
+
+All three match on method and on path after substitution.
+
+**`projects/delete` allowlist -- reasoning checked against `freshbooks/projects.go`, and it holds.** The vendor record is `DELETE /comments/business/{businessId}/project/{projectId}`, `family: "internal"`, while every sibling `Projects/*` entry is `"business"`. The implementation sends `DELETE /projects/business/9000001/project/123` (live-confirmed). `ProjectsService.Delete`'s doc comment (`freshbooks/projects.go:195-211`, written in Phase 2, long before this fix) already records the decision, and gives a stronger reason than the allowlist text does: the Postman request is sourced from `my.freshbooks.com`, FreshBooks' internal host, **and its own captured response is a 404**, so it is not usable evidence for what a delete does. "The docs win" per CLAUDE.md; unconfirmed live either way.
+
+The allowlist is the right call, logged via `t.Logf` at `roundtrip_test.go:708` rather than hidden -- I saw the line in the verbose run. Two small notes, neither blocking: it suppresses the **method** check as well as the path check, though only the path diverges; and the entry is keyed by command, so a future re-wiring of `projects delete` would go unchecked by this oracle (the `wantPath` assertion still covers it).
+
+## 6. Final state
+
+`git status --porcelain` -> only `?? docs/phases/4/reports/qa.md` (this updated report; the committed version is at `a0c320d`). All probe binaries, fixture servers, scratch credentials, and recorder logs deleted; no probe process left running; nothing written inside the repo.
+
+## Final verdict
+
+**NEEDS WORK** -- on R1 alone. G1-G6 are otherwise complete and correct, Q2 is fully resolved, and G4 delivered exactly the independent oracle Q6/Q7 asked for. R1 is a one-line code change plus a one-line test; alternatively, correct the three false statements and carry the behaviour to Phase 5.
