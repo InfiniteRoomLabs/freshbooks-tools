@@ -40,10 +40,38 @@ creates or updates one; `freshbooks config use-context <name>` switches
 a secret -- credentials are a separate file per context, managed by
 `freshbooks auth`.
 
-Every scope field and every global flag resolves in this order: an
-explicit flag, then an environment variable, then the current context's
-config.yaml value, then a built-in default. An empty environment variable
-counts as unset, not as an explicit empty value.
+The scope flags (`--account`/`--business`/`--business-uuid`) and `--context`
+resolve in this order: an explicit flag, then an environment variable,
+then the current context's config.yaml value, then (for `--context`) the
+built-in default `"default"`. An empty environment variable counts as
+unset, not as an explicit empty value. Every other global flag resolves
+flag then env then its own built-in default -- config.yaml is consulted
+only for the scope fields and the current context, never for
+`--output`, `--base-url`, `--timeout`, or `--log-level`. The remaining
+global flags are booleans (`--dry-run`, `--yes`, `--no-headers`, `-q/--quiet`)
+and have no environment twin at all; nobody has asked for one
+(`FRESHBOOKS_YES`, say), and adding one before someone needs it would
+just be more surface to keep documented.
+
+The nine environment variables the resolution chain above actually reads:
+
+| Variable | Resolves | Falls back to |
+|---|---|---|
+| `FRESHBOOKS_CONTEXT` | `--context` | config.yaml `current-context`, then `"default"` |
+| `FRESHBOOKS_ACCOUNT_ID` | `--account` | the current context's config.yaml account |
+| `FRESHBOOKS_BUSINESS_ID` | `--business` | the current context's config.yaml business |
+| `FRESHBOOKS_BUSINESS_UUID` | `--business-uuid` | the current context's config.yaml business-uuid |
+| `FRESHBOOKS_CONFIG` | `--config` | `$XDG_CONFIG_HOME/freshbooks/config.yaml` |
+| `FRESHBOOKS_OUTPUT` | `-o/--output` | `table` on a TTY, `json` otherwise |
+| `FRESHBOOKS_BASE_URL` | `--base-url` | the lib's default API base URL |
+| `FRESHBOOKS_TIMEOUT` | `--timeout` | `30s` |
+| `FRESHBOOKS_LOG_LEVEL` | `--log-level` | `warn` |
+
+`FRESHBOOKS_CLIENT_ID` and `FRESHBOOKS_CLIENT_SECRET` are read too, but outside
+this chain: registry commands have no `--client-id`/`--client-secret` flags
+of their own (only `auth login`/`auth token`/`auth logout` take those
+directly), so a registry command's token-refresh path falls back to these
+two env vars with nothing above them to override.
 
 ## Output formats
 
@@ -59,7 +87,7 @@ non-result chatter (never errors).
 |---|---|
 | 0 | success |
 | 1 | an API or other runtime error |
-| 2 | a usage error: a bad flag, a malformed --file body, a missing scope, or --all combined with --page/--per-page |
+| 2 | a usage error: a bad flag, an unrecognized --log-level, a malformed --file body, a missing scope, --all combined with --page/--per-page, --dry-run on an auth or config command, a destructive command run without --yes on a TTY, or -o/--output on a binary command refusing to overwrite an existing file (without --force) or write to a TTY |
 | 3 | an auth error: no stored credentials for the context, or the API answered 401 |
 | 4 | the API answered 404 |
 
@@ -72,8 +100,17 @@ Otherwise it is one human-readable line on stderr.
 Every registry command accepts `--dry-run`, which prints the request's
 method and URL (and its body, for a write) to stdout and sends nothing --
 useful for verifying a command's shape before running it for real.
-Destructive commands (the D-annotated ones in the command reference below)
+`auth` and `config` commands reject `--dry-run` outright (exit 2) instead of
+silently ignoring it: there is no request to preview, and `auth logout`
+in particular really does revoke and delete on every run.
+
+Destructive commands -- the ones whose `Short` help line in the command
+reference below ends with " (destructive: requires --yes on a TTY)" --
 refuse to run without `--yes` when stdin is a terminal.
+
+A Binary command's `-o <file>` (`invoices pdf`, `reports download-invoice-details-csv`)
+refuses to overwrite an existing file without `--force`, and refuses
+`-o -` when stdout is a terminal (binary bytes would corrupt it).
 
 ## The api escape hatch
 
@@ -90,6 +127,13 @@ the API base, e.g. `/accounting/account/ACM123/systems/systems/1`.
 - Credentials files are written 0600 inside a 0700 directory.
 - The loopback login listener's TLS certificate is generated fresh for
   each login, in-process, and never touches disk.
+- `identity applications` redacts every `client_secret` in its output by
+  default; pass `--show-secrets` to include them. `identity create-application`
+  and `identity update-application` always print the `client_secret` in their
+  result -- that is the only time it is shown, since it cannot be
+  retrieved later. Passing `--client-secret` (or `--client-id`) on the command
+  line to `auth login`/`auth token`/`auth logout` puts it in `ps` output and
+  shell history; prefer `FRESHBOOKS_CLIENT_ID`/`FRESHBOOKS_CLIENT_SECRET` instead.
 
 ## Command reference
 
@@ -591,7 +635,7 @@ Manage bill-vendors
 
 * [freshbooks](#freshbooks)	 - A kubectl-style CLI for the FreshBooks REST API
 * [freshbooks bill-vendors create](#freshbooks-bill-vendors-create)	 - Add a bill vendor
-* [freshbooks bill-vendors delete](#freshbooks-bill-vendors-delete)	 - Delete a bill vendor
+* [freshbooks bill-vendors delete](#freshbooks-bill-vendors-delete)	 - Delete a bill vendor (destructive: requires --yes on a TTY)
 * [freshbooks bill-vendors list](#freshbooks-bill-vendors-list)	 - List a business's bill vendors
 * [freshbooks bill-vendors update](#freshbooks-bill-vendors-update)	 - Update a bill vendor's details
 
@@ -633,7 +677,7 @@ freshbooks bill-vendors create [flags]
 
 ## freshbooks bill-vendors delete
 
-Delete a bill vendor
+Delete a bill vendor (destructive: requires --yes on a TTY)
 
 ```
 freshbooks bill-vendors delete <id> [flags]
@@ -682,6 +726,7 @@ freshbooks bill-vendors list [flags]
       --page int                1-based page number
       --per-page int            page size
       --search stringToString   filter as key=value (repeatable) (default [])
+      --sort string             sort as field[:asc|desc] (default asc; direction encoding for business-scoped resources is unconfirmed against the live API -- see docs/progress.md)
 ```
 
 ### Options inherited from parent commands
@@ -771,14 +816,14 @@ Manage bills
 ### SEE ALSO
 
 * [freshbooks](#freshbooks)	 - A kubectl-style CLI for the FreshBooks REST API
-* [freshbooks bills archive](#freshbooks-bills-archive)	 - Archive a vendor bill
+* [freshbooks bills archive](#freshbooks-bills-archive)	 - Archive a vendor bill (destructive: requires --yes on a TTY)
 * [freshbooks bills create](#freshbooks-bills-create)	 - Add a bill from a vendor
-* [freshbooks bills delete](#freshbooks-bills-delete)	 - Delete a vendor bill
+* [freshbooks bills delete](#freshbooks-bills-delete)	 - Delete a vendor bill (destructive: requires --yes on a TTY)
 * [freshbooks bills list](#freshbooks-bills-list)	 - List a business's vendor bills
 
 ## freshbooks bills archive
 
-Archive a vendor bill
+Archive a vendor bill (destructive: requires --yes on a TTY)
 
 ```
 freshbooks bills archive <id> [flags]
@@ -849,7 +894,7 @@ freshbooks bills create [flags]
 
 ## freshbooks bills delete
 
-Delete a vendor bill
+Delete a vendor bill (destructive: requires --yes on a TTY)
 
 ```
 freshbooks bills delete <id> [flags]
@@ -898,6 +943,7 @@ freshbooks bills list [flags]
       --page int                1-based page number
       --per-page int            page size
       --search stringToString   filter as key=value (repeatable) (default [])
+      --sort string             sort as field[:asc|desc] (default asc; direction encoding for business-scoped resources is unconfirmed against the live API -- see docs/progress.md)
 ```
 
 ### Options inherited from parent commands
@@ -951,7 +997,7 @@ Manage callbacks
 ### SEE ALSO
 
 * [freshbooks](#freshbooks)	 - A kubectl-style CLI for the FreshBooks REST API
-* [freshbooks callbacks delete](#freshbooks-callbacks-delete)	 - Delete a webhook callback
+* [freshbooks callbacks delete](#freshbooks-callbacks-delete)	 - Delete a webhook callback (destructive: requires --yes on a TTY)
 * [freshbooks callbacks list](#freshbooks-callbacks-list)	 - List webhook callbacks
 * [freshbooks callbacks register](#freshbooks-callbacks-register)	 - Register a webhook callback
 * [freshbooks callbacks resend-verification](#freshbooks-callbacks-resend-verification)	 - Resend a webhook callback's verification code
@@ -959,7 +1005,7 @@ Manage callbacks
 
 ## freshbooks callbacks delete
 
-Delete a webhook callback
+Delete a webhook callback (destructive: requires --yes on a TTY)
 
 ```
 freshbooks callbacks delete <id> [flags]
@@ -1008,6 +1054,7 @@ freshbooks callbacks list [flags]
       --page int                1-based page number
       --per-page int            page size
       --search stringToString   filter as key=value (repeatable) (default [])
+      --sort string             sort as field[:asc|desc] (default asc; direction encoding for business-scoped resources is unconfirmed against the live API -- see docs/progress.md)
 ```
 
 ### Options inherited from parent commands
@@ -1171,7 +1218,7 @@ Manage clients
 * [freshbooks clients create](#freshbooks-clients-create)	 - Create a new client
 * [freshbooks clients get](#freshbooks-clients-get)	 - Get a single client
 * [freshbooks clients list](#freshbooks-clients-list)	 - List an account's clients
-* [freshbooks clients remove-all-secondary-contacts](#freshbooks-clients-remove-all-secondary-contacts)	 - Remove every secondary contact from a client
+* [freshbooks clients remove-all-secondary-contacts](#freshbooks-clients-remove-all-secondary-contacts)	 - Remove every secondary contact from a client (destructive: requires --yes on a TTY)
 * [freshbooks clients update](#freshbooks-clients-update)	 - Update a client
 
 ## freshbooks clients create
@@ -1221,7 +1268,8 @@ freshbooks clients get <id> [flags]
 ### Options
 
 ```
-  -h, --help   help for get
+  -h, --help                  help for get
+      --include stringArray   related sub-resource to embed in the response (repeatable)
 ```
 
 ### Options inherited from parent commands
@@ -1262,6 +1310,7 @@ freshbooks clients list [flags]
       --page int                1-based page number
       --per-page int            page size
       --search stringToString   filter as key=value (repeatable) (default [])
+      --sort string             sort as field[:asc|desc] (default asc; direction encoding for business-scoped resources is unconfirmed against the live API -- see docs/progress.md)
 ```
 
 ### Options inherited from parent commands
@@ -1287,7 +1336,7 @@ freshbooks clients list [flags]
 
 ## freshbooks clients remove-all-secondary-contacts
 
-Remove every secondary contact from a client
+Remove every secondary contact from a client (destructive: requires --yes on a TTY)
 
 ```
 freshbooks clients remove-all-secondary-contacts <id> [flags]
@@ -1823,12 +1872,12 @@ Manage contacts
 ### SEE ALSO
 
 * [freshbooks](#freshbooks)	 - A kubectl-style CLI for the FreshBooks REST API
-* [freshbooks contacts delete](#freshbooks-contacts-delete)	 - Delete a client's secondary contact
+* [freshbooks contacts delete](#freshbooks-contacts-delete)	 - Delete a client's secondary contact (destructive: requires --yes on a TTY)
 * [freshbooks contacts update](#freshbooks-contacts-update)	 - Update a client's secondary contact
 
 ## freshbooks contacts delete
 
-Delete a client's secondary contact
+Delete a client's secondary contact (destructive: requires --yes on a TTY)
 
 ```
 freshbooks contacts delete <id> [flags]
@@ -1928,7 +1977,7 @@ Manage credit-notes
 
 * [freshbooks](#freshbooks)	 - A kubectl-style CLI for the FreshBooks REST API
 * [freshbooks credit-notes create](#freshbooks-credit-notes-create)	 - Create a credit note or prepayment credit
-* [freshbooks credit-notes delete](#freshbooks-credit-notes-delete)	 - Delete a credit
+* [freshbooks credit-notes delete](#freshbooks-credit-notes-delete)	 - Delete a credit (destructive: requires --yes on a TTY)
 * [freshbooks credit-notes list](#freshbooks-credit-notes-list)	 - List a client's credits
 * [freshbooks credit-notes update](#freshbooks-credit-notes-update)	 - Update a credit note or prepayment credit
 
@@ -1970,7 +2019,7 @@ freshbooks credit-notes create [flags]
 
 ## freshbooks credit-notes delete
 
-Delete a credit
+Delete a credit (destructive: requires --yes on a TTY)
 
 ```
 freshbooks credit-notes delete <id> [flags]
@@ -2019,6 +2068,7 @@ freshbooks credit-notes list [flags]
       --page int                1-based page number
       --per-page int            page size
       --search stringToString   filter as key=value (repeatable) (default [])
+      --sort string             sort as field[:asc|desc] (default asc; direction encoding for business-scoped resources is unconfirmed against the live API -- see docs/progress.md)
 ```
 
 ### Options inherited from parent commands
@@ -2110,7 +2160,7 @@ Manage estimates
 * [freshbooks](#freshbooks)	 - A kubectl-style CLI for the FreshBooks REST API
 * [freshbooks estimates accept](#freshbooks-estimates-accept)	 - Accept an estimate
 * [freshbooks estimates create](#freshbooks-estimates-create)	 - Create an estimate
-* [freshbooks estimates delete](#freshbooks-estimates-delete)	 - Delete an estimate
+* [freshbooks estimates delete](#freshbooks-estimates-delete)	 - Delete an estimate (destructive: requires --yes on a TTY)
 * [freshbooks estimates get](#freshbooks-estimates-get)	 - Get a single estimate
 * [freshbooks estimates list](#freshbooks-estimates-list)	 - List estimates
 * [freshbooks estimates send](#freshbooks-estimates-send)	 - Send an estimate by email
@@ -2189,7 +2239,7 @@ freshbooks estimates create [flags]
 
 ## freshbooks estimates delete
 
-Delete an estimate
+Delete an estimate (destructive: requires --yes on a TTY)
 
 ```
 freshbooks estimates delete <id> [flags]
@@ -2233,7 +2283,8 @@ freshbooks estimates get <id> [flags]
 ### Options
 
 ```
-  -h, --help   help for get
+  -h, --help                  help for get
+      --include stringArray   related sub-resource to embed in the response (repeatable)
 ```
 
 ### Options inherited from parent commands
@@ -2274,6 +2325,7 @@ freshbooks estimates list [flags]
       --page int                1-based page number
       --per-page int            page size
       --search stringToString   filter as key=value (repeatable) (default [])
+      --sort string             sort as field[:asc|desc] (default asc; direction encoding for business-scoped resources is unconfirmed against the live API -- see docs/progress.md)
 ```
 
 ### Options inherited from parent commands
@@ -2450,7 +2502,8 @@ freshbooks expense-categories get <id> [flags]
 ### Options
 
 ```
-  -h, --help   help for get
+  -h, --help                  help for get
+      --include stringArray   related sub-resource to embed in the response (repeatable)
 ```
 
 ### Options inherited from parent commands
@@ -2490,6 +2543,7 @@ freshbooks expense-categories list [flags]
       --page int                1-based page number
       --per-page int            page size
       --search stringToString   filter as key=value (repeatable) (default [])
+      --sort string             sort as field[:asc|desc] (default asc; direction encoding for business-scoped resources is unconfirmed against the live API -- see docs/progress.md)
 ```
 
 ### Options inherited from parent commands
@@ -2545,7 +2599,7 @@ Manage expenses
 * [freshbooks](#freshbooks)	 - A kubectl-style CLI for the FreshBooks REST API
 * [freshbooks expenses create](#freshbooks-expenses-create)	 - Create an expense
 * [freshbooks expenses create-recurring](#freshbooks-expenses-create-recurring)	 - Create a recurring expense profile
-* [freshbooks expenses delete](#freshbooks-expenses-delete)	 - Delete an expense
+* [freshbooks expenses delete](#freshbooks-expenses-delete)	 - Delete an expense (destructive: requires --yes on a TTY)
 * [freshbooks expenses get](#freshbooks-expenses-get)	 - Get a single expense
 * [freshbooks expenses list](#freshbooks-expenses-list)	 - List expenses
 * [freshbooks expenses summaries](#freshbooks-expenses-summaries)	 - Get expense summaries
@@ -2626,7 +2680,7 @@ freshbooks expenses create-recurring [flags]
 
 ## freshbooks expenses delete
 
-Delete an expense
+Delete an expense (destructive: requires --yes on a TTY)
 
 ```
 freshbooks expenses delete <id> [flags]
@@ -2670,7 +2724,8 @@ freshbooks expenses get <id> [flags]
 ### Options
 
 ```
-  -h, --help   help for get
+  -h, --help                  help for get
+      --include stringArray   related sub-resource to embed in the response (repeatable)
 ```
 
 ### Options inherited from parent commands
@@ -2710,6 +2765,7 @@ freshbooks expenses list [flags]
       --page int                1-based page number
       --per-page int            page size
       --search stringToString   filter as key=value (repeatable) (default [])
+      --sort string             sort as field[:asc|desc] (default asc; direction encoding for business-scoped resources is unconfirmed against the live API -- see docs/progress.md)
 ```
 
 ### Options inherited from parent commands
@@ -2937,14 +2993,14 @@ Manage identity
 
 * [freshbooks](#freshbooks)	 - A kubectl-style CLI for the FreshBooks REST API
 * [freshbooks identity add-business](#freshbooks-identity-add-business)	 - Add a business to the current identity
-* [freshbooks identity applications](#freshbooks-identity-applications)	 - List developer applications
-* [freshbooks identity create-application](#freshbooks-identity-create-application)	 - Register a new developer application
-* [freshbooks identity delete-business](#freshbooks-identity-delete-business)	 - Delete a business
-* [freshbooks identity delete-business-subscription](#freshbooks-identity-delete-business-subscription)	 - Delete a business's subscription
+* [freshbooks identity applications](#freshbooks-identity-applications)	 - List developer applications (client_secret redacted unless --show-secrets)
+* [freshbooks identity create-application](#freshbooks-identity-create-application)	 - Register a new developer application (prints the generated client_secret -- it is shown only here and on update)
+* [freshbooks identity delete-business](#freshbooks-identity-delete-business)	 - Delete a business (destructive: requires --yes on a TTY)
+* [freshbooks identity delete-business-subscription](#freshbooks-identity-delete-business-subscription)	 - Delete a business's subscription (destructive: requires --yes on a TTY)
 * [freshbooks identity me](#freshbooks-identity-me)	 - List the memberships of the identity behind the current token
 * [freshbooks identity provision-payments](#freshbooks-identity-provision-payments)	 - Provision FreshBooks Payments for an account
 * [freshbooks identity register](#freshbooks-identity-register)	 - Register a new FreshBooks user
-* [freshbooks identity update-application](#freshbooks-identity-update-application)	 - Update a developer application
+* [freshbooks identity update-application](#freshbooks-identity-update-application)	 - Update a developer application (prints its client_secret -- it is shown only here and on create)
 * [freshbooks identity whoami](#freshbooks-identity-whoami)	 - Show the full identity behind the current token
 
 ## freshbooks identity add-business
@@ -2985,7 +3041,7 @@ freshbooks identity add-business [flags]
 
 ## freshbooks identity applications
 
-List developer applications
+List developer applications (client_secret redacted unless --show-secrets)
 
 ```
 freshbooks identity applications [flags]
@@ -2994,7 +3050,8 @@ freshbooks identity applications [flags]
 ### Options
 
 ```
-  -h, --help   help for applications
+  -h, --help           help for applications
+      --show-secrets   include each application's client_secret in the output instead of redacting it
 ```
 
 ### Options inherited from parent commands
@@ -3020,7 +3077,7 @@ freshbooks identity applications [flags]
 
 ## freshbooks identity create-application
 
-Register a new developer application
+Register a new developer application (prints the generated client_secret -- it is shown only here and on update)
 
 ```
 freshbooks identity create-application [flags]
@@ -3056,7 +3113,7 @@ freshbooks identity create-application [flags]
 
 ## freshbooks identity delete-business
 
-Delete a business
+Delete a business (destructive: requires --yes on a TTY)
 
 ```
 freshbooks identity delete-business [flags]
@@ -3091,7 +3148,7 @@ freshbooks identity delete-business [flags]
 
 ## freshbooks identity delete-business-subscription
 
-Delete a business's subscription
+Delete a business's subscription (destructive: requires --yes on a TTY)
 
 ```
 freshbooks identity delete-business-subscription [flags]
@@ -3233,7 +3290,7 @@ freshbooks identity register [flags]
 
 ## freshbooks identity update-application
 
-Update a developer application
+Update a developer application (prints its client_secret -- it is shown only here and on create)
 
 ```
 freshbooks identity update-application <client-id> [flags]
@@ -3438,7 +3495,7 @@ Manage invoice-profiles
 
 * [freshbooks](#freshbooks)	 - A kubectl-style CLI for the FreshBooks REST API
 * [freshbooks invoice-profiles create](#freshbooks-invoice-profiles-create)	 - Create a recurring-invoice profile
-* [freshbooks invoice-profiles delete](#freshbooks-invoice-profiles-delete)	 - Delete a recurring-invoice profile
+* [freshbooks invoice-profiles delete](#freshbooks-invoice-profiles-delete)	 - Delete a recurring-invoice profile (destructive: requires --yes on a TTY)
 * [freshbooks invoice-profiles enable-payment-options](#freshbooks-invoice-profiles-enable-payment-options)	 - Enable payment options on a recurring-invoice profile
 * [freshbooks invoice-profiles get](#freshbooks-invoice-profiles-get)	 - Get a single recurring-invoice profile
 * [freshbooks invoice-profiles list](#freshbooks-invoice-profiles-list)	 - List recurring-invoice profiles
@@ -3455,8 +3512,9 @@ freshbooks invoice-profiles create [flags]
 ### Options
 
 ```
-  -f, --file string   JSON request body: a file path, or - for stdin (required)
-  -h, --help          help for create
+  -f, --file string           JSON request body: a file path, or - for stdin (required)
+  -h, --help                  help for create
+      --include stringArray   related sub-resource to embed in the response (repeatable)
 ```
 
 ### Options inherited from parent commands
@@ -3482,7 +3540,7 @@ freshbooks invoice-profiles create [flags]
 
 ## freshbooks invoice-profiles delete
 
-Delete a recurring-invoice profile
+Delete a recurring-invoice profile (destructive: requires --yes on a TTY)
 
 ```
 freshbooks invoice-profiles delete <id> [flags]
@@ -3562,7 +3620,8 @@ freshbooks invoice-profiles get <id> [flags]
 ### Options
 
 ```
-  -h, --help   help for get
+  -h, --help                  help for get
+      --include stringArray   related sub-resource to embed in the response (repeatable)
 ```
 
 ### Options inherited from parent commands
@@ -3602,6 +3661,7 @@ freshbooks invoice-profiles list [flags]
       --page int                1-based page number
       --per-page int            page size
       --search stringToString   filter as key=value (repeatable) (default [])
+      --sort string             sort as field[:asc|desc] (default asc; direction encoding for business-scoped resources is unconfirmed against the live API -- see docs/progress.md)
 ```
 
 ### Options inherited from parent commands
@@ -3692,7 +3752,7 @@ Manage invoices
 
 * [freshbooks](#freshbooks)	 - A kubectl-style CLI for the FreshBooks REST API
 * [freshbooks invoices create](#freshbooks-invoices-create)	 - Create an invoice
-* [freshbooks invoices delete](#freshbooks-invoices-delete)	 - Delete an invoice
+* [freshbooks invoices delete](#freshbooks-invoices-delete)	 - Delete an invoice (destructive: requires --yes on a TTY)
 * [freshbooks invoices enable-payment-options](#freshbooks-invoices-enable-payment-options)	 - Enable payment options on an invoice
 * [freshbooks invoices get](#freshbooks-invoices-get)	 - Get a single invoice
 * [freshbooks invoices invoice-presentation-defaults](#freshbooks-invoices-invoice-presentation-defaults)	 - Get an account's default invoice presentation styles
@@ -3713,8 +3773,9 @@ freshbooks invoices create [flags]
 ### Options
 
 ```
-  -f, --file string   JSON request body: a file path, or - for stdin (required)
-  -h, --help          help for create
+  -f, --file string           JSON request body: a file path, or - for stdin (required)
+  -h, --help                  help for create
+      --include stringArray   related sub-resource to embed in the response (repeatable)
 ```
 
 ### Options inherited from parent commands
@@ -3740,7 +3801,7 @@ freshbooks invoices create [flags]
 
 ## freshbooks invoices delete
 
-Delete an invoice
+Delete an invoice (destructive: requires --yes on a TTY)
 
 ```
 freshbooks invoices delete <id> [flags]
@@ -3820,7 +3881,8 @@ freshbooks invoices get <id> [flags]
 ### Options
 
 ```
-  -h, --help   help for get
+  -h, --help                  help for get
+      --include stringArray   related sub-resource to embed in the response (repeatable)
 ```
 
 ### Options inherited from parent commands
@@ -3895,6 +3957,7 @@ freshbooks invoices list [flags]
       --page int                1-based page number
       --per-page int            page size
       --search stringToString   filter as key=value (repeatable) (default [])
+      --sort string             sort as field[:asc|desc] (default asc; direction encoding for business-scoped resources is unconfirmed against the live API -- see docs/progress.md)
 ```
 
 ### Options inherited from parent commands
@@ -3929,8 +3992,9 @@ freshbooks invoices pdf <id> [flags]
 ### Options
 
 ```
+      --force           overwrite an existing -o/--output file
   -h, --help            help for pdf
-  -o, --output string   write the result to this file, or - for stdout (default "-")
+  -o, --output string   write the result to this file, or - for stdout (shadows the global -o/--output format flag on this command); refuses to overwrite an existing file without --force, and refuses - on a TTY (default "-")
 ```
 
 ### Options inherited from parent commands
@@ -4035,8 +4099,9 @@ freshbooks invoices update <id> [flags]
 ### Options
 
 ```
-  -f, --file string   JSON request body: a file path, or - for stdin (required)
-  -h, --help          help for update
+  -f, --file string           JSON request body: a file path, or - for stdin (required)
+  -h, --help                  help for update
+      --include stringArray   related sub-resource to embed in the response (repeatable)
 ```
 
 ### Options inherited from parent commands
@@ -4091,7 +4156,7 @@ Manage items
 
 * [freshbooks](#freshbooks)	 - A kubectl-style CLI for the FreshBooks REST API
 * [freshbooks items create](#freshbooks-items-create)	 - Create a catalogue item
-* [freshbooks items delete](#freshbooks-items-delete)	 - Delete a catalogue item
+* [freshbooks items delete](#freshbooks-items-delete)	 - Delete a catalogue item (destructive: requires --yes on a TTY)
 * [freshbooks items get](#freshbooks-items-get)	 - Get a single catalogue item
 * [freshbooks items list](#freshbooks-items-list)	 - List catalogue items
 * [freshbooks items update](#freshbooks-items-update)	 - Update a catalogue item
@@ -4134,7 +4199,7 @@ freshbooks items create [flags]
 
 ## freshbooks items delete
 
-Delete a catalogue item
+Delete a catalogue item (destructive: requires --yes on a TTY)
 
 ```
 freshbooks items delete <id> [flags]
@@ -4218,6 +4283,7 @@ freshbooks items list [flags]
       --page int                1-based page number
       --per-page int            page size
       --search stringToString   filter as key=value (repeatable) (default [])
+      --sort string             sort as field[:asc|desc] (default asc; direction encoding for business-scoped resources is unconfirmed against the live API -- see docs/progress.md)
 ```
 
 ### Options inherited from parent commands
@@ -4428,6 +4494,7 @@ freshbooks journal-entry-accounts list [flags]
       --page int                1-based page number
       --per-page int            page size
       --search stringToString   filter as key=value (repeatable) (default [])
+      --sort string             sort as field[:asc|desc] (default asc; direction encoding for business-scoped resources is unconfirmed against the live API -- see docs/progress.md)
 ```
 
 ### Options inherited from parent commands
@@ -4767,7 +4834,7 @@ Manage other-income
 
 * [freshbooks](#freshbooks)	 - A kubectl-style CLI for the FreshBooks REST API
 * [freshbooks other-income create](#freshbooks-other-income-create)	 - Record other income
-* [freshbooks other-income delete](#freshbooks-other-income-delete)	 - Delete other income
+* [freshbooks other-income delete](#freshbooks-other-income-delete)	 - Delete other income (destructive: requires --yes on a TTY)
 * [freshbooks other-income list](#freshbooks-other-income-list)	 - List other income
 * [freshbooks other-income update](#freshbooks-other-income-update)	 - Update other income
 
@@ -4809,7 +4876,7 @@ freshbooks other-income create [flags]
 
 ## freshbooks other-income delete
 
-Delete other income
+Delete other income (destructive: requires --yes on a TTY)
 
 ```
 freshbooks other-income delete <id> [flags]
@@ -4858,6 +4925,7 @@ freshbooks other-income list [flags]
       --page int                1-based page number
       --per-page int            page size
       --search stringToString   filter as key=value (repeatable) (default [])
+      --sort string             sort as field[:asc|desc] (default asc; direction encoding for business-scoped resources is unconfirmed against the live API -- see docs/progress.md)
 ```
 
 ### Options inherited from parent commands
@@ -5128,8 +5196,8 @@ Manage payments
 * [freshbooks](#freshbooks)	 - A kubectl-style CLI for the FreshBooks REST API
 * [freshbooks payments create](#freshbooks-payments-create)	 - Record a payment against an invoice
 * [freshbooks payments create-checkout-link](#freshbooks-payments-create-checkout-link)	 - Create a checkout link
-* [freshbooks payments delete](#freshbooks-payments-delete)	 - Delete a payment
-* [freshbooks payments delete-checkout-link](#freshbooks-payments-delete-checkout-link)	 - Delete a checkout link
+* [freshbooks payments delete](#freshbooks-payments-delete)	 - Delete a payment (destructive: requires --yes on a TTY)
+* [freshbooks payments delete-checkout-link](#freshbooks-payments-delete-checkout-link)	 - Delete a checkout link (destructive: requires --yes on a TTY)
 * [freshbooks payments get](#freshbooks-payments-get)	 - Get a single payment
 * [freshbooks payments list](#freshbooks-payments-list)	 - List invoice payments
 * [freshbooks payments update](#freshbooks-payments-update)	 - Update a payment
@@ -5210,7 +5278,7 @@ freshbooks payments create-checkout-link [flags]
 
 ## freshbooks payments delete
 
-Delete a payment
+Delete a payment (destructive: requires --yes on a TTY)
 
 ```
 freshbooks payments delete <id> [flags]
@@ -5245,7 +5313,7 @@ freshbooks payments delete <id> [flags]
 
 ## freshbooks payments delete-checkout-link
 
-Delete a checkout link
+Delete a checkout link (destructive: requires --yes on a TTY)
 
 ```
 freshbooks payments delete-checkout-link <id> [flags]
@@ -5329,6 +5397,7 @@ freshbooks payments list [flags]
       --page int                1-based page number
       --per-page int            page size
       --search stringToString   filter as key=value (repeatable) (default [])
+      --sort string             sort as field[:asc|desc] (default asc; direction encoding for business-scoped resources is unconfirmed against the live API -- see docs/progress.md)
 ```
 
 ### Options inherited from parent commands
@@ -5494,7 +5563,7 @@ Manage projects
 * [freshbooks projects add-thread-comment](#freshbooks-projects-add-thread-comment)	 - Add a comment to a project discussion message
 * [freshbooks projects create](#freshbooks-projects-create)	 - Create a project
 * [freshbooks projects create-thread](#freshbooks-projects-create-thread)	 - Post a new message in a project's discussion
-* [freshbooks projects delete](#freshbooks-projects-delete)	 - Delete a project
+* [freshbooks projects delete](#freshbooks-projects-delete)	 - Delete a project (destructive: requires --yes on a TTY)
 * [freshbooks projects get](#freshbooks-projects-get)	 - Get a single project
 * [freshbooks projects list](#freshbooks-projects-list)	 - List projects
 * [freshbooks projects threads](#freshbooks-projects-threads)	 - List a project's discussion messages
@@ -5645,7 +5714,7 @@ freshbooks projects create-thread <id> [flags]
 
 ## freshbooks projects delete
 
-Delete a project
+Delete a project (destructive: requires --yes on a TTY)
 
 ```
 freshbooks projects delete <id> [flags]
@@ -5729,6 +5798,7 @@ freshbooks projects list [flags]
       --page int                1-based page number
       --per-page int            page size
       --search stringToString   filter as key=value (repeatable) (default [])
+      --sort string             sort as field[:asc|desc] (default asc; direction encoding for business-scoped resources is unconfirmed against the live API -- see docs/progress.md)
 ```
 
 ### Options inherited from parent commands
@@ -6023,8 +6093,9 @@ freshbooks reports download-invoice-details-csv <download-token> [flags]
 ### Options
 
 ```
+      --force           overwrite an existing -o/--output file
   -h, --help            help for download-invoice-details-csv
-  -o, --output string   write the result to this file, or - for stdout (default "-")
+  -o, --output string   write the result to this file, or - for stdout (shadows the global -o/--output format flag on this command); refuses to overwrite an existing file without --force, and refuses - on a TTY (default "-")
 ```
 
 ### Options inherited from parent commands
@@ -6401,7 +6472,7 @@ Manage retainers
 
 * [freshbooks](#freshbooks)	 - A kubectl-style CLI for the FreshBooks REST API
 * [freshbooks retainers create](#freshbooks-retainers-create)	 - Create a retainer
-* [freshbooks retainers delete](#freshbooks-retainers-delete)	 - Delete a retainer
+* [freshbooks retainers delete](#freshbooks-retainers-delete)	 - Delete a retainer (destructive: requires --yes on a TTY)
 * [freshbooks retainers get](#freshbooks-retainers-get)	 - Get a single retainer
 * [freshbooks retainers list](#freshbooks-retainers-list)	 - List retainers
 * [freshbooks retainers undelete](#freshbooks-retainers-undelete)	 - Undelete a retainer
@@ -6445,7 +6516,7 @@ freshbooks retainers create [flags]
 
 ## freshbooks retainers delete
 
-Delete a retainer
+Delete a retainer (destructive: requires --yes on a TTY)
 
 ```
 freshbooks retainers delete <id> [flags]
@@ -6526,6 +6597,7 @@ freshbooks retainers list [flags]
 ```
   -h, --help                    help for list
       --search stringToString   filter as key=value (repeatable) (default [])
+      --sort string             sort as field[:asc|desc] (default asc; direction encoding for business-scoped resources is unconfirmed against the live API -- see docs/progress.md)
 ```
 
 ### Options inherited from parent commands
@@ -6917,6 +6989,7 @@ freshbooks services list [flags]
       --page int                1-based page number
       --per-page int            page size
       --search stringToString   filter as key=value (repeatable) (default [])
+      --sort string             sort as field[:asc|desc] (default asc; direction encoding for business-scoped resources is unconfirmed against the live API -- see docs/progress.md)
 ```
 
 ### Options inherited from parent commands
@@ -6970,14 +7043,14 @@ Manage staff
 ### SEE ALSO
 
 * [freshbooks](#freshbooks)	 - A kubectl-style CLI for the FreshBooks REST API
-* [freshbooks staff delete](#freshbooks-staff-delete)	 - Delete a staff member
+* [freshbooks staff delete](#freshbooks-staff-delete)	 - Delete a staff member (destructive: requires --yes on a TTY)
 * [freshbooks staff get](#freshbooks-staff-get)	 - Get a single staff member
 * [freshbooks staff list](#freshbooks-staff-list)	 - List a business's staff
 * [freshbooks staff update](#freshbooks-staff-update)	 - Update a staff member
 
 ## freshbooks staff delete
 
-Delete a staff member
+Delete a staff member (destructive: requires --yes on a TTY)
 
 ```
 freshbooks staff delete <id> [flags]
@@ -7214,7 +7287,7 @@ Manage tasks
 
 * [freshbooks](#freshbooks)	 - A kubectl-style CLI for the FreshBooks REST API
 * [freshbooks tasks create](#freshbooks-tasks-create)	 - Create a project task
-* [freshbooks tasks delete](#freshbooks-tasks-delete)	 - Delete a task
+* [freshbooks tasks delete](#freshbooks-tasks-delete)	 - Delete a task (destructive: requires --yes on a TTY)
 * [freshbooks tasks get](#freshbooks-tasks-get)	 - Get a single task
 * [freshbooks tasks list](#freshbooks-tasks-list)	 - List tasks
 * [freshbooks tasks update](#freshbooks-tasks-update)	 - Update a task
@@ -7257,7 +7330,7 @@ freshbooks tasks create [flags]
 
 ## freshbooks tasks delete
 
-Delete a task
+Delete a task (destructive: requires --yes on a TTY)
 
 ```
 freshbooks tasks delete <id> [flags]
@@ -7341,6 +7414,7 @@ freshbooks tasks list [flags]
       --page int                1-based page number
       --per-page int            page size
       --search stringToString   filter as key=value (repeatable) (default [])
+      --sort string             sort as field[:asc|desc] (default asc; direction encoding for business-scoped resources is unconfirmed against the live API -- see docs/progress.md)
 ```
 
 ### Options inherited from parent commands
@@ -7431,7 +7505,7 @@ Manage taxes
 
 * [freshbooks](#freshbooks)	 - A kubectl-style CLI for the FreshBooks REST API
 * [freshbooks taxes create](#freshbooks-taxes-create)	 - Create a tax rate
-* [freshbooks taxes delete](#freshbooks-taxes-delete)	 - Delete a tax rate
+* [freshbooks taxes delete](#freshbooks-taxes-delete)	 - Delete a tax rate (destructive: requires --yes on a TTY)
 * [freshbooks taxes get](#freshbooks-taxes-get)	 - Get a single tax rate
 * [freshbooks taxes list](#freshbooks-taxes-list)	 - List tax rates
 * [freshbooks taxes update](#freshbooks-taxes-update)	 - Update a tax rate
@@ -7474,7 +7548,7 @@ freshbooks taxes create [flags]
 
 ## freshbooks taxes delete
 
-Delete a tax rate
+Delete a tax rate (destructive: requires --yes on a TTY)
 
 ```
 freshbooks taxes delete <id> [flags]
@@ -7518,7 +7592,8 @@ freshbooks taxes get <id> [flags]
 ### Options
 
 ```
-  -h, --help   help for get
+  -h, --help                  help for get
+      --include stringArray   related sub-resource to embed in the response (repeatable)
 ```
 
 ### Options inherited from parent commands
@@ -7558,6 +7633,7 @@ freshbooks taxes list [flags]
       --page int                1-based page number
       --per-page int            page size
       --search stringToString   filter as key=value (repeatable) (default [])
+      --sort string             sort as field[:asc|desc] (default asc; direction encoding for business-scoped resources is unconfirmed against the live API -- see docs/progress.md)
 ```
 
 ### Options inherited from parent commands
@@ -7776,6 +7852,7 @@ freshbooks team-members list [flags]
       --page int                1-based page number
       --per-page int            page size
       --search stringToString   filter as key=value (repeatable) (default [])
+      --sort string             sort as field[:asc|desc] (default asc; direction encoding for business-scoped resources is unconfirmed against the live API -- see docs/progress.md)
 ```
 
 ### Options inherited from parent commands
@@ -7901,7 +7978,7 @@ Manage time-entries
 
 * [freshbooks](#freshbooks)	 - A kubectl-style CLI for the FreshBooks REST API
 * [freshbooks time-entries create](#freshbooks-time-entries-create)	 - Create a time entry
-* [freshbooks time-entries delete](#freshbooks-time-entries-delete)	 - Delete a time entry
+* [freshbooks time-entries delete](#freshbooks-time-entries-delete)	 - Delete a time entry (destructive: requires --yes on a TTY)
 * [freshbooks time-entries list](#freshbooks-time-entries-list)	 - List time entries
 * [freshbooks time-entries search](#freshbooks-time-entries-search)	 - Search time entries for an employee on a specific project
 * [freshbooks time-entries update](#freshbooks-time-entries-update)	 - Update a time entry
@@ -7944,7 +8021,7 @@ freshbooks time-entries create [flags]
 
 ## freshbooks time-entries delete
 
-Delete a time entry
+Delete a time entry (destructive: requires --yes on a TTY)
 
 ```
 freshbooks time-entries delete <id> [flags]
@@ -7992,6 +8069,7 @@ freshbooks time-entries list [flags]
       --page int                1-based page number
       --per-page int            page size
       --search stringToString   filter as key=value (repeatable) (default [])
+      --sort string             sort as field[:asc|desc] (default asc; direction encoding for business-scoped resources is unconfirmed against the live API -- see docs/progress.md)
 ```
 
 ### Options inherited from parent commands
