@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-09-02
+
 ### Added
 
 - `Client` with all 36 resource services declared as fields, `NewClient` and the `With*` options (`WithTokenSource`, `WithHTTPClient`, `WithBaseURL`, `WithUserAgent`, `WithLogger`, `WithRetry`, `WithClock`), and `(*Client).Do` as the escape hatch for unmodelled endpoints.
