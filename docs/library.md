@@ -46,7 +46,7 @@ memberships, err := client.Identity.Me(ctx)
 ## Values on the wire
 
 - `Money{Amount, Code}` keeps the amount as the string the API sent, so no precision is lost. `Money.Rat()` parses it into an exact `*big.Rat`.
-- `Date` is `YYYY-MM-DD`. `DateTime` accepts all three formats FreshBooks uses -- RFC 3339, `YYYY-MM-DD HH:MM:SS`, and a bare date -- and *remembers which one it decoded from*, so a value read from one family and written back to it round-trips in that family's spelling. `NewDateTime` defaults to RFC 3339; `InLayout` overrides it.
+- `Date` is `YYYY-MM-DD`. `DateTime` accepts all four formats FreshBooks uses -- RFC 3339, `YYYY-MM-DD HH:MM:SS`, a bare date, and the zoneless `YYYY-MM-DDTHH:MM:SS` the Projects and Time Tracking family emits -- and *remembers which one it decoded from*, so a value read from one family and written back to it round-trips in that family's spelling. `NewDateTime` defaults to RFC 3339; `InLayout` overrides it.
 - `VisState` names the visibility states (`active`, `deleted`, `archived`).
 
 ## Requests, pagination, and errors
