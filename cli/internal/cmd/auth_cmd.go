@@ -74,7 +74,9 @@ func resolveClientCredentials(clientID, clientSecret string) (string, string) {
 // every auth subcommand's libauth.Config uses. It is only ever set by
 // this package's own tests (auth_cmd_test.go), redirecting the exchange/
 // refresh/revoke calls onto a local fixture server so no test can reach
-// the real internet; no flag or environment variable can reach it.
+// the real internet; no flag or environment variable can reach it. Q22
+// (Phase 4 QA): safe as a shared mutable package var only because no
+// test in this package calls t.Parallel().
 var testAuthEndpoints libauth.Endpoints
 
 func authEndpoints() libauth.Endpoints { return testAuthEndpoints }
@@ -145,7 +147,10 @@ func newAuthLoginCmd(state *runtimeState) *cobra.Command {
 	cc.Flags().StringArrayVar(&scopes, "scopes", nil, "OAuth scopes to request (default: the full documented user:*:read/write set)")
 	cc.Flags().IntVar(&port, "callback-port", cliauth.DefaultPort, "loopback port for the browser callback")
 	cc.Flags().BoolVar(&noBrowser, "no-browser", false, "print the URL and read the redirect (or a bare code) from stdin instead of opening a browser")
-	cc.Flags().DurationVar(&timeout, "timeout", cliauth.DefaultLoginTimeout, "how long to wait for the browser callback")
+	// Q12 (Phase 4 QA): named "login-timeout", not "timeout", so it cannot
+	// be confused with (and does not shadow) the global --timeout, which
+	// is the per-request timeout every other command shares.
+	cc.Flags().DurationVar(&timeout, "login-timeout", cliauth.DefaultLoginTimeout, "how long to wait for the browser callback")
 	return cc
 }
 

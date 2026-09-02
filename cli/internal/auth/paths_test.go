@@ -104,6 +104,32 @@ func TestCredentialsDir(t *testing.T) {
 }
 
 func TestDefaultScopes(t *testing.T) {
+	t.Run("[happy] is pinned at 44 -- 22 FreshBooks-documented objects, read+write each", func(t *testing.T) {
+		// Q4 (Phase 4 QA): len(DefaultScopes) != len(scopeObjects)*2 is
+		// mutation-blind -- emptying scopeObjects leaves both sides at 0.
+		// A literal 44 (and two hard-coded scope strings below) can only
+		// pass against the real, documented scope set.
+		if len(DefaultScopes) != 44 {
+			t.Fatalf("got %d scopes, want 44", len(DefaultScopes))
+		}
+	})
+
+	t.Run("[happy] contains a known read scope and a known write scope", func(t *testing.T) {
+		want := []string{"user:clients:read", "user:invoices:write"}
+		for _, w := range want {
+			found := false
+			for _, s := range DefaultScopes {
+				if s == w {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Errorf("DefaultScopes missing %q", w)
+			}
+		}
+	})
+
 	t.Run("[happy] carries both read and write for every object", func(t *testing.T) {
 		if len(DefaultScopes) != len(scopeObjects)*2 {
 			t.Fatalf("got %d scopes, want %d", len(DefaultScopes), len(scopeObjects)*2)

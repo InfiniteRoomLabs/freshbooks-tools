@@ -305,7 +305,8 @@ func (s *runtimeState) buildClient(cmd *cobra.Command) (*freshbooks.Client, erro
 // including the two payment_options tokenization calls that bypass
 // WithBaseURL entirely via the lib's doOnHost -- onto a local fixture
 // server; no flag or environment variable can reach it, so production
-// behavior is unaffected.
+// behavior is unaffected. Q22 (Phase 4 QA): safe as a shared mutable
+// package var only because no test in this package calls t.Parallel().
 var testTransport http.RoundTripper
 
 func httpTransport() http.RoundTripper {
@@ -406,7 +407,8 @@ func writeBinaryResult(cmd *cobra.Command, result any, path string, force bool) 
 // functions, so tests can inject a fixed answer without needing a real
 // pty: TestMain-less unit tests exercise the --yes gate and the output
 // format's TTY-sensitive default by swapping these out for the duration
-// of one test.
+// of one test. Q22 (Phase 4 QA): safe as a shared mutable package var
+// only because no test in this package calls t.Parallel().
 var (
 	stdoutIsTerminal = func(w io.Writer) bool { return isTerminalIO(w) }
 	stdinIsTerminal  = func(r io.Reader) bool { return isTerminalIO(r) }
