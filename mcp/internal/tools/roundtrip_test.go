@@ -456,13 +456,18 @@ func assertProbesInQuery(t *testing.T, spec Spec, rawQuery string) {
 	}
 	props := spec.InputSchema.Properties
 	if _, ok := props["page"]; ok {
-		if !strings.Contains(rawQuery, strconv.Itoa(probePage)) {
-			t.Errorf("%s: query %q does not contain page=%d", spec.Name, rawQuery, probePage)
+		// The exact key=value pair, not just the digit anywhere in the
+		// query string -- "page=7" could otherwise false-match on an
+		// unrelated "per_page=17" or similar.
+		want := "page=" + strconv.Itoa(probePage)
+		if !strings.Contains(rawQuery, want) {
+			t.Errorf("%s: query %q does not contain %s", spec.Name, rawQuery, want)
 		}
 	}
 	if _, ok := props["per_page"]; ok {
-		if !strings.Contains(rawQuery, strconv.Itoa(probePerPage)) {
-			t.Errorf("%s: query %q does not contain per_page=%d", spec.Name, rawQuery, probePerPage)
+		want := "per_page=" + strconv.Itoa(probePerPage)
+		if !strings.Contains(rawQuery, want) {
+			t.Errorf("%s: query %q does not contain %s", spec.Name, rawQuery, want)
 		}
 	}
 	if _, ok := props["search"]; ok {

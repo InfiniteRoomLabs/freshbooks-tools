@@ -148,6 +148,19 @@ func TestHTTPHandlerRequiresBearer(t *testing.T) {
 		}
 	})
 
+	t.Run("[edge] a lowercase bearer scheme is accepted (RFC 7235 auth-scheme is case-insensitive)", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodGet, ts.URL+"/mcp", nil)
+		req.Header.Set("Authorization", "bearer tok")
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = resp.Body.Close() }()
+		if resp.StatusCode == http.StatusUnauthorized {
+			t.Fatalf("status = %d, want the request to pass bearer validation (a lowercase scheme is valid)", resp.StatusCode)
+		}
+	})
+
 	t.Run("[edge] GET on the MCP path with a valid bearer is 405 in stateless mode", func(t *testing.T) {
 		req, _ := http.NewRequest(http.MethodGet, ts.URL+"/mcp", nil)
 		req.Header.Set("Authorization", "Bearer tok")

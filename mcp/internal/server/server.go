@@ -92,13 +92,16 @@ const bearerPrefix = "Bearer "
 
 // bearerToken extracts the token from r's Authorization header. ok is
 // false when the header is missing, uses a different scheme, or carries an
-// empty token.
+// empty token. The scheme match is case-insensitive (RFC 7235 section
+// 2.1: "auth-scheme" is case-insensitive), so "bearer tok" and "BEARER
+// tok" are accepted exactly like "Bearer tok" -- a client is not required
+// to send the exact casing this server happens to document.
 func bearerToken(r *http.Request) (token string, ok bool) {
 	h := r.Header.Get("Authorization")
-	if !strings.HasPrefix(h, bearerPrefix) {
+	if len(h) < len(bearerPrefix) || !strings.EqualFold(h[:len(bearerPrefix)], bearerPrefix) {
 		return "", false
 	}
-	token = strings.TrimSpace(strings.TrimPrefix(h, bearerPrefix))
+	token = strings.TrimSpace(h[len(bearerPrefix):])
 	return token, token != ""
 }
 

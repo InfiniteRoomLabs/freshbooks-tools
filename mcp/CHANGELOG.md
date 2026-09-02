@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `bearerToken` now matches the `Bearer` Authorization scheme
+  case-insensitively (RFC 7235 section 2.1: `auth-scheme` is
+  case-insensitive), so a client sending `bearer <token>` or
+  `BEARER <token>` is accepted exactly like `Bearer <token>`.
+- Test hardening from the Phase 3 gate's advisory findings:
+  `payment_options_save_credit_card`'s schema-invalid redaction case now
+  plants and checks for a real sensitive value (it previously asserted
+  nothing); `TestSensitiveToolsNeverEchoInput`'s well-typed subtest now
+  asserts `!IsError` before checking for a leak; its log-containment
+  check is skipped (with an explanatory comment) when the captured log
+  buffer is empty, since an empty buffer proves nothing was logged, not
+  that redaction worked; and the round-trip test's page/per_page query
+  assertions now check the exact `page=7`/`per_page=13` key=value pair
+  instead of the digit appearing anywhere in the query string.
+
 ### Added
 
 - `internal/tools`: 168 MCP tools, one per `freshbooks` client-library
