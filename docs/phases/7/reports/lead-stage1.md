@@ -13,3 +13,7 @@ Attended stage 1, run with the released binaries (`cli/v0.1.0`, `mcp/v0.1.0`) ag
 ## What the remaining read facts need
 
 B, C, O, Q need `user:projects:read` + `user:time_entries:read`; D needs `user:notifications:read` (webhooks) or whatever object FreshBooks maps `/events/` to; E needs `user:online_payments:read`; F needs `user:journal_entries:read` (ledger) -- to be confirmed; P needs `user:teams:read`; J1 needs `user:expenses:read`. All of these must first be enabled on the dev app in the developer portal (attended), then one more `auth login` with the wider `--scopes` list. Until then those rows are blocked, not failed.
+
+## Addendum (later the same day)
+
+After the dev app was given every scope the portal offers, a login requesting 45 scopes succeeded (`auth status`: `valid: true`, 45 scopes). Finding 1 is refined in `lead-sandbox.md`: three of the CLI's default scopes (`profile:write`, `notifications:write`, `reports:write`) do not exist at all, which alone explains the rejection. All read facts are now unblocked.
