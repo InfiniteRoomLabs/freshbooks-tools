@@ -25,7 +25,7 @@ A `*Client` is safe for concurrent use.
 
 ## Services and ID types
 
-Every resource is an exported field on `*Client` -- `client.Invoices`, `client.Projects`, `client.TimeEntries`, and so on. All 36 are declared and wired from Phase 1; Phase 2 fills in their methods.
+Every resource is an exported field on `*Client` -- `client.Invoices`, `client.Projects`, `client.TimeEntries`, and so on: 36 services covering all 213 documented FreshBooks endpoints.
 
 The FreshBooks API is two API families that never share an identifier, so the library gives each its own type:
 
@@ -130,4 +130,4 @@ err := client.Do(ctx, http.MethodGet,
 
 ## Examples
 
-The package `Example` and `ExampleAll` in `example_test.go` are runnable and appear on pkg.go.dev. Per-resource examples land with Phase 2.
+The package `Example` and `ExampleAll` in `example_test.go` are runnable and appear on pkg.go.dev.

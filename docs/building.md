@@ -2,7 +2,7 @@
 
 ## Toolchain
 
-Everything runs through [mise](https://mise.jdx.dev/). `mise.toml` pins exact versions for `go`, `golangci-lint`, `goreleaser`, `actionlint`, and `usage` -- never `latest`. Run `mise install` once per clone (or after pulling a `mise.toml` change) to fetch them.
+Everything runs through [mise](https://mise.jdx.dev/). `mise.toml` pins exact versions for `go`, `golangci-lint`, `goreleaser`, `actionlint`, `usage`, and `syft` (release SBOMs) -- never `latest`. Run `mise install` once per clone (or after pulling a `mise.toml` change) to fetch them.
 
 The repo is a Go workspace (`go.work`) with three modules: `freshbooks/`, `mcp/`, `cli/`. Run `go` commands from inside a module directory, or with `-C <module>`.
 
@@ -51,4 +51,4 @@ Then `gh release create "$TAG_NAME" --verify-tag --notes-file <notes> <module>/d
 
 ## Docs generation
 
-`mise run docs` is currently a stub -- it just says cobra/doc generation for `docs/cli.md` lands in Phase 4, once the CLI has resource commands worth documenting.
+`mise run docs` (`scripts/docs.sh`) regenerates `docs/cli.md` from the CLI's cobra command tree: `go run -tags docsgen ./cli/cmd/freshbooks docs docs/cli.md`. The `docsgen` build tag matters -- without it, `cli/internal/cmd`'s hidden `docs` command (and the `cli/internal/docsgen` package it calls into, the module's only non-test importer of `github.com/spf13/cobra/doc`) is not even compiled in, so a plain `go build ./cli/cmd/freshbooks` never links `cobra/doc`, `go-md2man`, or `blackfriday` into the release `freshbooks` binary. Generation is deterministic (`DisableAutoGenTag`, children sorted by name at every level), so running it twice with an unchanged command tree produces a byte-identical file; `cli/internal/cmd/docs_drift_test.go` (untagged, so it runs in every gate) fails naming the exact command to fix if `docs/cli.md` has drifted from the current tree.
