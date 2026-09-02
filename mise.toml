@@ -1,9 +1,10 @@
 [tools]
 go = "1.26.6"
-golangci-lint = "2.13.1"
-goreleaser = "2.17.1"
+golangci-lint = "2.13.2"
+goreleaser = "2.18.0"
 actionlint = "1.7.12"
 usage = "6.0.0"
+"aqua:anchore/syft" = "1.51.1"
 
 [tasks.fmt-check]
 description = "Check gofmt formatting for one or more modules (default: all)"
