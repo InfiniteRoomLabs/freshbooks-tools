@@ -37,13 +37,13 @@ var tasksCommands = []Command{
 		Short:   "List tasks",
 		Service: "Tasks", Method: "List",
 		Keys:  []string{"Projects/Tasks/List Tasks"},
-		Class: ClassRO, Scope: ScopeAccount, List: true, HasAll: true,
+		Class: ClassRO, Scope: ScopeAccount, List: true, HasAll: true, HasSort: true,
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
 			opts := &freshbooks.TaskListOptions{Search: inv.Search(), Page: inv.Page(), PerPage: inv.PerPage()}
 			if inv.All() {
-				return collectAll(c.Tasks.All(ctx, inv.Scope.AccountID, opts))
+				return collectAll(c.Tasks.All(ctx, inv.Scope.AccountID, opts, inv.SortOpt()...))
 			}
-			return c.Tasks.List(ctx, inv.Scope.AccountID, opts)
+			return c.Tasks.List(ctx, inv.Scope.AccountID, opts, inv.SortOpt()...)
 		},
 	},
 	{

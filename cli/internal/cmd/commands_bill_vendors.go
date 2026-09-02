@@ -13,13 +13,13 @@ var billVendorsCommands = []Command{
 		Short:   "List a business's bill vendors",
 		Service: "BillVendors", Method: "List",
 		Keys:  []string{"Expenses/Vendors (Beta)/Get Vendors"},
-		Class: ClassRO, Scope: ScopeAccount, List: true, HasAll: true,
+		Class: ClassRO, Scope: ScopeAccount, List: true, HasAll: true, HasSort: true,
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
 			opts := &freshbooks.BillVendorListOptions{Search: inv.Search(), Page: inv.Page(), PerPage: inv.PerPage()}
 			if inv.All() {
-				return collectAll(c.BillVendors.All(ctx, inv.Scope.AccountID, opts))
+				return collectAll(c.BillVendors.All(ctx, inv.Scope.AccountID, opts, inv.SortOpt()...))
 			}
-			return c.BillVendors.List(ctx, inv.Scope.AccountID, opts)
+			return c.BillVendors.List(ctx, inv.Scope.AccountID, opts, inv.SortOpt()...)
 		},
 	},
 	{

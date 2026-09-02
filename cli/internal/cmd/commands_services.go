@@ -26,10 +26,10 @@ var servicesCommands = []Command{
 		Short:   "List services",
 		Service: "Services", Method: "List",
 		Keys:  []string{"Settings/Items and Services/List Services"},
-		Class: ClassRO, Scope: ScopeBusiness, List: true,
+		Class: ClassRO, Scope: ScopeBusiness, List: true, HasSort: true,
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
 			opts := &freshbooks.ServiceListOptions{Search: inv.Search(), Page: inv.Page(), PerPage: inv.PerPage()}
-			return c.Services.List(ctx, inv.Scope.BusinessID, opts)
+			return c.Services.List(ctx, inv.Scope.BusinessID, opts, inv.SortOpt()...)
 		},
 	},
 	{

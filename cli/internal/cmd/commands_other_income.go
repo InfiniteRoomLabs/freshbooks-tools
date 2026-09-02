@@ -27,13 +27,13 @@ var otherIncomeCommands = []Command{
 		Short:   "List other income",
 		Service: "OtherIncome", Method: "List",
 		Keys:  []string{"Accounting/Other Income/List Other Income", "Invoices/Other Income/List Other Income"},
-		Class: ClassRO, Scope: ScopeAccount, List: true, HasAll: true,
+		Class: ClassRO, Scope: ScopeAccount, List: true, HasAll: true, HasSort: true,
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
 			opts := &freshbooks.OtherIncomeListOptions{Search: inv.Search(), Page: inv.Page(), PerPage: inv.PerPage()}
 			if inv.All() {
-				return collectAll(c.OtherIncome.All(ctx, inv.Scope.AccountID, opts))
+				return collectAll(c.OtherIncome.All(ctx, inv.Scope.AccountID, opts, inv.SortOpt()...))
 			}
-			return c.OtherIncome.List(ctx, inv.Scope.AccountID, opts)
+			return c.OtherIncome.List(ctx, inv.Scope.AccountID, opts, inv.SortOpt()...)
 		},
 	},
 	{

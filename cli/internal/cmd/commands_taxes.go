@@ -13,13 +13,13 @@ var taxesCommands = []Command{
 		Short:   "List tax rates",
 		Service: "Taxes", Method: "List",
 		Keys:  []string{"Expenses/List Taxes", "Accounting/Taxes/List Taxes", "Settings/Items and Services/List Taxes"},
-		Class: ClassRO, Scope: ScopeAccount, List: true, HasAll: true,
+		Class: ClassRO, Scope: ScopeAccount, List: true, HasAll: true, HasSort: true,
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
 			opts := &freshbooks.TaxListOptions{Search: inv.Search(), Page: inv.Page(), PerPage: inv.PerPage()}
 			if inv.All() {
-				return collectAll(c.Taxes.All(ctx, inv.Scope.AccountID, opts))
+				return collectAll(c.Taxes.All(ctx, inv.Scope.AccountID, opts, inv.SortOpt()...))
 			}
-			return c.Taxes.List(ctx, inv.Scope.AccountID, opts)
+			return c.Taxes.List(ctx, inv.Scope.AccountID, opts, inv.SortOpt()...)
 		},
 	},
 	{
@@ -27,9 +27,9 @@ var taxesCommands = []Command{
 		Short:   "Get a single tax rate",
 		Service: "Taxes", Method: "Get",
 		Keys:  []string{"Expenses/Single Tax (GET)", "Accounting/Taxes/Get Single Tax", "Settings/Items and Services/Single Tax (GET)"},
-		Class: ClassRO, Scope: ScopeAccount, HasID: true,
+		Class: ClassRO, Scope: ScopeAccount, HasID: true, HasInclude: true,
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
-			return c.Taxes.Get(ctx, inv.Scope.AccountID, inv.IntID())
+			return c.Taxes.Get(ctx, inv.Scope.AccountID, inv.IntID(), inv.IncludeOpt()...)
 		},
 	},
 	{

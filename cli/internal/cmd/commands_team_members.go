@@ -21,13 +21,13 @@ var teamMembersCommands = []Command{
 		Short:   "List team members",
 		Service: "TeamMembers", Method: "List",
 		Keys:  []string{"My Team/List Team Members"},
-		Class: ClassRO, Scope: ScopeBusiness, List: true, HasAll: true,
+		Class: ClassRO, Scope: ScopeBusiness, List: true, HasAll: true, HasSort: true,
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
 			opts := &freshbooks.TeamMemberListOptions{Search: inv.Search(), Page: inv.Page(), PerPage: inv.PerPage()}
 			if inv.All() {
-				return collectAll(c.TeamMembers.All(ctx, inv.Scope.BusinessID, opts))
+				return collectAll(c.TeamMembers.All(ctx, inv.Scope.BusinessID, opts, inv.SortOpt()...))
 			}
-			return c.TeamMembers.List(ctx, inv.Scope.BusinessID, opts)
+			return c.TeamMembers.List(ctx, inv.Scope.BusinessID, opts, inv.SortOpt()...)
 		},
 	},
 	{
@@ -69,12 +69,9 @@ var teamMembersCommands = []Command{
 		ExtraFlags: func(fs *pflag.FlagSet) {
 			fs.String("rate", "", "the rate to set (required)")
 		},
+		RequiredFlags: []string{"rate"},
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
-			rate, _ := inv.Flags.GetString("rate")
-			if rate == "" {
-				return nil, newUsageError("--rate is required")
-			}
-			return c.TeamMembers.UpdateRate(ctx, inv.Scope.BusinessID, inv.IntID(), rate)
+			return c.TeamMembers.UpdateRate(ctx, inv.Scope.BusinessID, inv.IntID(), inv.RequiredString("rate"))
 		},
 	},
 	{

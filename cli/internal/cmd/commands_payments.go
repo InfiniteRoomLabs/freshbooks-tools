@@ -13,13 +13,13 @@ var paymentsCommands = []Command{
 		Short:   "List invoice payments",
 		Service: "Payments", Method: "List",
 		Keys:  []string{"Invoices/Payments/List Payments"},
-		Class: ClassRO, Scope: ScopeAccount, List: true, HasAll: true,
+		Class: ClassRO, Scope: ScopeAccount, List: true, HasAll: true, HasSort: true,
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
 			opts := &freshbooks.PaymentListOptions{Search: inv.Search(), Page: inv.Page(), PerPage: inv.PerPage()}
 			if inv.All() {
-				return collectAll(c.Payments.All(ctx, inv.Scope.AccountID, opts))
+				return collectAll(c.Payments.All(ctx, inv.Scope.AccountID, opts, inv.SortOpt()...))
 			}
-			return c.Payments.List(ctx, inv.Scope.AccountID, opts)
+			return c.Payments.List(ctx, inv.Scope.AccountID, opts, inv.SortOpt()...)
 		},
 	},
 	{

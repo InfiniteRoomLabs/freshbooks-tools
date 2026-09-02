@@ -186,11 +186,40 @@ func TestReadLine(t *testing.T) {
 	})
 }
 
-func TestOpenBrowserAttempts(t *testing.T) {
-	// openBrowser shells out to a platform program; this only proves it
-	// builds and starts the right command for this GOOS without
-	// requiring the program to actually exist or succeed.
-	_ = openBrowser("https://example.invalid/probe")
+func TestBrowserCommand(t *testing.T) {
+	// browserCommand is pure: no process is ever started here, so this
+	// runs on every GOOS regardless of which platform the test binary
+	// actually is.
+	tests := []struct {
+		goos     string
+		wantName string
+		wantArgs []string
+	}{
+		{"darwin", "open", []string{"https://example.invalid/probe"}},
+		{"windows", "rundll32", []string{"url.dll,FileProtocolHandler", "https://example.invalid/probe"}},
+		{"linux", "xdg-open", []string{"https://example.invalid/probe"}},
+		{"freebsd", "xdg-open", []string{"https://example.invalid/probe"}}, // the default branch, exercised under an unlisted GOOS
+	}
+	for _, tt := range tests {
+		t.Run(tt.goos, func(t *testing.T) {
+			name, args := browserCommand(tt.goos, "https://example.invalid/probe")
+			if name != tt.wantName {
+				t.Errorf("name = %q, want %q", name, tt.wantName)
+			}
+			if len(args) != len(tt.wantArgs) {
+				t.Fatalf("args = %v, want %v", args, tt.wantArgs)
+			}
+			for i := range args {
+				if args[i] != tt.wantArgs[i] {
+					t.Errorf("args[%d] = %q, want %q", i, args[i], tt.wantArgs[i])
+				}
+			}
+			// The URL is always the last argument, alone.
+			if args[len(args)-1] != "https://example.invalid/probe" {
+				t.Errorf("last arg = %q, want the raw URL", args[len(args)-1])
+			}
+		})
+	}
 }
 
 func TestLogin(t *testing.T) {
@@ -269,6 +298,88 @@ func TestLogin(t *testing.T) {
 		}
 		if _, err := store.Load(context.Background()); err == nil {
 			t.Error("a token was saved despite the state mismatch")
+		}
+	})
+
+	t.Run("[sad] a callback with a code but no state at all is rejected (F1/B1: CSRF)", func(t *testing.T) {
+		port := freePort(t)
+		oauth := newFakeOAuthServer(t, "client-1", "secret-1", "")
+		store := fbauth.NewMemoryStore()
+
+		opts := LoginOptions{
+			ClientID: "client-1", ClientSecret: "secret-1",
+			Port: port, Timeout: 3 * time.Second,
+			Endpoints: oauth.endpoints(), Store: store,
+			OpenBrowser: func(rawURL string) error {
+				go func() {
+					// No &state= at all -- the attack this fix closes:
+					// a cross-origin request to the callback URL that
+					// never had access to the generated state.
+					resp, err := insecureBrowserClient.Get(fmt.Sprintf("https://127.0.0.1:%d/callback?code=attacker-code", port))
+					if err == nil {
+						_ = resp.Body.Close()
+					}
+				}()
+				return nil
+			},
+		}
+
+		_, err := Login(context.Background(), opts)
+		if err == nil {
+			t.Fatal("Login() error = nil, want a missing-state error")
+		}
+		if !strings.Contains(err.Error(), "no state") {
+			t.Errorf("error = %v, want a missing-state error", err)
+		}
+		if _, err := store.Load(context.Background()); err == nil {
+			t.Error("a token was saved despite the missing state")
+		}
+	})
+
+	t.Run("[sad] a second callback request is rejected with 410 and never delivered again (single-use listener)", func(t *testing.T) {
+		// Unit-level, against runCallbackServer directly: routing this
+		// through the full Login flow races runCallbackServer's own
+		// deferred stop() (which fires the instant Login's select reads
+		// the first result off the buffered channel) against the second
+		// HTTP request, so the listener can be gone before the second
+		// request lands. Testing the handler's single-use property
+		// directly avoids that race entirely.
+		port := freePort(t)
+		resultCh, stop, err := runCallbackServer(port, time.Now())
+		if err != nil {
+			t.Fatalf("runCallbackServer() error = %v", err)
+		}
+		defer func() { _ = stop() }()
+
+		url := fmt.Sprintf("https://127.0.0.1:%d/callback?code=test-auth-code&state=probe-state", port)
+		resp1, err := insecureBrowserClient.Get(url)
+		if err != nil {
+			t.Fatalf("first request: %v", err)
+		}
+		_ = resp1.Body.Close()
+
+		select {
+		case res := <-resultCh:
+			if res.code != "test-auth-code" {
+				t.Errorf("delivered code = %q", res.code)
+			}
+		case <-time.After(3 * time.Second):
+			t.Fatal("timed out waiting for the first callback to be delivered")
+		}
+
+		resp2, err := insecureBrowserClient.Get(url)
+		if err != nil {
+			t.Fatalf("second request: %v", err)
+		}
+		defer func() { _ = resp2.Body.Close() }()
+		if resp2.StatusCode != http.StatusGone {
+			t.Errorf("second callback status = %d, want %d", resp2.StatusCode, http.StatusGone)
+		}
+
+		select {
+		case <-resultCh:
+			t.Error("a second result was delivered on resultCh; the listener is not single-use")
+		default:
 		}
 	})
 

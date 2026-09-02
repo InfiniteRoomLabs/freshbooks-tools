@@ -13,13 +13,13 @@ var clientsCommands = []Command{
 		Short:   "List an account's clients",
 		Service: "Clients", Method: "List",
 		Keys:  []string{"Clients/List Clients"},
-		Class: ClassRO, Scope: ScopeAccount, List: true, HasInclude: true, HasAll: true,
+		Class: ClassRO, Scope: ScopeAccount, List: true, HasInclude: true, HasAll: true, HasSort: true,
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
 			opts := &freshbooks.ClientListOptions{Search: inv.Search(), Page: inv.Page(), PerPage: inv.PerPage(), Include: inv.Include()}
 			if inv.All() {
-				return collectAll(c.Clients.All(ctx, inv.Scope.AccountID, opts))
+				return collectAll(c.Clients.All(ctx, inv.Scope.AccountID, opts, inv.SortOpt()...))
 			}
-			return c.Clients.List(ctx, inv.Scope.AccountID, opts)
+			return c.Clients.List(ctx, inv.Scope.AccountID, opts, inv.SortOpt()...)
 		},
 	},
 	{
@@ -27,9 +27,9 @@ var clientsCommands = []Command{
 		Short:   "Get a single client",
 		Service: "Clients", Method: "Get",
 		Keys:  []string{"Clients/Single Client"},
-		Class: ClassRO, Scope: ScopeAccount, HasID: true,
+		Class: ClassRO, Scope: ScopeAccount, HasID: true, HasInclude: true,
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
-			return c.Clients.Get(ctx, inv.Scope.AccountID, inv.IntID())
+			return c.Clients.Get(ctx, inv.Scope.AccountID, inv.IntID(), inv.IncludeOpt()...)
 		},
 	},
 	{

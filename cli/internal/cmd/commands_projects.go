@@ -38,13 +38,13 @@ var projectsCommands = []Command{
 		Short:   "List projects",
 		Service: "Projects", Method: "List",
 		Keys:  []string{"Projects/List Projects"},
-		Class: ClassRO, Scope: ScopeBusiness, List: true, HasAll: true,
+		Class: ClassRO, Scope: ScopeBusiness, List: true, HasAll: true, HasSort: true,
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
 			opts := &freshbooks.ProjectListOptions{Search: inv.Search(), Page: inv.Page(), PerPage: inv.PerPage()}
 			if inv.All() {
-				return collectAll(c.Projects.All(ctx, inv.Scope.BusinessID, opts))
+				return collectAll(c.Projects.All(ctx, inv.Scope.BusinessID, opts, inv.SortOpt()...))
 			}
-			return c.Projects.List(ctx, inv.Scope.BusinessID, opts)
+			return c.Projects.List(ctx, inv.Scope.BusinessID, opts, inv.SortOpt()...)
 		},
 	},
 	{
@@ -100,12 +100,9 @@ var projectsCommands = []Command{
 		ExtraFlags: func(fs *pflag.FlagSet) {
 			fs.String("message", "", "the message text (required)")
 		},
+		RequiredFlags: []string{"message"},
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
-			msg, _ := inv.Flags.GetString("message")
-			if msg == "" {
-				return nil, newUsageError("--message is required")
-			}
-			return c.Projects.CreateThread(ctx, inv.Scope.BusinessID, inv.IntID(), msg)
+			return c.Projects.CreateThread(ctx, inv.Scope.BusinessID, inv.IntID(), inv.RequiredString("message"))
 		},
 	},
 	{
@@ -117,12 +114,9 @@ var projectsCommands = []Command{
 		ExtraFlags: func(fs *pflag.FlagSet) {
 			fs.String("message", "", "the comment text (required)")
 		},
+		RequiredFlags: []string{"message"},
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
-			msg, _ := inv.Flags.GetString("message")
-			if msg == "" {
-				return nil, newUsageError("--message is required")
-			}
-			return c.Projects.AddThreadComment(ctx, inv.Scope.BusinessID, inv.IntID(), msg)
+			return c.Projects.AddThreadComment(ctx, inv.Scope.BusinessID, inv.IntID(), inv.RequiredString("message"))
 		},
 	},
 }

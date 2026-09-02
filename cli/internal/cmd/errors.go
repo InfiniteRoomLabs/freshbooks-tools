@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/InfiniteRoomLabs/freshbooks-tools/freshbooks"
+	fbauth "github.com/InfiniteRoomLabs/freshbooks-tools/freshbooks/auth"
 )
 
 // exitCoder is implemented by every error type this package constructs
@@ -71,6 +72,10 @@ func classifyRunError(err error) error {
 	if errors.As(err, &fbErr) {
 		return err
 	}
+	var authErr *fbauth.Error
+	if errors.As(err, &authErr) {
+		return err
+	}
 	return &runtimeError{err: err}
 }
 
@@ -81,7 +86,11 @@ func classifyRunError(err error) error {
 //   - a type implementing exitCoder            -> that code (2 or 3)
 //   - a *freshbooks.Error with status 401       -> 3
 //   - a *freshbooks.Error with status 404       -> 4
-//   - any other *freshbooks.Error, or a
+//   - any other *freshbooks.Error                -> 1
+//   - a *freshbooks/auth.Error (an OAuth token
+//     endpoint error, from `auth token --refresh`
+//     or `auth login`) with status 401           -> 3
+//   - any other *freshbooks/auth.Error, or a
 //     runtimeError-wrapped error                -> 1
 //   - anything else (untyped)                   -> 2
 //
@@ -89,9 +98,11 @@ func classifyRunError(err error) error {
 // package's own command execution path returns is wrapped by
 // classifyRunError into one of the typed cases above before it ever
 // reaches Execute(), so an untyped error reaching here can only have come
-// from cobra itself -- an unknown command, an unknown flag (via
-// SetFlagErrorFunc), or a positional-argument count cobra rejected before
-// any RunE ran. All of those are usage problems.
+// from cobra itself -- an unknown command or a positional-argument count
+// or flag cobra rejected before any RunE ran (this package registers no
+// FlagErrorFunc; cobra's own default flag-parse error is exactly such an
+// untyped error, so it falls through to exit 2 here rather than being
+// intercepted earlier). All of those are usage problems.
 func exitCodeFor(err error) int {
 	if err == nil {
 		return 0
@@ -110,6 +121,13 @@ func exitCodeFor(err error) int {
 		default:
 			return 1
 		}
+	}
+	var authErr *fbauth.Error
+	if errors.As(err, &authErr) {
+		if authErr.StatusCode == 401 {
+			return 3
+		}
+		return 1
 	}
 	return 2
 }

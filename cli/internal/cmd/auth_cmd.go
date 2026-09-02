@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -14,8 +15,22 @@ import (
 // resolves its own context/credentials path from state, independent of
 // the registry commands' client-building path, since these commands
 // manage the credentials the other path reads.
+//
+// --dry-run is rejected here (F3/security B3): the flag's contract is
+// "send nothing", and every one of these subcommands either sends a real
+// request (login exchanges a code; token --refresh rotates a one-time-use
+// refresh token; logout revokes) or reports/mutates local state in a way
+// a dry run cannot meaningfully preview. Silently ignoring --dry-run on
+// `auth logout` in particular would mean the one flag a cautious operator
+// reaches for before a destructive command does nothing to stop it.
 func newAuthCmd(state *runtimeState) *cobra.Command {
-	root := &cobra.Command{Use: "auth", Short: "Log in, check status, log out, or print the access token"}
+	root := &cobra.Command{
+		Use:   "auth",
+		Short: "Log in, check status, log out, or print the access token",
+		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
+			return rejectDryRun(cmd)
+		},
+	}
 	root.AddCommand(newAuthLoginCmd(state))
 	root.AddCommand(newAuthStatusCmd(state))
 	root.AddCommand(newAuthLogoutCmd(state))
@@ -23,9 +38,22 @@ func newAuthCmd(state *runtimeState) *cobra.Command {
 	return root
 }
 
+// rejectDryRun returns a usage error (exit 2) if --dry-run was passed,
+// for command families that cannot honour it.
+func rejectDryRun(cmd *cobra.Command) error {
+	if dry, _ := cmd.Flags().GetBool("dry-run"); dry {
+		return newUsageErrorf("%s does not support --dry-run", cmd.CommandPath())
+	}
+	return nil
+}
+
 // clientCredentialsFlags registers --client-id/--client-secret, the one
 // place these flags exist (D5): everywhere else FRESHBOOKS_CLIENT_ID/
-// FRESHBOOKS_CLIENT_SECRET env vars are the only source.
+// FRESHBOOKS_CLIENT_SECRET env vars are the only source. Prefer the env
+// vars over these flags where possible: a value passed on the command
+// line is visible to any other process of the same user via
+// /proc/<pid>/cmdline while this command runs, and lands in shell history
+// afterwards (docs/cli.md's Security notes say the same).
 func clientCredentialsFlags(cc *cobra.Command) (clientID, clientSecret *string) {
 	clientID = cc.Flags().String("client-id", "", "the registered application's client id (default: FRESHBOOKS_CLIENT_ID)")
 	clientSecret = cc.Flags().String("client-secret", "", "the registered application's client secret (default: FRESHBOOKS_CLIENT_SECRET)")
@@ -51,6 +79,26 @@ var testAuthEndpoints libauth.Endpoints
 
 func authEndpoints() libauth.Endpoints { return testAuthEndpoints }
 
+// classifyAuthError maps an error from cliauth.Token/Status/Logout the
+// same way state.go's buildClient maps a missing credentials file: a
+// store.Load that failed because nothing is stored at all is an auth
+// error (exit 3, D6), not a generic runtime error (exit 1) -- the
+// primary automation idiom is `TOKEN=$(freshbooks auth token) ||
+// handle $?`, and it needs to be able to tell "not logged in" apart from
+// "something broke." Everything else goes through classifyRunError,
+// which already leaves a *freshbooks/auth.Error (an OAuth token endpoint
+// failure, e.g. a revoked refresh token) alone for exitCodeFor to map by
+// status code.
+func classifyAuthError(err error, ctxName string) error {
+	if err == nil {
+		return nil
+	}
+	if errors.Is(err, libauth.ErrNoToken) {
+		return newAuthErrorf("no credentials for context %q; run 'freshbooks auth login'", ctxName)
+	}
+	return classifyRunError(err)
+}
+
 func newAuthLoginCmd(state *runtimeState) *cobra.Command {
 	var scopes []string
 	var port int
@@ -67,15 +115,10 @@ func newAuthLoginCmd(state *runtimeState) *cobra.Command {
 			if id == "" || secret == "" {
 				return newUsageError("--client-id/--client-secret (or FRESHBOOKS_CLIENT_ID/FRESHBOOKS_CLIENT_SECRET) are required")
 			}
-			ctxName, err := state.contextName(cmd)
+			ctxName, _, store, err := state.credentialStore(cmd)
 			if err != nil {
 				return err
 			}
-			credPath, err := cliauth.CredentialsPath(ctxName)
-			if err != nil {
-				return &runtimeError{err: err}
-			}
-			store := libauth.NewFileStore(credPath)
 
 			opts := cliauth.LoginOptions{
 				ClientID: id, ClientSecret: secret,
@@ -92,9 +135,10 @@ func newAuthLoginCmd(state *runtimeState) *cobra.Command {
 				_, err = cliauth.Login(cmd.Context(), opts)
 			}
 			if err != nil {
-				return &runtimeError{err: err}
+				return classifyAuthError(err, ctxName)
 			}
-			return nil
+			_, err = fmt.Fprintln(state.confirmWriter(cmd), "Login succeeded.")
+			return err
 		},
 	}
 	clientID, clientSecret = clientCredentialsFlags(cc)
@@ -111,18 +155,13 @@ func newAuthStatusCmd(state *runtimeState) *cobra.Command {
 		Short: "Show the current context's credential state (never the token)",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			ctxName, err := state.contextName(cmd)
+			ctxName, credPath, store, err := state.credentialStore(cmd)
 			if err != nil {
 				return err
 			}
-			credPath, err := cliauth.CredentialsPath(ctxName)
-			if err != nil {
-				return &runtimeError{err: err}
-			}
-			store := libauth.NewFileStore(credPath)
 			info, err := cliauth.Status(cmd.Context(), ctxName, credPath, store, nil)
 			if err != nil {
-				return &runtimeError{err: err}
+				return classifyAuthError(err, ctxName)
 			}
 			return state.writeResult(cmd, info)
 		},
@@ -137,20 +176,15 @@ func newAuthLogoutCmd(state *runtimeState) *cobra.Command {
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			id, secret := resolveClientCredentials(*clientID, *clientSecret)
-			ctxName, err := state.contextName(cmd)
+			ctxName, credPath, store, err := state.credentialStore(cmd)
 			if err != nil {
 				return err
 			}
-			credPath, err := cliauth.CredentialsPath(ctxName)
-			if err != nil {
-				return &runtimeError{err: err}
-			}
-			store := libauth.NewFileStore(credPath)
 			cfg := libauth.Config{ClientID: id, ClientSecret: secret, Endpoints: authEndpoints()}
 			if err := cliauth.Logout(cmd.Context(), cfg, credPath, store); err != nil {
-				return &runtimeError{err: err}
+				return classifyAuthError(err, ctxName)
 			}
-			_, err = fmt.Fprintln(cmd.OutOrStdout(), "Logged out.")
+			_, err = fmt.Fprintln(state.confirmWriter(cmd), "Logged out.")
 			return err
 		},
 	}
@@ -167,19 +201,14 @@ func newAuthTokenCmd(state *runtimeState) *cobra.Command {
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			id, secret := resolveClientCredentials(*clientID, *clientSecret)
-			ctxName, err := state.contextName(cmd)
+			ctxName, _, store, err := state.credentialStore(cmd)
 			if err != nil {
 				return err
 			}
-			credPath, err := cliauth.CredentialsPath(ctxName)
-			if err != nil {
-				return &runtimeError{err: err}
-			}
-			store := libauth.NewFileStore(credPath)
 			cfg := libauth.Config{ClientID: id, ClientSecret: secret, Endpoints: authEndpoints()}
 			tok, err := cliauth.Token(cmd.Context(), cfg, store, refresh)
 			if err != nil {
-				return &runtimeError{err: err}
+				return classifyAuthError(err, ctxName)
 			}
 			_, err = fmt.Fprintln(cmd.OutOrStdout(), tok)
 			return err

@@ -39,7 +39,7 @@ var journalCommands = []Command{
 		Short:   "List journal-entry accounts",
 		Service: "JournalEntryAccounts", Method: "List",
 		Keys:  []string{"Accounting/Journal Entries/Accounts", "Reports/General Ledger"},
-		Class: ClassRO, Scope: ScopeAccount, List: true, NoPaging: false,
+		Class: ClassRO, Scope: ScopeAccount, List: true, HasSort: true,
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
 			return c.JournalEntryAccounts.List(ctx, inv.Scope.AccountID, inv.ReqOpts()...)
 		},

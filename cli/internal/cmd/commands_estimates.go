@@ -13,13 +13,13 @@ var estimatesCommands = []Command{
 		Short:   "List estimates",
 		Service: "Estimates", Method: "List",
 		Keys:  []string{"Estimates/List Estimates"},
-		Class: ClassRO, Scope: ScopeAccount, List: true, HasInclude: true, HasAll: true,
+		Class: ClassRO, Scope: ScopeAccount, List: true, HasInclude: true, HasAll: true, HasSort: true,
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
 			opts := &freshbooks.EstimateListOptions{Search: inv.Search(), Page: inv.Page(), PerPage: inv.PerPage(), Include: inv.Include()}
 			if inv.All() {
-				return collectAll(c.Estimates.All(ctx, inv.Scope.AccountID, opts))
+				return collectAll(c.Estimates.All(ctx, inv.Scope.AccountID, opts, inv.SortOpt()...))
 			}
-			return c.Estimates.List(ctx, inv.Scope.AccountID, opts)
+			return c.Estimates.List(ctx, inv.Scope.AccountID, opts, inv.SortOpt()...)
 		},
 	},
 	{
@@ -27,9 +27,9 @@ var estimatesCommands = []Command{
 		Short:   "Get a single estimate",
 		Service: "Estimates", Method: "Get",
 		Keys:  []string{"Estimates/Single Estimate"},
-		Class: ClassRO, Scope: ScopeAccount, HasID: true,
+		Class: ClassRO, Scope: ScopeAccount, HasID: true, HasInclude: true,
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
-			return c.Estimates.Get(ctx, inv.Scope.AccountID, inv.IntID())
+			return c.Estimates.Get(ctx, inv.Scope.AccountID, inv.IntID(), inv.IncludeOpt()...)
 		},
 	},
 	{

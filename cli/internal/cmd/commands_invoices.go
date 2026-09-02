@@ -13,13 +13,13 @@ var invoicesCommands = []Command{
 		Short:   "List invoices",
 		Service: "Invoices", Method: "List",
 		Keys:  []string{"Invoices/List Invoices"},
-		Class: ClassRO, Scope: ScopeAccount, List: true, HasAll: true,
+		Class: ClassRO, Scope: ScopeAccount, List: true, HasAll: true, HasSort: true,
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
 			opts := &freshbooks.InvoiceListOptions{Search: inv.Search(), Page: inv.Page(), PerPage: inv.PerPage()}
 			if inv.All() {
-				return collectAll(c.Invoices.All(ctx, inv.Scope.AccountID, opts))
+				return collectAll(c.Invoices.All(ctx, inv.Scope.AccountID, opts, inv.SortOpt()...))
 			}
-			return c.Invoices.List(ctx, inv.Scope.AccountID, opts)
+			return c.Invoices.List(ctx, inv.Scope.AccountID, opts, inv.SortOpt()...)
 		},
 	},
 	{
@@ -27,9 +27,9 @@ var invoicesCommands = []Command{
 		Short:   "Get a single invoice",
 		Service: "Invoices", Method: "Get",
 		Keys:  []string{"Invoices/Single Invoice", "Invoices/Single Invoice w/ Logo"},
-		Class: ClassRO, Scope: ScopeAccount, HasID: true,
+		Class: ClassRO, Scope: ScopeAccount, HasID: true, HasInclude: true,
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
-			return c.Invoices.Get(ctx, inv.Scope.AccountID, inv.IntID())
+			return c.Invoices.Get(ctx, inv.Scope.AccountID, inv.IntID(), inv.IncludeOpt()...)
 		},
 	},
 	{
@@ -37,13 +37,13 @@ var invoicesCommands = []Command{
 		Short:   "Create an invoice",
 		Service: "Invoices", Method: "Create",
 		Keys:  []string{"Invoices/Create Invoice with Expense", "Invoices/Single Invoice w/ Line Items", "Invoices/Single Invoice w/ Logo and styles", "Invoices/Single Invoice w/ Payment Gateway"},
-		Class: ClassW, Scope: ScopeAccount, Body: true,
+		Class: ClassW, Scope: ScopeAccount, Body: true, HasInclude: true,
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
 			var body freshbooks.InvoiceCreateRequest
 			if err := inv.DecodeBody(&body); err != nil {
 				return nil, err
 			}
-			return c.Invoices.Create(ctx, inv.Scope.AccountID, &body)
+			return c.Invoices.Create(ctx, inv.Scope.AccountID, &body, inv.IncludeOpt()...)
 		},
 	},
 	{
@@ -51,13 +51,13 @@ var invoicesCommands = []Command{
 		Short:   "Update an invoice",
 		Service: "Invoices", Method: "Update",
 		Keys:  []string{"Invoices/Update Invoice", "Invoices/Update Invoice w/ Expense", "Invoices/Toggle Online Payments on Invoice"},
-		Class: ClassI, Scope: ScopeAccount, HasID: true, Body: true,
+		Class: ClassI, Scope: ScopeAccount, HasID: true, Body: true, HasInclude: true,
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
 			var body freshbooks.InvoiceUpdateRequest
 			if err := inv.DecodeBody(&body); err != nil {
 				return nil, err
 			}
-			return c.Invoices.Update(ctx, inv.Scope.AccountID, inv.IntID(), &body)
+			return c.Invoices.Update(ctx, inv.Scope.AccountID, inv.IntID(), &body, inv.IncludeOpt()...)
 		},
 	},
 	{

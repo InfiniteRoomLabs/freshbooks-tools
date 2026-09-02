@@ -13,10 +13,10 @@ var timeEntriesCommands = []Command{
 		Short:   "List time entries",
 		Service: "TimeEntries", Method: "List",
 		Keys:  []string{"Time Tracking/List Entries", "Time Tracking/Time Entries Updated Since Precise Time", "Time Tracking/Time Entries for a Given Day"},
-		Class: ClassRO, Scope: ScopeBusiness, List: true,
+		Class: ClassRO, Scope: ScopeBusiness, List: true, HasSort: true,
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
 			opts := &freshbooks.TimeEntryListOptions{Search: inv.Search(), Page: inv.Page(), PerPage: inv.PerPage()}
-			return c.TimeEntries.List(ctx, inv.Scope.BusinessID, opts)
+			return c.TimeEntries.List(ctx, inv.Scope.BusinessID, opts, inv.SortOpt()...)
 		},
 	},
 	{

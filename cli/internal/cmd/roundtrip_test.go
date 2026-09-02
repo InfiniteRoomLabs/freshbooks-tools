@@ -29,10 +29,15 @@ const (
 	probePerPage = 13
 )
 
-// recordedRequest is one HTTP request fakeUpstream answered.
+// recordedRequest is one HTTP request fakeUpstream answered. origHost is
+// the request's Host as the lib built it, before useRedirectTransport
+// rewrote scheme/host to reach the fixture server -- it is how
+// TestRoundTrip's WantHost assertion (F12) can tell a request meant for
+// paid.freshbooks.com from one meant for the default API host, even
+// though both land on the same fixture server.
 type recordedRequest struct {
-	method, path, rawQuery string
-	body                   []byte
+	method, path, rawQuery, origHost string
+	body                             []byte
 }
 
 // requestRecorder collects every request a fakeUpstream server answers, in
@@ -40,6 +45,24 @@ type recordedRequest struct {
 type requestRecorder struct {
 	mu   sync.Mutex
 	reqs []recordedRequest
+
+	// pendingHost is the Host redirectTransport is about to rewrite away,
+	// set just before it forwards the request and consumed by the very
+	// next record() call -- the two run strictly sequentially for every
+	// command this file drives (one HTTP request in flight at a time),
+	// so there is never more than one pending value.
+	pendingHost string
+}
+
+// setPendingHost is called by redirectTransport immediately before it
+// rewrites a request's scheme/host to reach the fixture server, so the
+// next record() can still report what the lib actually built (F12 --
+// the two tokenization commands hard-code paid.freshbooks.com via
+// Client.doOnHost, bypassing --base-url entirely).
+func (r *requestRecorder) setPendingHost(host string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.pendingHost = host
 }
 
 func (r *requestRecorder) record(req *http.Request) {
@@ -47,7 +70,9 @@ func (r *requestRecorder) record(req *http.Request) {
 	req.Body = io.NopCloser(bytes.NewReader(body))
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.reqs = append(r.reqs, recordedRequest{method: req.Method, path: req.URL.Path, rawQuery: req.URL.RawQuery, body: body})
+	origHost := r.pendingHost
+	r.pendingHost = ""
+	r.reqs = append(r.reqs, recordedRequest{method: req.Method, path: req.URL.Path, rawQuery: req.URL.RawQuery, origHost: origHost, body: body})
 }
 
 func (r *requestRecorder) reset() {
@@ -161,10 +186,14 @@ func extraPositionalValue(name string) string {
 // network. Set via the package-level testTransport seam (state.go).
 type redirectTransport struct {
 	addr string
+	rec  *requestRecorder
 	next http.RoundTripper
 }
 
 func (t redirectTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if t.rec != nil {
+		t.rec.setPendingHost(req.URL.Host)
+	}
 	req = req.Clone(req.Context())
 	req.URL.Scheme = "http"
 	req.URL.Host = t.addr
@@ -173,14 +202,17 @@ func (t redirectTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 }
 
 // useRedirectTransport points testTransport at upstream's host for the
-// duration of the calling test, restoring it to nil on cleanup.
-func useRedirectTransport(t *testing.T, upstream *httptest.Server) {
+// duration of the calling test, restoring it to nil on cleanup. rec, when
+// non-nil, records the pre-rewrite Host of every request (F12) so
+// WantHost assertions can tell a paid.freshbooks.com request from a
+// default-host one even though both land on the same fixture server.
+func useRedirectTransport(t *testing.T, upstream *httptest.Server, rec *requestRecorder) {
 	t.Helper()
 	u, err := url.Parse(upstream.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
-	testTransport = redirectTransport{addr: u.Host, next: http.DefaultTransport}
+	testTransport = redirectTransport{addr: u.Host, rec: rec, next: http.DefaultTransport}
 	t.Cleanup(func() { testTransport = nil })
 }
 
@@ -234,9 +266,12 @@ func buildArgs(c Command, baseURL, bodyFile, uploadFile string) []string {
 			args = append(args, "--page", strconv.Itoa(probePage), "--per-page", strconv.Itoa(probePerPage))
 		}
 		args = append(args, "--search", "probe_filter=probe_value")
-		if c.HasInclude {
-			args = append(args, "--include", "probe_include")
+		if c.HasSort {
+			args = append(args, "--sort", "probe_sort_field:desc")
 		}
+	}
+	if c.HasInclude {
+		args = append(args, "--include", "probe_include")
 	}
 
 	if c.Body && (!c.BodyOptional) {
@@ -280,6 +315,240 @@ func assertScopeInPath(t *testing.T, c Command, path string) {
 		if !strings.Contains(path, string(testScope.AccountID)) || !strings.Contains(path, bid) {
 			t.Errorf("%s/%s: path %q does not contain both scope ids", c.Group, c.Verb, path)
 		}
+	case ScopeNone:
+		// No scope identifier to require (identity/me, identity/whoami,
+		// identity/register, ledger-accounts/sub-types|types, ...).
+	default:
+		// F12/review B10: an unhandled ScopeFamily value must fail loudly
+		// here rather than silently skip the scope check -- adding a new
+		// family to registry.go without teaching this switch about it
+		// would otherwise pass every command using it unconditionally.
+		t.Errorf("%s/%s: assertScopeInPath has no case for scope family %v", c.Group, c.Verb, c.Scope)
+	}
+}
+
+// wantPath is the expected request path template per "group/verb",
+// captured against the real registry Run closures (F12/review B10) so a
+// later change that swaps which lib method a command calls -- the same
+// risk visStateBodyExpectation guards for bills archive/delete -- fails
+// this assertion even when every other one in this file still passes.
+// Placeholders: {account} (Scope's AccountID), {business} (BusinessID),
+// {uuid} (BusinessUUID), {id} (the positional <id>, int or string).
+var wantPath = map[string]string{
+	"attachments/upload-expense-receipt":         "/uploads/account/{account}/attachments",
+	"bill-payments/create":                       "/accounting/account/{account}/bill_payments/bill_payments",
+	"bill-payments/update":                       "/accounting/account/{account}/bill_payments/bill_payments/{id}",
+	"bill-vendors/create":                        "/accounting/account/{account}/bill_vendors/bill_vendors",
+	"bill-vendors/delete":                        "/accounting/account/{account}/bill_vendors/bill_vendors/{id}",
+	"bill-vendors/list":                          "/accounting/account/{account}/bill_vendors/bill_vendors",
+	"bill-vendors/update":                        "/accounting/account/{account}/bill_vendors/bill_vendors/{id}",
+	"bills/archive":                              "/accounting/account/{account}/bills/bills/{id}",
+	"bills/create":                               "/accounting/account/{account}/bills/bills",
+	"bills/delete":                               "/accounting/account/{account}/bills/bills/{id}",
+	"bills/list":                                 "/accounting/account/{account}/bills/bills",
+	"callbacks/delete":                           "/events/account/{account}/events/callbacks/{id}",
+	"callbacks/list":                             "/events/account/{account}/events/callbacks",
+	"callbacks/register":                         "/events/account/{account}/events/callbacks",
+	"callbacks/resend-verification":              "/events/account/{account}/events/callbacks/{id}",
+	"callbacks/verify":                           "/events/account/{account}/events/callbacks/{id}",
+	"clients/create":                             "/accounting/account/{account}/users/clients",
+	"clients/get":                                "/accounting/account/{account}/users/clients/{id}",
+	"clients/list":                               "/accounting/account/{account}/users/clients",
+	"clients/remove-all-secondary-contacts":      "/accounting/account/{account}/users/clients/{id}",
+	"clients/update":                             "/accounting/account/{account}/users/clients/{id}",
+	"contacts/delete":                            "/accounting/account/{account}/users/contacts/{id}",
+	"contacts/update":                            "/accounting/account/{account}/users/contacts/{id}",
+	"credit-notes/create":                        "/accounting/account/{account}/credit_notes/credit_notes",
+	"credit-notes/delete":                        "/accounting/account/{account}/credit_notes/credit_notes/{id}",
+	"credit-notes/list":                          "/accounting/account/{account}/credit_notes/credit_notes",
+	"credit-notes/update":                        "/accounting/account/{account}/credit_notes/credit_notes/{id}",
+	"estimates/accept":                           "/accounting/account/{account}/estimates/estimates/{id}",
+	"estimates/create":                           "/accounting/account/{account}/estimates/estimates",
+	"estimates/delete":                           "/accounting/account/{account}/estimates/estimates/{id}",
+	"estimates/get":                              "/accounting/account/{account}/estimates/estimates/{id}",
+	"estimates/list":                             "/accounting/account/{account}/estimates/estimates",
+	"estimates/send":                             "/accounting/account/{account}/estimates/estimates/{id}",
+	"estimates/update":                           "/accounting/account/{account}/estimates/estimates/{id}",
+	"expense-categories/create":                  "/accounting/account/{account}/expenses/categories",
+	"expense-categories/get":                     "/accounting/account/{account}/expenses/categories/{id}",
+	"expense-categories/list":                    "/accounting/account/{account}/expenses/categories",
+	"expenses/create":                            "/accounting/account/{account}/expenses/expenses",
+	"expenses/create-recurring":                  "/accounting/account/{account}/expense_profiles/expense_profiles",
+	"expenses/delete":                            "/accounting/account/{account}/expenses/expenses/{id}",
+	"expenses/get":                               "/accounting/account/{account}/expenses/expenses/{id}",
+	"expenses/list":                              "/accounting/account/{account}/expenses/expenses",
+	"expenses/summaries":                         "/accounting/account/{account}/expenses/summaries",
+	"expenses/update":                            "/accounting/account/{account}/expenses/expenses/{id}",
+	"expenses/vendors":                           "/accounting/account/{account}/expenses/vendors",
+	"gateways/get":                               "/payments/account/{account}/gateway",
+	"identity/add-business":                      "/auth/api/v1/users/business",
+	"identity/applications":                      "/auth/api/v1/partners/applications",
+	"identity/create-application":                "/auth/api/v1/partners/applications",
+	"identity/delete-business":                   "/auth/api/v1/users/business/{business}",
+	"identity/delete-business-subscription":      "/auth/api/v1/billing/account/{account}/subscription",
+	"identity/me":                                "/auth/api/v1/users/me",
+	"identity/provision-payments":                "/payments/account/{account}/gateway/fbpay",
+	"identity/register":                          "/auth/api/v1/smux/registrations",
+	"identity/update-application":                "/auth/api/v1/partners/applications/{id}",
+	"identity/whoami":                            "/auth/api/v1/users/me",
+	"images/upload":                              "/uploads/account/{account}/images",
+	"images/upload-without-account":              "/uploads/images",
+	"invoice-profiles/create":                    "/accounting/account/{account}/invoice_profiles/invoice_profiles",
+	"invoice-profiles/delete":                    "/accounting/account/{account}/invoice_profiles/invoice_profiles/{id}",
+	"invoice-profiles/enable-payment-options":    "/payments/account/{account}/invoice_profile/{id}/payment_options",
+	"invoice-profiles/get":                       "/accounting/account/{account}/invoice_profiles/invoice_profiles/{id}",
+	"invoice-profiles/list":                      "/accounting/account/{account}/invoice_profiles/invoice_profiles",
+	"invoice-profiles/update":                    "/accounting/account/{account}/invoice_profiles/invoice_profiles/{id}",
+	"invoices/create":                            "/accounting/account/{account}/invoices/invoices",
+	"invoices/delete":                            "/accounting/account/{account}/invoices/invoices/{id}",
+	"invoices/enable-payment-options":            "/payments/account/{account}/invoice/{id}/payment_options",
+	"invoices/get":                               "/accounting/account/{account}/invoices/invoices/{id}",
+	"invoices/invoice-presentation-defaults":     "/accounting/account/{account}/invoices/presentations",
+	"invoices/list":                              "/accounting/account/{account}/invoices/invoices",
+	"invoices/pdf":                               "/accounting/account/{account}/invoices/invoices/{id}/pdf",
+	"invoices/send":                              "/accounting/account/{account}/invoices/invoices/{id}",
+	"invoices/share-link":                        "/accounting/account/{account}/invoices/invoices/{id}/share_link",
+	"invoices/update":                            "/accounting/account/{account}/invoices/invoices/{id}",
+	"items/create":                               "/accounting/account/{account}/items/items",
+	"items/delete":                               "/accounting/account/{account}/items/items/{id}",
+	"items/get":                                  "/accounting/account/{account}/items/items/{id}",
+	"items/list":                                 "/accounting/account/{account}/items/items",
+	"items/update":                               "/accounting/account/{account}/items/items/{id}",
+	"journal-entries/create":                     "/accounting/account/{account}/journal_entries/journal_entries",
+	"journal-entries/details":                    "/accounting/account/{account}/journal_entries/journal_entry_details",
+	"journal-entry-accounts/list":                "/accounting/account/{account}/journal_entry_accounts/journal_entry_accounts",
+	"ledger-accounts/create":                     "/accounting/businesses/{uuid}/ledger_accounts/accounts",
+	"ledger-accounts/get":                        "/accounting/businesses/{uuid}/ledger_accounts/accounts/{id}",
+	"ledger-accounts/list":                       "/accounting/businesses/{uuid}/ledger_accounts/accounts",
+	"ledger-accounts/sub-type":                   "/accounting/ledger_accounts/sub_types/{id}",
+	"ledger-accounts/sub-types":                  "/accounting/ledger_accounts/sub_types",
+	"ledger-accounts/types":                      "/accounting/ledger_accounts/types",
+	"ledger-accounts/update":                     "/accounting/businesses/{uuid}/ledger_accounts/accounts/{id}",
+	"other-income/create":                        "/accounting/account/{account}/other_incomes/other_incomes",
+	"other-income/delete":                        "/accounting/account/{account}/other_incomes/other_incomes/{id}",
+	"other-income/list":                          "/accounting/account/{account}/other_incomes/other_incomes",
+	"other-income/update":                        "/accounting/account/{account}/other_incomes/other_incomes/{id}",
+	"payment-options/fb-pay-tokenize":            "/gateway/fbpay/tokenize",
+	"payment-options/save-credit-card":           "/payments/account/{account}/credit-card",
+	"payment-options/stripe-create-setup-intent": "/payments/account/{account}/gateway/stripe/credit-card/token",
+	"payment-options/stripe-tokenize":            "/gateway/stripe/payment-method",
+	"payments/create":                            "/accounting/account/{account}/payments/payments",
+	"payments/create-checkout-link":              "/payments/account/{account}/checkout-links",
+	"payments/delete":                            "/accounting/account/{account}/payments/payments/{id}",
+	"payments/delete-checkout-link":              "/payments/account/{account}/checkout-links/{id}",
+	"payments/get":                               "/accounting/account/{account}/payments/payments/{id}",
+	"payments/list":                              "/accounting/account/{account}/payments/payments",
+	"payments/update":                            "/accounting/account/{account}/payments/payments/{id}",
+	"payments/update-checkout-link":              "/payments/account/{account}/checkout-links/{id}",
+	"payments/update-checkout-link-gateway":      "/payments/account/{account}/checkout_link/{id}/payment_options",
+	"projects/abilities":                         "/projects/business/{business}/abilities",
+	"projects/add-thread-comment":                "/comments/business/{business}/threads/{id}/comments",
+	"projects/create":                            "/projects/business/{business}/project",
+	"projects/create-thread":                     "/comments/business/{business}/project/{id}/threads",
+	"projects/delete":                            "/projects/business/{business}/project/{id}",
+	"projects/get":                               "/projects/business/{business}/projects/{id}",
+	"projects/list":                              "/projects/business/{business}/projects",
+	"projects/threads":                           "/comments/business/{business}/project/{id}/threads",
+	"projects/update":                            "/projects/business/{business}/project/{id}",
+	"reports/accounts-aging":                     "/accounting/account/{account}/reports/accounting/accounts_aging",
+	"reports/balance-sheet":                      "/accounting/account/{account}/reports/accounting/balance_sheet",
+	"reports/bank-reconciliation-summary":        "/accounting/account/{account}/reports/accounting/bank_reconciliation_summary",
+	"reports/client-account-statement":           "/accounting/account/{account}/reports/accounting/account_statement",
+	"reports/download-invoice-details-csv":       "/accounting/account/{account}/links/reports/probe-download-token/invoice_details.csv",
+	"reports/expense-details":                    "/accounting/account/{account}/reports/accounting/expense_details",
+	"reports/invoice-details":                    "/accounting/account/{account}/reports/accounting/invoice_details",
+	"reports/item-sales":                         "/accounting/account/{account}/reports/accounting/item_sales",
+	"reports/payments-collected":                 "/accounting/account/{account}/reports/accounting/payments_collected",
+	"reports/profit-loss":                        "/accounting/account/{account}/reports/accounting/profitloss_entity",
+	"reports/revenue-by-client":                  "/accounting/account/{account}/reports/accounting/revenue_by_client",
+	"reports/sales-tax-summary":                  "/accounting/account/{account}/reports/accounting/taxsummary",
+	"reports/time-entry-details":                 "/comments/business/{business}/time_entries/search",
+	"reports/trial-balance":                      "/accounting/account/{account}/reports/accounting/trial_balance",
+	"retainers/create":                           "/comments/business/{business}/retainers",
+	"retainers/delete":                           "/comments/business/{business}/retainer/{id}",
+	"retainers/get":                              "/comments/business/{business}/retainer/{id}",
+	"retainers/list":                             "/comments/business/{business}/retainers",
+	"retainers/undelete":                         "/comments/business/{business}/retainer/{id}",
+	"retainers/update":                           "/comments/business/{business}/retainer/{id}",
+	"service-rates/get":                          "/comments/business/{business}/service/{id}/rate",
+	"service-rates/list":                         "/comments/business/{business}/service_rates",
+	"service-rates/update-project-rate":          "/comments/business/{business}/project/42/service/{id}/rate",
+	"services/create":                            "/accounting/account/{account}/billable_items/billable_items",
+	"services/get":                               "/comments/business/{business}/service/{id}",
+	"services/get-billable-item":                 "/accounting/account/{account}/billable_items/{id}",
+	"services/list":                              "/comments/business/{business}/services",
+	"staff/delete":                               "/accounting/account/{account}/users/staffs/{id}",
+	"staff/get":                                  "/accounting/account/{account}/users/staffs/{id}",
+	"staff/list":                                 "/auth/api/v1/users/business/{business}",
+	"staff/update":                               "/accounting/account/{account}/users/staffs/{id}",
+	"systems/get":                                "/accounting/account/{account}/systems/systems/{business}",
+	"tasks/create":                               "/accounting/account/{account}/projects/tasks",
+	"tasks/delete":                               "/accounting/account/{account}/projects/tasks/{id}",
+	"tasks/get":                                  "/accounting/account/{account}/projects/tasks/{id}",
+	"tasks/list":                                 "/accounting/account/{account}/projects/tasks",
+	"tasks/update":                               "/accounting/account/{account}/projects/tasks/{id}",
+	"taxes/create":                               "/accounting/account/{account}/taxes/taxes",
+	"taxes/delete":                               "/accounting/account/{account}/taxes/taxes/{id}",
+	"taxes/get":                                  "/accounting/account/{account}/taxes/taxes/{id}",
+	"taxes/list":                                 "/accounting/account/{account}/taxes/taxes",
+	"taxes/update":                               "/accounting/account/{account}/taxes/taxes/{id}",
+	"team-members/get":                           "/auth/api/v1/businesses/{business}/team_members/{id}",
+	"team-members/invitation-rates":              "/comments/business/{business}/invitation_rates",
+	"team-members/invite":                        "/auth/api/v1/users/invitation",
+	"team-members/list":                          "/auth/api/v1/businesses/{business}/team_members",
+	"team-members/rates":                         "/comments/business/{business}/team_member_rates",
+	"team-members/update-rate":                   "/comments/business/{business}/team_member_rate/{id}",
+	"time-entries/create":                        "/timetracking/business/{business}/time_entries",
+	"time-entries/delete":                        "/timetracking/business/{business}/time_entries/{id}",
+	"time-entries/list":                          "/timetracking/business/{business}/time_entries",
+	"time-entries/search":                        "/timetracking/business/{business}/time_entries/search",
+	"time-entries/update":                        "/timetracking/business/{business}/time_entries/{id}",
+}
+
+// wantHost overrides the expected request Host for the two commands whose
+// lib method bypasses --base-url entirely via Client.doOnHost (F12/review
+// B10): everything else in TestRoundTrip targets --base-url, so its
+// origHost equals the fixture server's own host and needs no assertion.
+var wantHost = map[string]string{
+	"payment-options/fb-pay-tokenize": "paid.freshbooks.com",
+	"payment-options/stripe-tokenize": "paid.freshbooks.com",
+}
+
+// resolveWantPath substitutes {account}/{business}/{uuid}/{id} in tmpl
+// with the values a round-trip invocation of c actually used.
+func resolveWantPath(c Command, tmpl string) string {
+	out := tmpl
+	out = strings.ReplaceAll(out, "{account}", string(testScope.AccountID))
+	out = strings.ReplaceAll(out, "{business}", strconv.FormatInt(int64(testScope.BusinessID), 10))
+	out = strings.ReplaceAll(out, "{uuid}", string(testScope.BusinessUUID))
+	if c.HasID {
+		if c.IDKind == "string" {
+			out = strings.ReplaceAll(out, "{id}", "probe-str-id")
+		} else {
+			out = strings.ReplaceAll(out, "{id}", "123")
+		}
+	}
+	return out
+}
+
+// assertWantPath checks the recorded path (and, for the two tokenization
+// commands, the pre-rewrite Host) against wantPath/wantHost (F12/review
+// B10).
+func assertWantPath(t *testing.T, c Command, req recordedRequest) {
+	t.Helper()
+	key := c.Group + "/" + c.Verb
+	tmpl, ok := wantPath[key]
+	if !ok {
+		t.Fatalf("%s: no wantPath entry -- every command in All must have one", key)
+	}
+	want := resolveWantPath(c, tmpl)
+	if req.path != want {
+		t.Errorf("%s: path = %q, want %q", key, req.path, want)
+	}
+	if wantHostVal, ok := wantHost[key]; ok {
+		if req.origHost != wantHostVal {
+			t.Errorf("%s: origHost = %q, want %q", key, req.origHost, wantHostVal)
+		}
 	}
 }
 
@@ -302,6 +571,9 @@ func assertMethodMatchesAnnotation(t *testing.T, c Command, method string) {
 // key=value pair.
 func assertProbesInQuery(t *testing.T, c Command, rawQuery string) {
 	t.Helper()
+	if c.HasInclude && !strings.Contains(rawQuery, "probe_include") {
+		t.Errorf("%s/%s: query %q does not carry the probe include value", c.Group, c.Verb, rawQuery)
+	}
 	if !c.List {
 		return
 	}
@@ -318,8 +590,8 @@ func assertProbesInQuery(t *testing.T, c Command, rawQuery string) {
 	if !strings.Contains(rawQuery, "probe_filter") || !strings.Contains(rawQuery, "probe_value") {
 		t.Errorf("%s/%s: query %q does not carry the probe search filter", c.Group, c.Verb, rawQuery)
 	}
-	if c.HasInclude && !strings.Contains(rawQuery, "probe_include") {
-		t.Errorf("%s/%s: query %q does not carry the probe include value", c.Group, c.Verb, rawQuery)
+	if c.HasSort && !strings.Contains(rawQuery, "sort=probe_sort_field_desc") {
+		t.Errorf("%s/%s: query %q does not carry the probe --sort value", c.Group, c.Verb, rawQuery)
 	}
 }
 
@@ -336,7 +608,7 @@ func TestRoundTrip(t *testing.T) {
 	setupCredentials(t)
 	upstream, rec := fakeUpstream(t)
 	defer upstream.Close()
-	useRedirectTransport(t, upstream)
+	useRedirectTransport(t, upstream, rec)
 
 	tmpDir := t.TempDir()
 	bodyFile := filepath.Join(tmpDir, "body.json")
@@ -379,6 +651,7 @@ func TestRoundTrip(t *testing.T) {
 			assertScopeInPath(t, c, req.path)
 			assertMethodMatchesAnnotation(t, c, req.method)
 			assertProbesInQuery(t, c, req.rawQuery)
+			assertWantPath(t, c, req)
 
 			if c.Class != ClassRO && c.Class != ClassD {
 				// A non-read-only, non-delete command with a required

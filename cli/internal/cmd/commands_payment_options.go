@@ -54,12 +54,9 @@ var paymentOptionsCommands = []Command{
 		ExtraFlags: func(fs *pflag.FlagSet) {
 			fs.String("payment-method", "", "the tokenized Stripe payment method key (required)")
 		},
+		RequiredFlags: []string{"payment-method"},
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
-			pm, _ := inv.Flags.GetString("payment-method")
-			if pm == "" {
-				return nil, newUsageError("--payment-method is required")
-			}
-			return c.PaymentOptions.StripeCreateSetupIntent(ctx, inv.Scope.AccountID, pm)
+			return c.PaymentOptions.StripeCreateSetupIntent(ctx, inv.Scope.AccountID, inv.RequiredString("payment-method"))
 		},
 	},
 	{

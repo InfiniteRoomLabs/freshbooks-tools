@@ -115,6 +115,24 @@ func (s *runtimeState) resolveScope(cmd *cobra.Command, sf ScopeFamily) (Scope, 
 	return scope, nil
 }
 
+// credentialStore resolves the current context and opens its credentials
+// FileStore: the prologue auth login|status|logout|token and buildClient
+// all share (D5 -- one lib FileStore per context). The two error paths
+// keep their existing shapes: contextName's error is already typed, and a
+// CredentialsPath failure (including an invalid context name -- F2) is a
+// runtimeError (exit 1).
+func (s *runtimeState) credentialStore(cmd *cobra.Command) (ctxName, credPath string, store libauth.TokenStore, err error) {
+	ctxName, err = s.contextName(cmd)
+	if err != nil {
+		return "", "", nil, err
+	}
+	credPath, err = cliauth.CredentialsPath(ctxName)
+	if err != nil {
+		return "", "", nil, &runtimeError{err: err}
+	}
+	return ctxName, credPath, libauth.NewFileStore(credPath), nil
+}
+
 // resolveOutputFormat resolves -o/--output/FRESHBOOKS_OUTPUT/the
 // TTY-sensitive default.
 func (s *runtimeState) resolveOutputFormat(cmd *cobra.Command) (output.Format, error) {
@@ -128,6 +146,20 @@ func (s *runtimeState) resolveOutputFormat(cmd *cobra.Command) (output.Format, e
 		return "", newUsageErrorf("invalid --output %q: must be one of json, yaml, table, name", v)
 	}
 	return f, nil
+}
+
+// confirmWriter is where a command's confirmation chatter goes -- lines
+// like "Login succeeded.", "Logged out.", or a config `use-context`/
+// `set-context` confirmation, which -q/--quiet is documented to suppress
+// (D7: "-q suppresses non-result chatter"). It returns io.Discard under
+// --quiet and cmd's stdout otherwise. It is deliberately not used for the
+// login URL prompt or the --dry-run request dump: both are results a
+// caller needs to act on, not chatter.
+func (s *runtimeState) confirmWriter(cmd *cobra.Command) io.Writer {
+	if quiet, _ := cmd.Flags().GetBool("quiet"); quiet {
+		return io.Discard
+	}
+	return cmd.OutOrStdout()
 }
 
 // writeResult formats result per the resolved output format and writes it
@@ -216,15 +248,10 @@ func (s *runtimeState) buildClient(cmd *cobra.Command) (*freshbooks.Client, erro
 		return s.buildDryRunClient(cmd, timeout, baseURL)
 	}
 
-	ctxName, err := s.contextName(cmd)
+	ctxName, _, store, err := s.credentialStore(cmd)
 	if err != nil {
 		return nil, err
 	}
-	credPath, err := cliauth.CredentialsPath(ctxName)
-	if err != nil {
-		return nil, &runtimeError{err: err}
-	}
-	store := libauth.NewFileStore(credPath)
 
 	// Fail fast with an auth error (exit 3) if nothing is stored at all,
 	// rather than letting the first API call surface an opaque error deep

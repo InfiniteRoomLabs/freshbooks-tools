@@ -13,13 +13,13 @@ var creditNotesCommands = []Command{
 		Short:   "List a client's credits",
 		Service: "CreditNotes", Method: "List",
 		Keys:  []string{"Clients/Credits/List Credits"},
-		Class: ClassRO, Scope: ScopeAccount, List: true, HasAll: true,
+		Class: ClassRO, Scope: ScopeAccount, List: true, HasAll: true, HasSort: true,
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
 			opts := &freshbooks.CreditNoteListOptions{Search: inv.Search(), Page: inv.Page(), PerPage: inv.PerPage()}
 			if inv.All() {
-				return collectAll(c.CreditNotes.All(ctx, inv.Scope.AccountID, opts))
+				return collectAll(c.CreditNotes.All(ctx, inv.Scope.AccountID, opts, inv.SortOpt()...))
 			}
-			return c.CreditNotes.List(ctx, inv.Scope.AccountID, opts)
+			return c.CreditNotes.List(ctx, inv.Scope.AccountID, opts, inv.SortOpt()...)
 		},
 	},
 	{

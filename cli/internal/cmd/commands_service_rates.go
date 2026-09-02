@@ -47,16 +47,10 @@ var serviceRatesCommands = []Command{
 			fs.Int64("project-id", 0, "the project id (required)")
 			fs.String("rate", "", "the rate to set (required)")
 		},
+		RequiredFlags: []string{"rate"}, RequiredInt64Flags: []string{"project-id"},
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
 			projectID, _ := inv.Flags.GetInt64("project-id")
-			rate, _ := inv.Flags.GetString("rate")
-			if projectID == 0 {
-				return nil, newUsageError("--project-id is required")
-			}
-			if rate == "" {
-				return nil, newUsageError("--rate is required")
-			}
-			return c.ServiceRates.UpdateProjectRate(ctx, inv.Scope.BusinessID, projectID, inv.IntID(), rate)
+			return c.ServiceRates.UpdateProjectRate(ctx, inv.Scope.BusinessID, projectID, inv.IntID(), inv.RequiredString("rate"))
 		},
 	},
 }

@@ -12,6 +12,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/subtle"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
@@ -34,9 +35,9 @@ import (
 	fbauth "github.com/InfiniteRoomLabs/freshbooks-tools/freshbooks/auth"
 )
 
-// DefaultPort is the loopback port `auth login` listens on when --port is
-// not given, matching the app's registered redirect URI
-// https://localhost:8765/callback.
+// DefaultPort is the loopback port `auth login` listens on when
+// --callback-port is not given, matching the app's registered redirect
+// URI https://localhost:8765/callback.
 const DefaultPort = 8765
 
 // DefaultLoginTimeout bounds how long the loopback listener waits for the
@@ -181,12 +182,12 @@ func Login(ctx context.Context, o LoginOptions) (*fbauth.Token, error) {
 	select {
 	case result = <-resultCh:
 	case <-timer.C:
-		return nil, errors.New("auth: timed out waiting for the browser callback")
+		return nil, errors.New("auth: timed out waiting for the browser callback; if this host resolves \"localhost\" to ::1 the browser may be connecting to a different address than the listener bound (127.0.0.1) -- try --no-browser instead")
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	}
 
-	tok, err := finishExchange(ctx, cfg, verifier, state, result.state, result.code, result.err)
+	tok, err := finishExchange(ctx, cfg, verifier, state, result.state, result.code, true, result.err)
 	if err != nil {
 		return nil, err
 	}
@@ -195,7 +196,6 @@ func Login(ctx context.Context, o LoginOptions) (*fbauth.Token, error) {
 			return nil, fmt.Errorf("auth: saving the token: %w", err)
 		}
 	}
-	fmt.Fprintln(o.stdout(), "Login succeeded.") //nolint:errcheck
 	return tok, nil
 }
 
@@ -223,7 +223,7 @@ func LoginNoBrowser(ctx context.Context, o LoginOptions, stdin io.Reader) (*fbau
 	}
 	code, pastedState := parsePastedInput(line)
 
-	tok, err := finishExchange(ctx, cfg, verifier, state, pastedState, code, nil)
+	tok, err := finishExchange(ctx, cfg, verifier, state, pastedState, code, false, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -232,18 +232,26 @@ func LoginNoBrowser(ctx context.Context, o LoginOptions, stdin io.Reader) (*fbau
 			return nil, fmt.Errorf("auth: saving the token: %w", err)
 		}
 	}
-	fmt.Fprintln(o.stdout(), "Login succeeded.") //nolint:errcheck
 	return tok, nil
 }
 
 // finishExchange validates the callback (or pasted) state and code, then
-// exchanges. gotState == "" (the bare-code paste path) skips state
-// validation entirely, since there is nothing to compare against.
-func finishExchange(ctx context.Context, cfg fbauth.Config, verifier, wantState, gotState, code string, callbackErr error) (*fbauth.Token, error) {
+// exchanges. requireState is true for the loopback listener path (Login),
+// where a callback carrying no state at all must be rejected -- state
+// exists specifically to stop a cross-origin request from being exchanged
+// as if it were the real redirect, so treating an absent state as
+// "nothing to compare, allow it" would defeat the control entirely. It is
+// false only for LoginNoBrowser's bare-code paste branch, where the user
+// typed a code with no URL around it and there is genuinely nothing to
+// validate against.
+func finishExchange(ctx context.Context, cfg fbauth.Config, verifier, wantState, gotState, code string, requireState bool, callbackErr error) (*fbauth.Token, error) {
 	if callbackErr != nil {
 		return nil, callbackErr
 	}
-	if gotState != "" && gotState != wantState {
+	if requireState && gotState == "" {
+		return nil, errors.New("auth: the callback carried no state; not proceeding")
+	}
+	if gotState != "" && !statesEqual(gotState, wantState) {
 		return nil, errors.New("auth: state mismatch on the callback; not proceeding")
 	}
 	if code == "" {
@@ -254,6 +262,14 @@ func finishExchange(ctx context.Context, cfg fbauth.Config, verifier, wantState,
 		return nil, err
 	}
 	return tok, nil
+}
+
+// statesEqual compares two OAuth state values in constant time. State is a
+// single-shot 256-bit random value compared once against an attacker's
+// guess, not a repeated oracle, so this is defense in depth rather than a
+// fix for a practical timing attack.
+func statesEqual(a, b string) bool {
+	return subtle.ConstantTimeCompare([]byte(a), []byte(b)) == 1
 }
 
 // parsePastedInput extracts an authorization code and state from a pasted
@@ -306,6 +322,9 @@ func runCallbackServer(port int, now time.Time) (<-chan callbackResult, func() e
 	var once sync.Once
 	mux := http.NewServeMux()
 	mux.HandleFunc("/callback", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("Referrer-Policy", "no-referrer")
+
 		q := r.URL.Query()
 		res := callbackResult{code: q.Get("code"), state: q.Get("state")}
 		if errStr := q.Get("error"); errStr != "" {
@@ -315,8 +334,22 @@ func runCallbackServer(port int, now time.Time) (<-chan callbackResult, func() e
 			}
 			res.err = fmt.Errorf("auth: authorization was not granted: %s", desc)
 		}
+
+		// The listener serves /callback exactly once: only the request
+		// that actually triggers the single resultCh send gets the
+		// normal success/failure page. Any request after that -- a
+		// second real redirect, a replay, an attacker probing the same
+		// URL -- gets 410 Gone and is never exchanged.
+		delivered := false
+		once.Do(func() {
+			resultCh <- res
+			delivered = true
+		})
+		if !delivered {
+			http.Error(w, "this login callback has already been used", http.StatusGone)
+			return
+		}
 		writeCallbackPage(w, res.err)
-		once.Do(func() { resultCh <- res })
 	})
 	srv := &http.Server{Handler: mux, ReadHeaderTimeout: 10 * time.Second}
 	go func() { _ = srv.Serve(tlsLn) }()
@@ -379,18 +412,32 @@ func selfSignedCert(hosts []string, now time.Time, validity time.Duration) (tls.
 	return tls.Certificate{Certificate: [][]byte{der}, PrivateKey: key}, nil
 }
 
-// openBrowser launches url in the platform's default browser via a fixed
-// program per OS, passing the URL as an argument -- never through a
+// browserCommand returns the program and argv openBrowser runs for goos, a
+// pure function so it can be table-tested per GOOS without ever forking a
+// real process (see login_test.go). rawURL is always the last argument,
+// alone, never through a shell.
+func browserCommand(goos, rawURL string) (name string, args []string) {
+	switch goos {
+	case "darwin":
+		return "open", []string{rawURL}
+	case "windows":
+		return "rundll32", []string{"url.dll,FileProtocolHandler", rawURL}
+	default:
+		return "xdg-open", []string{rawURL}
+	}
+}
+
+// openBrowser launches rawURL in the platform's default browser via a
+// fixed program per OS, passing the URL as an argument -- never through a
 // shell, so it cannot be reinterpreted.
 func openBrowser(rawURL string) error {
-	var cmd *exec.Cmd
-	switch runtime.GOOS {
-	case "darwin":
-		cmd = exec.Command("open", rawURL) // #nosec G204 -- the program is a fixed literal; rawURL is the CLI's own generated authorization URL, passed as one argv element, never through a shell
-	case "windows":
-		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", rawURL) // #nosec G204 -- same as above
-	default:
-		cmd = exec.Command("xdg-open", rawURL) // #nosec G204 -- same as above
+	name, args := browserCommand(runtime.GOOS, rawURL)
+	cmd := exec.Command(name, args...) // #nosec G204 -- the program is a fixed literal per GOOS (browserCommand); rawURL is the CLI's own generated authorization URL, passed as one argv element, never through a shell
+	if err := cmd.Start(); err != nil {
+		return err
 	}
-	return cmd.Start()
+	// Reap the child once it exits so it does not sit as a zombie for the
+	// rest of the CLI's lifetime; nothing needs its exit status.
+	go func() { _ = cmd.Wait() }()
+	return nil
 }

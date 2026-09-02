@@ -55,13 +55,29 @@ func Status(ctx context.Context, contextName, credentialsPath string, store fbau
 	return info, nil
 }
 
-// Logout best-effort revokes the stored refresh token (a revocation
-// failure is not fatal -- the credentials file is removed regardless) and
-// then removes the credentials file. A missing file is not an error.
+// Logout best-effort revokes both the stored refresh token and the
+// stored access token (a revocation failure is not fatal -- the
+// credentials file is removed regardless) and then removes the
+// credentials file. A missing file is not an error.
+//
+// Both tokens are revoked, not just the refresh token: a copy of the
+// access token surviving elsewhere (a shell scrollback from `auth
+// token`, a backup, a synced dotfile) would otherwise keep working until
+// its natural expiry even after `logout`. Revoke-then-delete is the
+// correct order and stays that way even though the revocation result is
+// ignored: deleting first would mean a revoke failure leaves a live
+// credential with nothing on disk to retry against, and making the
+// delete unconditional means a network-down logout still clears local
+// state.
 func Logout(ctx context.Context, cfg fbauth.Config, credentialsPath string, store fbauth.TokenStore) error {
 	tok, err := store.Load(ctx)
-	if err == nil && tok.RefreshToken != "" {
-		_ = cfg.Revoke(ctx, tok.RefreshToken) //nolint:errcheck // best-effort: the file is removed either way
+	if err == nil {
+		if tok.RefreshToken != "" {
+			_ = cfg.Revoke(ctx, tok.RefreshToken) //nolint:errcheck // best-effort: the file is removed either way
+		}
+		if tok.AccessToken != "" {
+			_ = cfg.Revoke(ctx, tok.AccessToken) //nolint:errcheck // best-effort, same as above
+		}
 	}
 
 	if rmErr := os.Remove(credentialsPath); rmErr != nil && !errors.Is(rmErr, os.ErrNotExist) {

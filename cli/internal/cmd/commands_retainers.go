@@ -17,10 +17,10 @@ var retainersCommands = []Command{
 		Short:   "List retainers",
 		Service: "Retainers", Method: "List",
 		Keys:  []string{"Invoices/Retainers/Get all retainers"},
-		Class: ClassRO, Scope: ScopeBusiness, List: true, NoPaging: true,
+		Class: ClassRO, Scope: ScopeBusiness, List: true, NoPaging: true, HasSort: true,
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
 			opts := &freshbooks.RetainerListOptions{Search: inv.Search()}
-			return c.Retainers.List(ctx, inv.Scope.BusinessID, opts)
+			return c.Retainers.List(ctx, inv.Scope.BusinessID, opts, inv.SortOpt()...)
 		},
 	},
 	{

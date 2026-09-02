@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 
+	cliauth "github.com/InfiniteRoomLabs/freshbooks-tools/cli/internal/auth"
 	"github.com/InfiniteRoomLabs/freshbooks-tools/cli/internal/config"
 	"github.com/InfiniteRoomLabs/freshbooks-tools/cli/internal/output"
 	"github.com/spf13/cobra"
@@ -11,8 +12,20 @@ import (
 // newConfigCmd builds `config view|contexts|use-context|set-context`
 // (D5): config.yaml never carries a secret, only current-context and
 // each context's account/business/business_uuid.
+//
+// --dry-run is rejected here (F3/security B3), matching `auth`: `view`
+// and `contexts` are already read-only regardless, but `use-context` and
+// `set-context` both write config.yaml, and a flag whose contract is
+// "send nothing" silently writing a file is the same surprise the auth
+// side closes.
 func newConfigCmd(state *runtimeState) *cobra.Command {
-	root := &cobra.Command{Use: "config", Short: "View and manage config.yaml contexts"}
+	root := &cobra.Command{
+		Use:   "config",
+		Short: "View and manage config.yaml contexts",
+		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
+			return rejectDryRun(cmd)
+		},
+	}
 	root.AddCommand(newConfigViewCmd(state))
 	root.AddCommand(newConfigContextsCmd(state))
 	root.AddCommand(newConfigUseContextCmd(state))
@@ -88,7 +101,7 @@ func newConfigUseContextCmd(state *runtimeState) *cobra.Command {
 			if err := config.Save(path, cfg); err != nil {
 				return &runtimeError{err: err}
 			}
-			_, err = fmt.Fprintf(cmd.OutOrStdout(), "Switched to context %q.\n", name)
+			_, err = fmt.Fprintf(state.confirmWriter(cmd), "Switched to context %q.\n", name)
 			return err
 		},
 	}
@@ -102,6 +115,9 @@ func newConfigSetContextCmd(state *runtimeState) *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
+			if !cliauth.ValidContextName(name) {
+				return newUsageErrorf("invalid context name %q: use only letters, digits, '.', '_', '-'", name)
+			}
 			cfg, path, err := state.loadConfig(cmd)
 			if err != nil {
 				return err
@@ -123,7 +139,7 @@ func newConfigSetContextCmd(state *runtimeState) *cobra.Command {
 			if err := config.Save(path, cfg); err != nil {
 				return &runtimeError{err: err}
 			}
-			_, err = fmt.Fprintf(cmd.OutOrStdout(), "Set context %q.\n", name)
+			_, err = fmt.Fprintf(state.confirmWriter(cmd), "Set context %q.\n", name)
 			return err
 		},
 	}

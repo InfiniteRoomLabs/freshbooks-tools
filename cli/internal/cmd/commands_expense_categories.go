@@ -13,13 +13,13 @@ var expenseCategoriesCommands = []Command{
 		Short:   "List expense categories",
 		Service: "ExpenseCategories", Method: "List",
 		Keys:  []string{"Expenses/List Expense Categories"},
-		Class: ClassRO, Scope: ScopeAccount, List: true, HasAll: true,
+		Class: ClassRO, Scope: ScopeAccount, List: true, HasAll: true, HasSort: true,
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
 			opts := &freshbooks.ExpenseCategoryListOptions{Search: inv.Search(), Page: inv.Page(), PerPage: inv.PerPage()}
 			if inv.All() {
-				return collectAll(c.ExpenseCategories.All(ctx, inv.Scope.AccountID, opts))
+				return collectAll(c.ExpenseCategories.All(ctx, inv.Scope.AccountID, opts, inv.SortOpt()...))
 			}
-			return c.ExpenseCategories.List(ctx, inv.Scope.AccountID, opts)
+			return c.ExpenseCategories.List(ctx, inv.Scope.AccountID, opts, inv.SortOpt()...)
 		},
 	},
 	{
@@ -27,9 +27,9 @@ var expenseCategoriesCommands = []Command{
 		Short:   "Get a single expense category",
 		Service: "ExpenseCategories", Method: "Get",
 		Keys:  []string{"Expenses/Single Expense Category"},
-		Class: ClassRO, Scope: ScopeAccount, HasID: true,
+		Class: ClassRO, Scope: ScopeAccount, HasID: true, HasInclude: true,
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
-			return c.ExpenseCategories.Get(ctx, inv.Scope.AccountID, inv.IntID())
+			return c.ExpenseCategories.Get(ctx, inv.Scope.AccountID, inv.IntID(), inv.IncludeOpt()...)
 		},
 	},
 	{

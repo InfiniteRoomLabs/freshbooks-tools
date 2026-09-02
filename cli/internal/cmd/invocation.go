@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/InfiniteRoomLabs/freshbooks-tools/freshbooks"
 	"github.com/spf13/pflag"
@@ -36,10 +37,11 @@ type Invocation struct {
 	body    []byte
 	hasBody bool
 
-	page, perPage int
-	search        map[string]string
-	include       []string
-	all           bool
+	page, perPage      int
+	search             map[string]string
+	include            []string
+	all                bool
+	sortField, sortDir string
 
 	uploadPath string
 }
@@ -112,10 +114,36 @@ func (inv *Invocation) PerPage() int { return inv.perPage }
 // Include returns the --include values, in the order given.
 func (inv *Invocation) Include() []string { return inv.include }
 
+// IncludeOpt renders --include as a single-element []freshbooks.RequestOption
+// (freshbooks.Include(...)), or nil when --include was not given. Like
+// SortOpt, returning a slice lets every call site append it directly to a
+// variadic opts ...RequestOption argument with `...` regardless of
+// whether it is empty (F9/review B7 -- invoices get/create/update,
+// invoice-profiles get/create, and the other single-resource get
+// commands whose lib method takes opts ...RequestOption).
+func (inv *Invocation) IncludeOpt() []freshbooks.RequestOption {
+	if len(inv.include) == 0 {
+		return nil
+	}
+	return []freshbooks.RequestOption{freshbooks.Include(inv.include...)}
+}
+
 // All reports whether --all was given.
 func (inv *Invocation) All() bool { return inv.all }
 
-// ReqOpts renders Search/Page/PerPage as a []RequestOption, for the
+// SortOpt renders --sort as a single-element []freshbooks.RequestOption
+// (freshbooks.Sort(field, dir)), or nil when --sort was not given.
+// Returning a slice rather than a (RequestOption, bool) pair lets every
+// call site append it directly to a variadic extra ...RequestOption
+// argument with `...` regardless of whether it is empty.
+func (inv *Invocation) SortOpt() []freshbooks.RequestOption {
+	if inv.sortField == "" {
+		return nil
+	}
+	return []freshbooks.RequestOption{freshbooks.Sort(inv.sortField, inv.sortDir)}
+}
+
+// ReqOpts renders Search/Page/PerPage/Sort as a []RequestOption, for the
 // handful of lib methods that take raw variadic RequestOptions instead of
 // a *XListOptions struct (JournalEntries.Details,
 // JournalEntryAccounts.List).
@@ -130,7 +158,38 @@ func (inv *Invocation) ReqOpts() []freshbooks.RequestOption {
 	if inv.perPage > 0 {
 		opts = append(opts, freshbooks.PerPage(inv.perPage))
 	}
+	opts = append(opts, inv.SortOpt()...)
 	return opts
+}
+
+// parseSort splits a --sort flag value of "field" or "field:asc"/
+// "field:desc" into its field and direction (default "asc"). An empty
+// raw value yields two empty strings (no --sort given). Any other
+// direction is a usage error.
+func parseSort(raw string) (field, dir string, err error) {
+	if raw == "" {
+		return "", "", nil
+	}
+	field, dir, ok := strings.Cut(raw, ":")
+	if !ok {
+		return field, "asc", nil
+	}
+	switch dir {
+	case "asc", "desc":
+		return field, dir, nil
+	default:
+		return "", "", newUsageErrorf("invalid --sort %q: direction must be \"asc\" or \"desc\"", raw)
+	}
+}
+
+// RequiredString reads an ExtraFlags-registered string flag. Every
+// command that declares name in its RequiredFlags has already had this
+// checked non-empty by execute() before Run ever ran (F13), so this
+// never itself returns the "is required" error -- it exists so five
+// call sites do not each retype the same GetString call.
+func (inv *Invocation) RequiredString(name string) string {
+	v, _ := inv.Flags.GetString(name)
+	return v
 }
 
 // OpenUpload opens the --file path for an Upload command, returning the

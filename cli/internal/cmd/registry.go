@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strconv"
@@ -101,6 +102,14 @@ type Command struct {
 	HasInclude bool
 	HasAll     bool
 	NoPaging   bool
+	// HasSort registers --sort field[:asc|desc] on a List command whose
+	// lib method takes extra ...RequestOption (spec section 7's command
+	// surface names this flag explicitly, not as a heuristic -- 21 of the
+	// 24 List methods qualify; the other three take no options at all).
+	// Invocation.SortOpt() renders it as freshbooks.Sort(field, dir),
+	// appended to the same extra variadic every List/All call already
+	// takes.
+	HasSort bool
 
 	// Body registers -f/--file for a JSON request body (a path, or - for
 	// stdin), decoded by the Run closure via Invocation.DecodeBody.
@@ -123,6 +132,19 @@ type Command struct {
 	// (--verifier, --message, --rate, --project-id, --payment-method),
 	// read back by the Run closure via Invocation.Flags.
 	ExtraFlags func(fs *pflag.FlagSet)
+	// RequiredFlags names ExtraFlags-registered string flags that must be
+	// non-empty, checked in execute() before buildClient (F13/review A1):
+	// a missing --verifier or --message is a usage error (exit 2)
+	// regardless of whether the machine has any stored credentials at
+	// all, not an auth error discovered only after a client was built for
+	// a call that was never going to happen. Each Run closure still reads
+	// the flag itself (via Invocation.Flags or a RequiredString helper);
+	// this list only decides how early the "is it there" check runs.
+	// RequiredInt64Flags is the same idea for an ExtraFlags-registered
+	// int64 flag that must be non-zero (service-rates update-project-rate's
+	// --project-id).
+	RequiredFlags      []string
+	RequiredInt64Flags []string
 
 	// Run is the one-line closure that calls the wrapped lib method.
 	Run RunFunc
@@ -176,12 +198,19 @@ func (c Command) registerFlags(cc *cobra.Command) {
 			cc.Flags().Int("per-page", 0, "page size")
 		}
 		cc.Flags().StringToString("search", nil, "filter as key=value (repeatable)")
-		if c.HasInclude {
-			cc.Flags().StringArray("include", nil, "related sub-resource to embed in the response (repeatable)")
-		}
 		if c.HasAll {
 			cc.Flags().Bool("all", false, "walk every page and return every item (rejects --page/--per-page)")
 		}
+		if c.HasSort {
+			cc.Flags().String("sort", "", "sort as field[:asc|desc] (default asc; direction encoding for business-scoped resources is unconfirmed against the live API -- see docs/progress.md)")
+		}
+	}
+	// HasInclude is decoupled from List (F9/review B7): several
+	// non-List commands (invoices get/create/update, invoice-profiles
+	// get/create, and the other single-resource get commands whose lib
+	// method takes opts ...RequestOption) also accept --include.
+	if c.HasInclude {
+		cc.Flags().StringArray("include", nil, "related sub-resource to embed in the response (repeatable)")
 	}
 	if c.Body {
 		help := "JSON request body: a file path, or - for stdin (required)"
@@ -201,11 +230,21 @@ func (c Command) registerFlags(cc *cobra.Command) {
 	}
 }
 
+// destructiveSuffix is appended to a ClassD command's Short so a reader
+// of `docs/cli.md` (or --help) can actually tell which commands need
+// --yes, instead of every command inheriting the identical --yes flag
+// help line regardless of class (F5/review B3).
+const destructiveSuffix = " (destructive: requires --yes on a TTY)"
+
 // buildCobra builds this command's leaf *cobra.Command, bound to state.
 func (c Command) buildCobra(state *runtimeState) *cobra.Command {
+	short := c.Short
+	if c.Class == ClassD {
+		short += destructiveSuffix
+	}
 	cc := &cobra.Command{
 		Use:   c.use(),
-		Short: c.Short,
+		Short: short,
 		Args:  c.argsValidator(),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return c.execute(cmd, args, state)
@@ -259,15 +298,23 @@ func (c Command) execute(cmd *cobra.Command, args []string, state *runtimeState)
 			inv.perPage, _ = cmd.Flags().GetInt("per-page")
 		}
 		inv.search, _ = cmd.Flags().GetStringToString("search")
-		if c.HasInclude {
-			inv.include, _ = cmd.Flags().GetStringArray("include")
-		}
 		if c.HasAll {
 			inv.all, _ = cmd.Flags().GetBool("all")
 			if inv.all && (inv.page != 0 || inv.perPage != 0) {
 				return newUsageError("--all cannot be combined with --page or --per-page")
 			}
 		}
+		if c.HasSort {
+			raw, _ := cmd.Flags().GetString("sort")
+			field, dir, err := parseSort(raw)
+			if err != nil {
+				return err
+			}
+			inv.sortField, inv.sortDir = field, dir
+		}
+	}
+	if c.HasInclude {
+		inv.include, _ = cmd.Flags().GetStringArray("include")
 	}
 
 	if c.Body {
@@ -281,6 +328,14 @@ func (c Command) execute(cmd *cobra.Command, args []string, state *runtimeState)
 			if err != nil {
 				return newUsageErrorf("reading --file: %v", err)
 			}
+			// Validated here, not left to the Run closure's later
+			// DecodeBody call: a malformed body is a usage error (exit 2)
+			// regardless of whether this machine has any credentials at
+			// all, and DecodeBody only runs after buildClient below
+			// (F13/review A1).
+			if !json.Valid(raw) {
+				return newUsageError("--file does not contain valid JSON")
+			}
 			inv.body, inv.hasBody = raw, true
 		}
 	}
@@ -289,6 +344,19 @@ func (c Command) execute(cmd *cobra.Command, args []string, state *runtimeState)
 		inv.uploadPath, _ = cmd.Flags().GetString("file")
 		if inv.uploadPath == "" {
 			return newUsageError("--file is required")
+		}
+	}
+
+	for _, name := range c.RequiredFlags {
+		v, _ := cmd.Flags().GetString(name)
+		if v == "" {
+			return newUsageErrorf("--%s is required", name)
+		}
+	}
+	for _, name := range c.RequiredInt64Flags {
+		v, _ := cmd.Flags().GetInt64(name)
+		if v == 0 {
+			return newUsageErrorf("--%s is required", name)
 		}
 	}
 

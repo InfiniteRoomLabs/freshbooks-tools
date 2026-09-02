@@ -28,13 +28,13 @@ var callbacksCommands = []Command{
 		Short:   "List webhook callbacks",
 		Service: "Callbacks", Method: "List",
 		Keys:  []string{"Webhooks/List Webhook Callbacks"},
-		Class: ClassRO, Scope: ScopeAccount, List: true, HasAll: true,
+		Class: ClassRO, Scope: ScopeAccount, List: true, HasAll: true, HasSort: true,
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
 			opts := &freshbooks.CallbackListOptions{Search: inv.Search(), Page: inv.Page(), PerPage: inv.PerPage()}
 			if inv.All() {
-				return collectAll(c.Callbacks.All(ctx, inv.Scope.AccountID, opts))
+				return collectAll(c.Callbacks.All(ctx, inv.Scope.AccountID, opts, inv.SortOpt()...))
 			}
-			return c.Callbacks.List(ctx, inv.Scope.AccountID, opts)
+			return c.Callbacks.List(ctx, inv.Scope.AccountID, opts, inv.SortOpt()...)
 		},
 	},
 	{
@@ -56,12 +56,9 @@ var callbacksCommands = []Command{
 		ExtraFlags: func(fs *pflag.FlagSet) {
 			fs.String("verifier", "", "the verifier code FreshBooks sent (required)")
 		},
+		RequiredFlags: []string{"verifier"},
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
-			verifier, _ := inv.Flags.GetString("verifier")
-			if verifier == "" {
-				return nil, newUsageError("--verifier is required")
-			}
-			return c.Callbacks.Verify(ctx, inv.Scope.AccountID, inv.IntID(), verifier)
+			return c.Callbacks.Verify(ctx, inv.Scope.AccountID, inv.IntID(), inv.RequiredString("verifier"))
 		},
 	},
 	{

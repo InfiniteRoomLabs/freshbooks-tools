@@ -13,13 +13,13 @@ var billsCommands = []Command{
 		Short:   "List a business's vendor bills",
 		Service: "Bills", Method: "List",
 		Keys:  []string{"Expenses/Bills (Beta)/Get Bills"},
-		Class: ClassRO, Scope: ScopeAccount, List: true, HasAll: true,
+		Class: ClassRO, Scope: ScopeAccount, List: true, HasAll: true, HasSort: true,
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
 			opts := &freshbooks.BillListOptions{Search: inv.Search(), Page: inv.Page(), PerPage: inv.PerPage()}
 			if inv.All() {
-				return collectAll(c.Bills.All(ctx, inv.Scope.AccountID, opts))
+				return collectAll(c.Bills.All(ctx, inv.Scope.AccountID, opts, inv.SortOpt()...))
 			}
-			return c.Bills.List(ctx, inv.Scope.AccountID, opts)
+			return c.Bills.List(ctx, inv.Scope.AccountID, opts, inv.SortOpt()...)
 		},
 	},
 	{

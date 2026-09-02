@@ -168,6 +168,26 @@ func TestAuthStatusLogoutToken(t *testing.T) {
 		}
 	})
 
+	t.Run("[sad] token --refresh against a 401 token endpoint is an auth error", func(t *testing.T) {
+		dir := t.TempDir()
+		t.Setenv("XDG_CONFIG_HOME", dir)
+		writeCredentials(t, dir, "default", `{"access_token":"old","refresh_token":"old-refresh"}`)
+		mux := http.NewServeMux()
+		mux.HandleFunc("/token", func(w http.ResponseWriter, r *http.Request) {
+			http.Error(w, `{"error":"invalid_grant"}`, http.StatusUnauthorized)
+		})
+		srv := httptest.NewServer(mux)
+		t.Cleanup(srv.Close)
+		useFakeOAuthEndpoints(t, srv)
+
+		var stdout, stderr bytes.Buffer
+		args := []string{"auth", "token", "--refresh", "--client-id", "id", "--client-secret", "secret"}
+		code := Run(args, discardStdin, &stdout, &stderr, "test")
+		if code != 3 {
+			t.Fatalf("exit = %d, want 3; stderr = %s", code, stderr.String())
+		}
+	})
+
 	t.Run("[happy] status reports a valid, non-expired token without printing it", func(t *testing.T) {
 		dir := t.TempDir()
 		t.Setenv("XDG_CONFIG_HOME", dir)
@@ -210,12 +230,12 @@ func TestAuthStatusLogoutToken(t *testing.T) {
 		}
 	})
 
-	t.Run("[sad] token with no stored credentials is a runtime error", func(t *testing.T) {
+	t.Run("[sad] token with no stored credentials is an auth error", func(t *testing.T) {
 		t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 		var stdout, stderr bytes.Buffer
 		code := Run([]string{"auth", "token"}, discardStdin, &stdout, &stderr, "test")
-		if code != 1 {
-			t.Fatalf("exit = %d, want 1; stderr = %s", code, stderr.String())
+		if code != 3 {
+			t.Fatalf("exit = %d, want 3; stderr = %s", code, stderr.String())
 		}
 	})
 }

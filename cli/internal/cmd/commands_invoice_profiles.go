@@ -13,13 +13,13 @@ var invoiceProfilesCommands = []Command{
 		Short:   "List recurring-invoice profiles",
 		Service: "InvoiceProfiles", Method: "List",
 		Keys:  []string{"Invoices/Invoice Recurring Template/List Invoice Profiles"},
-		Class: ClassRO, Scope: ScopeAccount, List: true, HasAll: true,
+		Class: ClassRO, Scope: ScopeAccount, List: true, HasAll: true, HasSort: true,
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
 			opts := &freshbooks.InvoiceProfileListOptions{Search: inv.Search(), Page: inv.Page(), PerPage: inv.PerPage()}
 			if inv.All() {
-				return collectAll(c.InvoiceProfiles.All(ctx, inv.Scope.AccountID, opts))
+				return collectAll(c.InvoiceProfiles.All(ctx, inv.Scope.AccountID, opts, inv.SortOpt()...))
 			}
-			return c.InvoiceProfiles.List(ctx, inv.Scope.AccountID, opts)
+			return c.InvoiceProfiles.List(ctx, inv.Scope.AccountID, opts, inv.SortOpt()...)
 		},
 	},
 	{
@@ -27,9 +27,9 @@ var invoiceProfilesCommands = []Command{
 		Short:   "Get a single recurring-invoice profile",
 		Service: "InvoiceProfiles", Method: "Get",
 		Keys:  []string{"Invoices/Invoice Recurring Template/Get Single Invoice Profile"},
-		Class: ClassRO, Scope: ScopeAccount, HasID: true,
+		Class: ClassRO, Scope: ScopeAccount, HasID: true, HasInclude: true,
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
-			return c.InvoiceProfiles.Get(ctx, inv.Scope.AccountID, inv.IntID())
+			return c.InvoiceProfiles.Get(ctx, inv.Scope.AccountID, inv.IntID(), inv.IncludeOpt()...)
 		},
 	},
 	{
@@ -37,13 +37,13 @@ var invoiceProfilesCommands = []Command{
 		Short:   "Create a recurring-invoice profile",
 		Service: "InvoiceProfiles", Method: "Create",
 		Keys:  []string{"Invoices/Invoice Recurring Template/Create Single Invoice Profile", "Invoices/Invoice Recurring Template/Create Single Invoice Profile w/ Time Entry Holder"},
-		Class: ClassW, Scope: ScopeAccount, Body: true,
+		Class: ClassW, Scope: ScopeAccount, Body: true, HasInclude: true,
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
 			var body freshbooks.InvoiceProfileCreateRequest
 			if err := inv.DecodeBody(&body); err != nil {
 				return nil, err
 			}
-			return c.InvoiceProfiles.Create(ctx, inv.Scope.AccountID, &body)
+			return c.InvoiceProfiles.Create(ctx, inv.Scope.AccountID, &body, inv.IncludeOpt()...)
 		},
 	},
 	{

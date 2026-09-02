@@ -13,13 +13,13 @@ var expensesCommands = []Command{
 		Short:   "List expenses",
 		Service: "Expenses", Method: "List",
 		Keys:  []string{"Expenses/List Expenses"},
-		Class: ClassRO, Scope: ScopeAccount, List: true, HasAll: true,
+		Class: ClassRO, Scope: ScopeAccount, List: true, HasAll: true, HasSort: true,
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
 			opts := &freshbooks.ExpenseListOptions{Search: inv.Search(), Page: inv.Page(), PerPage: inv.PerPage()}
 			if inv.All() {
-				return collectAll(c.Expenses.All(ctx, inv.Scope.AccountID, opts))
+				return collectAll(c.Expenses.All(ctx, inv.Scope.AccountID, opts, inv.SortOpt()...))
 			}
-			return c.Expenses.List(ctx, inv.Scope.AccountID, opts)
+			return c.Expenses.List(ctx, inv.Scope.AccountID, opts, inv.SortOpt()...)
 		},
 	},
 	{
@@ -27,9 +27,9 @@ var expensesCommands = []Command{
 		Short:   "Get a single expense",
 		Service: "Expenses", Method: "Get",
 		Keys:  []string{"Expenses/Single Expense"},
-		Class: ClassRO, Scope: ScopeAccount, HasID: true,
+		Class: ClassRO, Scope: ScopeAccount, HasID: true, HasInclude: true,
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
-			return c.Expenses.Get(ctx, inv.Scope.AccountID, inv.IntID())
+			return c.Expenses.Get(ctx, inv.Scope.AccountID, inv.IntID(), inv.IncludeOpt()...)
 		},
 	},
 	{

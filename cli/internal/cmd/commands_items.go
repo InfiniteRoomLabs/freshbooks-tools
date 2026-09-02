@@ -13,13 +13,13 @@ var itemsCommands = []Command{
 		Short:   "List catalogue items",
 		Service: "Items", Method: "List",
 		Keys:  []string{"Invoices/Items and Services/List Items", "Invoices/Items and Services/List Items Filtered by SKU", "Settings/Items and Services/List Items", "Settings/Items and Services/List Items Filtered by SKU"},
-		Class: ClassRO, Scope: ScopeAccount, List: true, HasAll: true,
+		Class: ClassRO, Scope: ScopeAccount, List: true, HasAll: true, HasSort: true,
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
 			opts := &freshbooks.ItemListOptions{Search: inv.Search(), Page: inv.Page(), PerPage: inv.PerPage()}
 			if inv.All() {
-				return collectAll(c.Items.All(ctx, inv.Scope.AccountID, opts))
+				return collectAll(c.Items.All(ctx, inv.Scope.AccountID, opts, inv.SortOpt()...))
 			}
-			return c.Items.List(ctx, inv.Scope.AccountID, opts)
+			return c.Items.List(ctx, inv.Scope.AccountID, opts, inv.SortOpt()...)
 		},
 	},
 	{
