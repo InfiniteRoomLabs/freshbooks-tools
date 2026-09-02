@@ -82,7 +82,7 @@ func registerGlobalFlags(root *cobra.Command) {
 // is testable without exercising os.Exit itself. stdin feeds --file -
 // bodies and the `auth login --no-browser` paste prompt.
 func Run(args []string, stdin io.Reader, stdout, stderr io.Writer, version string) int {
-	root := NewRootCmd(version)
+	root := NewRootCmd(resolveVersion(version))
 	root.SetArgs(args)
 	root.SetIn(stdin)
 	root.SetOut(stdout)

@@ -9,7 +9,7 @@ import (
 // main.go's single os.Exit(run(...)) statement calls into, kept separate
 // so it is testable without exercising os.Exit or reading real os.Args.
 func run(stdout, stderr io.Writer, args []string, version string) int {
-	root := newRootCmd(stdout, stderr, version)
+	root := newRootCmd(stdout, stderr, resolveVersion(version))
 	root.SetArgs(args)
 	if err := root.Execute(); err != nil {
 		return 1
