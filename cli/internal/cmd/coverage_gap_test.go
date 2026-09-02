@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -53,6 +54,12 @@ func TestCollectAllStopsOnError(t *testing.T) {
 	code := Run(args, discardStdin, &stdout, &stderr, "test")
 	if code != 1 {
 		t.Fatalf("exit = %d, want 1; stderr = %s", code, stderr.String())
+	}
+	// F17/review A6: --all collects every page before ever formatting
+	// output, so a page-2 failure must mean stdout saw nothing at all --
+	// not page 1's item silently rendered before the error surfaced.
+	if stdout.Len() != 0 {
+		t.Errorf("stdout = %q, want empty (page 1 must not have been printed)", stdout.String())
 	}
 }
 
@@ -106,7 +113,14 @@ func TestSetContextExplicitConfigFlag(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit = %d, stderr = %s", code, stderr.String())
 	}
-	if _, err := os.Stat(path); err != nil {
+	// F17/review A6: read the file back, not just confirm it exists --
+	// an empty or wrong-content file at the right path would otherwise
+	// pass this test.
+	data, err := os.ReadFile(path)
+	if err != nil {
 		t.Fatalf("expected the config file at the explicit --config path: %v", err)
+	}
+	if !strings.Contains(string(data), "work") || !strings.Contains(string(data), "ACM1") {
+		t.Errorf("config file = %s, want the \"work\" context and \"ACM1\" account persisted", data)
 	}
 }

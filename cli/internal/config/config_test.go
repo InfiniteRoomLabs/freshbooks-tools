@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -107,6 +108,16 @@ func TestSave(t *testing.T) {
 		}
 		if perm := fileInfo.Mode().Perm(); perm != fileMode {
 			t.Errorf("file mode = %o, want %o", perm, fileMode)
+		}
+		// F17/review A6: read the file back, not just confirm the mode --
+		// the mode assertions above would pass even if Save wrote an
+		// empty or truncated file at the right path.
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(string(data), "current-context: x") {
+			t.Errorf("config file = %s, want current-context: x persisted", data)
 		}
 	})
 

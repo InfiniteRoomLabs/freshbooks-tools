@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
+	"mime"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -36,8 +38,8 @@ const (
 // paid.freshbooks.com from one meant for the default API host, even
 // though both land on the same fixture server.
 type recordedRequest struct {
-	method, path, rawQuery, origHost string
-	body                             []byte
+	method, path, rawQuery, origHost, contentType string
+	body                                          []byte
 }
 
 // requestRecorder collects every request a fakeUpstream server answers, in
@@ -72,7 +74,7 @@ func (r *requestRecorder) record(req *http.Request) {
 	defer r.mu.Unlock()
 	origHost := r.pendingHost
 	r.pendingHost = ""
-	r.reqs = append(r.reqs, recordedRequest{method: req.Method, path: req.URL.Path, rawQuery: req.URL.RawQuery, origHost: origHost, body: body})
+	r.reqs = append(r.reqs, recordedRequest{method: req.Method, path: req.URL.Path, rawQuery: req.URL.RawQuery, origHost: origHost, contentType: req.Header.Get("Content-Type"), body: body})
 }
 
 func (r *requestRecorder) reset() {
@@ -552,13 +554,71 @@ func assertWantPath(t *testing.T, c Command, req recordedRequest) {
 	}
 }
 
+// probeUploadContent and probeUploadFilename are the local file buildArgs
+// points every Upload command's --file at; assertUploadBody checks both
+// actually reached the multipart body (F16/review A5).
+const (
+	probeUploadContent  = "probe upload content"
+	probeUploadFilename = "upload.txt"
+)
+
+// assertUploadBody parses req's multipart/form-data body and checks the
+// one file part carries probeUploadContent under probeUploadFilename --
+// not just that some non-empty multipart body was sent.
+func assertUploadBody(t *testing.T, c Command, req recordedRequest) {
+	t.Helper()
+	mediaType, params, err := mime.ParseMediaType(req.contentType)
+	if err != nil || !strings.HasPrefix(mediaType, "multipart/") {
+		t.Errorf("%s/%s: Content-Type %q is not multipart/form-data", c.Group, c.Verb, req.contentType)
+		return
+	}
+	mr := multipart.NewReader(bytes.NewReader(req.body), params["boundary"])
+	part, err := mr.NextPart()
+	if err != nil {
+		t.Errorf("%s/%s: reading the multipart file part: %v", c.Group, c.Verb, err)
+		return
+	}
+	if part.FileName() != probeUploadFilename {
+		t.Errorf("%s/%s: multipart filename = %q, want %q", c.Group, c.Verb, part.FileName(), probeUploadFilename)
+	}
+	content, err := io.ReadAll(part)
+	if err != nil {
+		t.Errorf("%s/%s: reading the multipart file content: %v", c.Group, c.Verb, err)
+		return
+	}
+	if string(content) != probeUploadContent {
+		t.Errorf("%s/%s: multipart content = %q, want %q", c.Group, c.Verb, content, probeUploadContent)
+	}
+}
+
+// binaryFixtureContent is the fixture bytes fakeUpstream answers a Binary
+// command's request with, keyed by "group/verb": assertBinaryOutput
+// checks these exact bytes reached stdout via -o - (F16/review A5), not
+// just that -o - produced non-empty output.
+var binaryFixtureContent = map[string][]byte{
+	"invoices/pdf":                         []byte("%PDF-1.4\nfake\n%%EOF"),
+	"reports/download-invoice-details-csv": []byte("a,b\n1,2\n"),
+}
+
+func assertBinaryOutput(t *testing.T, c Command, stdout []byte) {
+	t.Helper()
+	key := c.Group + "/" + c.Verb
+	want, ok := binaryFixtureContent[key]
+	if !ok {
+		t.Fatalf("%s: no binaryFixtureContent entry -- every Binary command in All must have one", key)
+	}
+	if !bytes.Equal(stdout, want) {
+		t.Errorf("%s: -o - stdout = %q, want the fixture bytes %q", key, stdout, want)
+	}
+}
+
 // assertMethodMatchesAnnotation checks the recorded HTTP method against
 // c.Class: every RO command issues a GET, and every mutating class issues
 // something else.
 func assertMethodMatchesAnnotation(t *testing.T, c Command, method string) {
 	t.Helper()
 	if isReadOnly(c) {
-		if method != http.MethodGet && !c.Binary {
+		if method != http.MethodGet {
 			t.Errorf("%s/%s: method %s, want GET (RO)", c.Group, c.Verb, method)
 		}
 	} else if method == http.MethodGet {
@@ -615,8 +675,8 @@ func TestRoundTrip(t *testing.T) {
 	if err := os.WriteFile(bodyFile, []byte("{}"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	uploadFile := filepath.Join(tmpDir, "upload.txt")
-	if err := os.WriteFile(uploadFile, []byte("probe upload content"), 0o600); err != nil {
+	uploadFile := filepath.Join(tmpDir, probeUploadFilename)
+	if err := os.WriteFile(uploadFile, []byte(probeUploadContent), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -667,7 +727,19 @@ func TestRoundTrip(t *testing.T) {
 				}
 			}
 
-			if !c.Binary {
+			if c.Upload {
+				// F16/review A5: the multipart body actually carries the
+				// local file's content and its base filename, not just a
+				// non-empty body.
+				assertUploadBody(t, c, req)
+			}
+
+			if c.Binary {
+				// F16/review A5: the fixture's own bytes made it all the
+				// way to stdout via -o -, not just "-o json produced
+				// something".
+				assertBinaryOutput(t, c, stdout.Bytes())
+			} else {
 				out := stdout.Bytes()
 				if len(bytes.TrimSpace(out)) > 0 {
 					var v any

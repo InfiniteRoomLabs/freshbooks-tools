@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 
@@ -102,7 +103,7 @@ func TestStatus(t *testing.T) {
 }
 
 func TestLogout(t *testing.T) {
-	t.Run("[happy] revokes the refresh token and removes the file", func(t *testing.T) {
+	t.Run("[happy] revokes both the access and refresh token and removes the file", func(t *testing.T) {
 		oauth := newFakeOAuthServer(t, "id", "secret", "")
 		store := fbauth.NewMemoryStore()
 		if err := store.Save(context.Background(), &fbauth.Token{AccessToken: "tok", RefreshToken: "ref"}); err != nil {
@@ -125,6 +126,13 @@ func TestLogout(t *testing.T) {
 		}
 		if fileExists(path) {
 			t.Error("credentials file still exists after Logout")
+		}
+		revoked := oauth.revokedTokens()
+		if !slices.Contains(revoked, "ref") {
+			t.Errorf("revoked = %v, want the refresh token %q posted", revoked, "ref")
+		}
+		if !slices.Contains(revoked, "tok") {
+			t.Errorf("revoked = %v, want the access token %q posted", revoked, "tok")
 		}
 	})
 

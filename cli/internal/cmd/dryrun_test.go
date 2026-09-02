@@ -69,6 +69,14 @@ func TestDryRun(t *testing.T) {
 		if code != 0 {
 			t.Fatalf("exit = %d, stderr = %s", code, stderr.String())
 		}
+		// F17/review A6: dryRunTransport prints one "METHOD URL" line per
+		// RoundTrip call, so counting those lines is a direct assertion
+		// on the attempt count, not just "this happened to be fast" --
+		// with NoRetry not wired up this would be 3, not 1.
+		attempts := strings.Count(stdout.String(), "GET "+"http://127.0.0.1:1")
+		if attempts != 1 {
+			t.Errorf("stdout printed the request %d time(s), want exactly 1 (no retries): %q", attempts, stdout.String())
+		}
 	})
 }
 

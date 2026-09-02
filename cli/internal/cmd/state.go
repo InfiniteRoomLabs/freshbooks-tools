@@ -208,18 +208,25 @@ func (s *runtimeState) resolveLogLevel(cmd *cobra.Command) string {
 }
 
 // buildLogger builds the slog.Logger passed to freshbooks.WithLogger,
-// writing to cmd's stderr at the resolved level.
-func (s *runtimeState) buildLogger(cmd *cobra.Command) *slog.Logger {
-	level := slog.LevelWarn
-	switch s.resolveLogLevel(cmd) {
+// writing to cmd's stderr at the resolved level. An unrecognized
+// --log-level/FRESHBOOKS_LOG_LEVEL value is a usage error (exit 2)
+// (F14/review A2), not a silent fall-back to warn.
+func (s *runtimeState) buildLogger(cmd *cobra.Command) (*slog.Logger, error) {
+	raw := s.resolveLogLevel(cmd)
+	var level slog.Level
+	switch raw {
 	case "debug":
 		level = slog.LevelDebug
 	case "info":
 		level = slog.LevelInfo
+	case "warn":
+		level = slog.LevelWarn
 	case "error":
 		level = slog.LevelError
+	default:
+		return nil, newUsageErrorf("invalid --log-level %q: want debug, info, warn, or error", raw)
 	}
-	return slog.New(slog.NewTextHandler(cmd.ErrOrStderr(), &slog.HandlerOptions{Level: level}))
+	return slog.New(slog.NewTextHandler(cmd.ErrOrStderr(), &slog.HandlerOptions{Level: level})), nil
 }
 
 // clientIDCredentials resolves FRESHBOOKS_CLIENT_ID/FRESHBOOKS_CLIENT_SECRET
@@ -263,13 +270,18 @@ func (s *runtimeState) buildClient(cmd *cobra.Command) (*freshbooks.Client, erro
 		return nil, &runtimeError{err: err}
 	}
 
+	logger, err := s.buildLogger(cmd)
+	if err != nil {
+		return nil, err
+	}
+
 	clientID, clientSecret := clientIDCredentials()
 	tokenSource := libauth.NewTokenSource(libauth.Config{ClientID: clientID, ClientSecret: clientSecret}, store)
 
 	opts := []freshbooks.Option{
 		freshbooks.WithTokenSource(tokenSource),
 		freshbooks.WithHTTPClient(&http.Client{Transport: httpTransport(), Timeout: timeout}),
-		freshbooks.WithLogger(s.buildLogger(cmd)),
+		freshbooks.WithLogger(logger),
 	}
 	if baseURL != "" {
 		opts = append(opts, freshbooks.WithBaseURL(baseURL))

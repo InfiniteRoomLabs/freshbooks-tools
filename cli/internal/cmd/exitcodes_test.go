@@ -66,6 +66,41 @@ func TestExitCodes(t *testing.T) {
 		}
 	})
 
+	t.Run("[sad] 2 on malformed JSON in --file, even with no stored credentials", func(t *testing.T) {
+		// F13/review A1: the body is validated in execute() before
+		// buildClient runs, so a bad --file body is a usage error (exit
+		// 2) on a machine with no credentials at all, never an auth
+		// error (exit 3) discovered only because a client was built for
+		// a call that was never going to happen.
+		t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+
+		path := filepath.Join(t.TempDir(), "bad.json")
+		if err := os.WriteFile(path, []byte("{not valid json"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+
+		var stdout, stderr bytes.Buffer
+		args := []string{"clients", "create", "--account", "ACM000TEST", "-f", path}
+		code := Run(args, discardStdin, &stdout, &stderr, "test")
+		if code != 2 {
+			t.Fatalf("exit = %d, want 2; stderr = %s", code, stderr.String())
+		}
+	})
+
+	t.Run("[sad] 2 on a missing required extra flag, even with no stored credentials", func(t *testing.T) {
+		// Same ordering guarantee for RequiredFlags (callbacks verify's
+		// --verifier): a missing required flag is a usage error before
+		// buildClient ever runs.
+		t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+
+		var stdout, stderr bytes.Buffer
+		args := []string{"callbacks", "verify", "--account", "ACM000TEST", "1"}
+		code := Run(args, discardStdin, &stdout, &stderr, "test")
+		if code != 2 {
+			t.Fatalf("exit = %d, want 2; stderr = %s", code, stderr.String())
+		}
+	})
+
 	t.Run("[sad] 2 on a missing scope", func(t *testing.T) {
 		// An isolated, empty XDG_CONFIG_HOME: no config.yaml, no
 		// credentials, so nothing on this machine's real environment can

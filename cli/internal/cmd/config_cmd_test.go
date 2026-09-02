@@ -71,11 +71,18 @@ func TestConfigCmd(t *testing.T) {
 	})
 
 	t.Run("[edge] view on a missing config file prints an empty config", func(t *testing.T) {
+		// F17/review A6: assert the printed content, not just exit 0 --
+		// an empty Config marshals to "{}" (both fields carry
+		// omitempty), so anything else (a crash swallowed as empty
+		// stdout, a stray null) must fail this test.
 		t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 		var stdout, stderr bytes.Buffer
 		code := Run([]string{"config", "view", "--output", "json"}, discardStdin, &stdout, &stderr, "test")
 		if code != 0 {
 			t.Fatalf("exit = %d, stderr = %s", code, stderr.String())
+		}
+		if got := strings.TrimSpace(stdout.String()); got != "{}" {
+			t.Errorf("stdout = %q, want %q", got, "{}")
 		}
 	})
 

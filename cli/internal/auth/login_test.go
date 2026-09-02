@@ -61,6 +61,11 @@ type fakeOAuthServer struct {
 
 	mu       sync.Mutex
 	lastForm url.Values
+
+	// revoked collects the "token" form value of every /revoke request,
+	// in order (F15/review A3 -- auth logout revokes both the access and
+	// refresh token, and this is how the test proves both were posted).
+	revoked []string
 }
 
 func newFakeOAuthServer(t *testing.T, wantClientID, wantClientSecret, wantRedirectURI string) *fakeOAuthServer {
@@ -106,11 +111,24 @@ func newFakeOAuthServer(t *testing.T, wantClientID, wantClientSecret, wantRedire
 		}
 	})
 	mux.HandleFunc("/revoke", func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseForm(); err == nil {
+			f.mu.Lock()
+			f.revoked = append(f.revoked, r.Form.Get("token"))
+			f.mu.Unlock()
+		}
 		fmt.Fprint(w, `{}`) //nolint:errcheck
 	})
 	f.srv = httptest.NewServer(mux)
 	t.Cleanup(f.srv.Close)
 	return f
+}
+
+// revokedTokens returns a snapshot of every "token" value posted to
+// /revoke so far, in order.
+func (f *fakeOAuthServer) revokedTokens() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]string(nil), f.revoked...)
 }
 
 func (f *fakeOAuthServer) endpoints() fbauth.Endpoints {

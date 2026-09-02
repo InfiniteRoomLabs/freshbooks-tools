@@ -2,6 +2,9 @@ package cmd
 
 import (
 	"bytes"
+	"context"
+	"errors"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -89,21 +92,52 @@ func TestResolveTimeout(t *testing.T) {
 
 func TestBuildLogger(t *testing.T) {
 	state := &runtimeState{}
-	for _, level := range []string{"debug", "info", "warn", "error", ""} {
+	cases := []struct {
+		level string
+		want  slog.Level
+	}{
+		{"debug", slog.LevelDebug},
+		{"info", slog.LevelInfo},
+		{"warn", slog.LevelWarn},
+		{"error", slog.LevelError},
+		{"", slog.LevelWarn}, // default
+	}
+	for _, tc := range cases {
 		cc := &cobra.Command{}
 		cc.Flags().String("log-level", "", "")
-		if level != "" {
-			if err := cc.Flags().Set("log-level", level); err != nil {
+		if tc.level != "" {
+			if err := cc.Flags().Set("log-level", tc.level); err != nil {
 				t.Fatal(err)
 			}
 		}
 		var buf bytes.Buffer
 		cc.SetErr(&buf)
-		logger := state.buildLogger(cc)
-		if logger == nil {
-			t.Errorf("level %q: buildLogger returned nil", level)
+		logger, err := state.buildLogger(cc)
+		if err != nil {
+			t.Fatalf("level %q: buildLogger error: %v", tc.level, err)
+		}
+		if !logger.Enabled(context.Background(), tc.want) {
+			t.Errorf("level %q: logger not enabled at its own resolved level %v", tc.level, tc.want)
+		}
+		if logger.Enabled(context.Background(), tc.want-1) {
+			t.Errorf("level %q: logger enabled one level below %v, want it filtered out", tc.level, tc.want)
 		}
 	}
+
+	t.Run("[sad] an unrecognized --log-level is a usage error", func(t *testing.T) {
+		cc := &cobra.Command{}
+		cc.Flags().String("log-level", "", "")
+		if err := cc.Flags().Set("log-level", "bogus"); err != nil {
+			t.Fatal(err)
+		}
+		var buf bytes.Buffer
+		cc.SetErr(&buf)
+		_, err := state.buildLogger(cc)
+		var usageErr *usageError
+		if !errors.As(err, &usageErr) {
+			t.Fatalf("buildLogger error = %v, want a *usageError", err)
+		}
+	})
 }
 
 func TestWriteBinaryResult(t *testing.T) {
