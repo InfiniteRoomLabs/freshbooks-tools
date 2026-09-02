@@ -58,3 +58,15 @@ The help tree and `docs/cli.md` WILL change in this fix (new `--sort`, `--includ
 ## Re-gate
 
 QA lane (opus) after the fix commit: full gate on a clean tree (`mise run vuln` covers govulncheck for all three modules -- the security lane could not run it), the four mandatory acceptance probes from `GOAL.md` stage 3, `TestDocsUpToDate` green after regeneration, the report dry-run sweep byte-identical, and a re-run of the F1/F2/F3 evidence with the exact attack inputs the lanes described.
+
+## Round 2 (after QA, 2026-09-02)
+
+QA verdict NEEDS WORK: 2 blocking (Q1, Q2), 20 advisory. Second fix commit `fix(cli): apply the QA findings`, then QA re-verifies the gate and the two probes.
+
+- **G1** (QA Q1) -- validate `--log-level` before the dry-run and credential branches in `buildClient`, so `--log-level bogus` exits 2 on every path (dry-run, no credentials, credentials). Tests for all three.
+- **G2** (QA Q2) -- `api` validates the `-f` body with `json.Valid` before `buildClient`, same message and exit 2 as the registry path; never echo body content in the error. Test.
+- **G3** (QA Q3, Q5) -- `contexts on an empty config` asserts the printed output; `TestBuildClient_CorruptCredentials` asserts the stderr message names the credentials parse failure.
+- **G4** (QA Q6, Q7) -- the round trip resolves each command's first inventory key against `freshbooks/internal/inventory/testdata/inventory.json` and asserts the recorded method equals the vendor `method` and the recorded path matches the vendor `pathTemplate` (placeholders substituted), for every command that carries a key; `identity whoami` keeps its hand-written expectation. This subsumes F16's write-body half.
+- **G5** (QA Q10, Q11) -- `StatusInfo` gets snake_case `json` tags; an invalid `--context` is a usage error (exit 2) like every other bad flag value.
+- **G6** (QA Q13, Q14, Q16, Q18) -- docs/help corrections: the env table notes `FRESHBOOKS_OUTPUT` does not apply to the two binary commands and that `--base-url` is hidden; mention the `~/.config` fallback in the docs and the `--config` help; fix the `runtimeError` comment.
+- Not applied now (Phase 5 backlog): Q4, Q8, Q9, Q12, Q15, Q17, Q20, Q21, Q22, Q19 (root changelog is the lead's ship step).
