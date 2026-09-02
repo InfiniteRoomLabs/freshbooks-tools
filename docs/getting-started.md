@@ -57,7 +57,7 @@ func main() {
 ## First call from the CLI
 
 ```sh
-go install github.com/InfiniteRoomLabs/freshbooks-tools/cli/cmd/freshbooks@latest   # once v0.1.0 tags ship; mise run build until then
+go install github.com/InfiniteRoomLabs/freshbooks-tools/cli/cmd/freshbooks@latest
 
 freshbooks auth login   # reads FRESHBOOKS_CLIENT_ID/FRESHBOOKS_CLIENT_SECRET from the environment set above
 freshbooks identity me
@@ -74,7 +74,7 @@ See `docs/cli.md` for the full command reference, contexts, and output formats.
 ## First call from the MCP server
 
 ```sh
-go install github.com/InfiniteRoomLabs/freshbooks-tools/mcp/cmd/freshbooks-mcp@latest   # once v0.1.0 tags ship; mise run build until then
+go install github.com/InfiniteRoomLabs/freshbooks-tools/mcp/cmd/freshbooks-mcp@latest
 ```
 
 For Claude Desktop or Claude Code (stdio transport), add `freshbooks-mcp serve` with a token in its environment -- either a static access token, or the client id/secret/token-file trio for automatic rotation:

@@ -1,9 +1,10 @@
 # Progress
 
-Living status doc. Read first, update at every phase boundary. Last updated: 2026-09-02 (Phase 5 shipped).
+Living status doc. Read first, update at every phase boundary. Last updated: 2026-09-02 (v0.1.0 tags shipped).
 
 ## Current state
 
+- **v0.1.0 shipped 2026-09-02** (attended, then finished on Wes's go-ahead in-session): `freshbooks/v0.1.0` @ `0b63858` (notes-only release, proxy serves `freshbooks@v0.1.0`), `mcp/v0.1.0` and `cli/v0.1.0` @ `90cc8cd` (13 assets each: six archives, `checksums.txt`, six SPDX 2.3 SBOMs; checksums verified on a download; `go install ...@v0.1.0` prints `freshbooks-mcp v0.1.0` and `v0.1.0`; the CLI binary links no `cobra/doc`). The release workflow worked first time on all three tags; the lib release shipped untitled (fixed by `gh release edit`, and the workflow now passes `--title`). Repository tag-protection ruleset (backlog item 10) was NOT applied: still open.
 - **Phase 5 (release hardening) shipped 2026-09-02**, `phase-5/release` -> `main` @ `6cbe6e4` (`--no-ff`). The release workflow was broken as written and is now proven: goreleaser builds with `--skip=publish,validate` and `gh release create --verify-tag` publishes onto the real prefixed tag (goreleaser OSS validates `GORELEASER_CURRENT_TAG` against `git describe --exact-match` and would have created the GitHub release on a new `v0.1.0` tag); `project_name` per module (archives no longer collide as `freshbooks-tools_*`), `GOWORK=off` + `CGO_ENABLED=0` builds, syft (mise-pinned `aqua:anchore/syft`) SPDX 2.3 SBOMs. CI: `actions/checkout` v7.0.1 and `jdx/mise-action` v4.3.0 pinned by SHA, `upload-artifact`/`download-artifact`/`goreleaser-action` removed, `persist-credentials: false` on the write-scoped job, `failglob` before publishing. Toolchain goreleaser 2.18.0, golangci-lint 2.13.2; dependencies refreshed (x/sys 0.47.0 closes GO-2026-5024). Folds: `cobra/doc` behind the `docsgen` build tag (`cli/internal/docsgen`, drift test still untagged and in the default gate), `version` falls back to `debug.ReadBuildInfo` so `go install ...@<ref>` prints the module version, `scripts/check.sh` ignores `docs/phases/*/reports/*`, `auth login --timeout` renamed `--login-timeout`, Phase 4 QA advisories Q4/Q12/Q15/Q17/Q20/Q21/Q22 folded. Docs pass complete (`getting-started.md` written for real; every command/env/identifier verified mechanically). Module changelogs reshaped into their 0.1.0 `### Added` sections, unwrapped, still under `## [Unreleased]`. Coverage at ship: freshbooks 91.8%, mcp 92.1%, cli 91.5%.
 - **Gate outcome:** code review REQUEST CHANGES (R1 blocking: docs claimed CycloneDX SBOMs, syft's goreleaser default is SPDX), security PASS (A1-A5 advisory), simplification 3 apply-recommended -> one lead-landed fix commit (`6e41003`, 11 edits) -> QA PASS on the first round (goreleaser snapshot + real-tag dry runs from a clean clone, `go install @sha` outside the workspace, every doc example run, gate green). Q1/Q2 doc advisories folded in `5e3108f`.
 - **Phase 4 (CLI) shipped 2026-09-02** (`3ae853d`): 168 registry commands, loopback PKCE login, contexts, `json|yaml|table|name`, `--dry-run`, `api`, exit codes, generated `docs/cli.md`. **Phase 3 (MCP server) shipped 2026-09-01** (`7ed5891`): 168 tools over 212 keys. **Phase 2 (lib resources) shipped 2026-09-01**; inventory `implemented 213, todo 0`. **Phase 1 (lib core) shipped 2026-08-23** (`98ea08c`). **Phase 0 (scaffold) shipped 2026-08-22** (`b3063ba`).
@@ -19,8 +20,8 @@ Living status doc. Read first, update at every phase boundary. Last updated: 202
 | 3 MCP | **SHIPPED 2026-09-01** | `phase-3/mcp` -> `main` @ `7ed5891` | review 1 + security 1 blocking -> 1 fix commit -> QA PASS; reports in `docs/phases/3/` |
 | 4 CLI | **SHIPPED 2026-09-02** | `phase-4/cli` -> `main` @ `3ae853d` | review 10 + security 3 blocking -> F1-F30 (checkpointed) -> QA NEEDS WORK x2 -> PASS; reports in `docs/phases/4/` |
 | 5 Release hardening | **SHIPPED 2026-09-02** | `phase-5/release` -> `main` @ `6cbe6e4` | stage 1 found the release workflow could not ship a prefixed tag; review 1 blocking -> 1 lead-landed fix -> QA PASS first round; reports in `docs/phases/5/` |
-| 6 v0.1.0 tags | not started (**attended**) | on `main`, no branch | the runbook below; stops for Wes at each tag push |
-| 7 Live conformance | not started (**attended**) | `phase-7/live` | needs FreshBooks credentials; upgrades every INFERRED/docs-only fact |
+| 6 v0.1.0 tags | **SHIPPED 2026-09-02** | `freshbooks/v0.1.0` @ `0b63858`, `mcp/v0.1.0` + `cli/v0.1.0` @ `90cc8cd` | Release workflow green on all three; assets, checksums, SBOMs, and `go install` verified |
+| 7 Live conformance | next (**attended**) | `phase-7/live` | needs FreshBooks credentials; upgrades every INFERRED/docs-only fact |
 
 ## Discoveries (Phase 5)
 
@@ -46,40 +47,13 @@ Cross-phase items deferred by triage. Items folded by Phase 5 were removed (cobr
 10. **Repository tag-protection ruleset** (Phase 5 security A1): no ruleset guards `refs/tags/{freshbooks,mcp,cli}/v*`, and `enforce_admins` is off on `main`, so the release guard's "on main" premise is weaker than it reads. Pre-flight step 0 of the tag runbook below.
 11. **`docsgen_test.go` could table-drive its five `strings.Contains` checks** (Phase 5 simplify S4). Cosmetic; do it the next time that file is touched.
 
-## Next action: the attended v0.1.0 tag step
+## v0.1.0 tag step (done 2026-09-02)
 
-Run `/goal complete everything in @GOAL.md` in a fresh session with Wes available. Each `git push` of a tag publishes a release and is attended by design: the lead prepares everything up to the push, presents the exact command, and waits. The order matters because `mcp` and `cli` must require the lib at `v0.1.0` before they are tagged, which needs the lib tag to exist on the proxy first.
+Ran as designed: lib changelog cut (`0b63858`) -> `freshbooks/v0.1.0` -> `go.mod` bump + mcp/cli changelog cuts + `--title` on `gh release create` (`90cc8cd`) -> `mcp/v0.1.0` -> `cli/v0.1.0`. Each Release run went guard -> ci -> release green. Still open from the pre-flight: the tag-protection ruleset (backlog item 10). The three "once the tags ship" doc caveats were flipped in the ship commit.
 
-**Step 0 -- pre-flight (no pushes yet).**
+## Next action: the live-conformance pass (attended)
 
-- `git status --porcelain` empty on `main`; `git log --oneline -1` matches the ledger; CI green on `main` (`gh run list --branch main --limit 1`); `gh auth status` shows `repo` and `workflow`; `mise install` done (brings goreleaser 2.18.0 and syft 1.51.1).
-- Repository settings (backlog item 10, attended because it changes GitHub settings): add a ruleset for `refs/tags/freshbooks/v*`, `refs/tags/mcp/v*`, `refs/tags/cli/v*` that restricts creation to the maintainer and forbids update and deletion (`gh api repos/InfiniteRoomLabs/freshbooks-tools/rulesets` with a `tag` target), and consider `enforce_admins` on `main`. Extend `scripts/branch-protection.sh` with the same call so it is reproducible.
-- `grep -rn 'once.*v0.1.0 tags ship' README.md docs/` lists the caveats to flip in step 4; note them.
-- Dry run one more time from a clean clone to be sure nothing drifted: `git clone <repo root> /tmp/rel && git -C /tmp/rel tag mcp/v0.1.0 && mise trust /tmp/rel/mise.toml && (cd /tmp/rel/mcp && GORELEASER_CURRENT_TAG=v0.1.0 mise exec -- goreleaser release --skip=publish,validate --clean)`; expect six `freshbooks-mcp_0.1.0_*` archives, `checksums.txt`, six `.sbom.json`. Remove `/tmp/rel`.
-
-**Step 1 -- lib.**
-
-- Edit `freshbooks/CHANGELOG.md`: rename `## [Unreleased]` to `## [0.1.0] - YYYY-MM-DD` and add a fresh empty `## [Unreleased]` heading above it. Add a root `CHANGELOG.md` line ("freshbooks v0.1.0 released"). Commit `release(freshbooks): v0.1.0` (root `CHANGELOG.md` must be staged: the changelog guard is a Claude hook on every `main` commit). Push `main`; wait for CI green.
-- Present to Wes and wait: `git tag -a freshbooks/v0.1.0 -m "freshbooks v0.1.0" && git push origin freshbooks/v0.1.0`.
-- After the push: `gh run watch` on the Release workflow (`guard` -> `ci` -> `release`); `gh release view freshbooks/v0.1.0` shows the changelog body and no assets. Proxy pickup: `cd /tmp && GOFLAGS=-mod=mod mise exec -- go list -m github.com/InfiniteRoomLabs/freshbooks-tools/freshbooks@v0.1.0` (use the pinned toolchain by absolute path if `mise exec` reports a version mismatch outside the repo).
-
-**Step 2 -- bump.**
-
-- In `mcp/` and `cli/`: `mise exec -- go get github.com/InfiniteRoomLabs/freshbooks-tools/freshbooks@v0.1.0 && mise exec -- go mod tidy` (from inside each module). Rename the `mcp/CHANGELOG.md` and `cli/CHANGELOG.md` sections the same way as the lib. Root `CHANGELOG.md` line. `mise run check` green. Commit `release(mcp,cli): require freshbooks v0.1.0 and cut 0.1.0`, push `main`, wait for CI green.
-
-**Step 3 -- mcp, then cli.**
-
-- Present and wait: `git tag -a mcp/v0.1.0 -m "freshbooks-mcp v0.1.0" && git push origin mcp/v0.1.0`. Then `gh run watch`; `gh release view mcp/v0.1.0` lists six archives, `checksums.txt`, six `.sbom.json`; download one archive plus `checksums.txt` and run `sha256sum -c checksums.txt --ignore-missing`; `cd /tmp && GOBIN=/tmp/relbin mise exec -- go install github.com/InfiniteRoomLabs/freshbooks-tools/mcp/cmd/freshbooks-mcp@v0.1.0 && /tmp/relbin/freshbooks-mcp version` prints `freshbooks-mcp v0.1.0`.
-- Present and wait: `git tag -a cli/v0.1.0 -m "freshbooks CLI v0.1.0" && git push origin cli/v0.1.0`. Same checks; `go install .../cli/cmd/freshbooks@v0.1.0 && /tmp/relbin/freshbooks version` prints `v0.1.0` (bare, no binary-name prefix -- unlike `freshbooks-mcp`).
-- If a Release run fails after the tag exists: fix on `main`, then delete and re-push the tag only if nothing was published yet; if the GitHub release was created, cut `v0.1.1` instead (releases are immutable to consumers).
-
-**Step 4 -- after.**
-
-- `README.md` Status column -> the released versions; flip the "once the v0.1.0 tags ship" caveats found in step 0; `docs/progress.md` ledger row 6 SHIPPED with the three tag shas; `GOAL.md` retarget to the live-conformance pass. Commit `docs: ship v0.1.0`, push.
-
-## Live-conformance runbook (after the tags)
-
-Attended; needs Wes's FreshBooks credentials through `fnox exec -- <cmd>` (never exported, never written). `FRESHBOOKS_LIVE=1 mise exec -- go test -tags live ./freshbooks/...` for the read-only smoke; then, for each backlog item 7 fact, one captured request/response with synthetic IDs into `freshbooks/testdata/seed/`, the spec `STATE AS OF` callout upgraded from docs-only to CONFIRMED (or corrected), and a fixture seeded from the capture. Finish with a real `freshbooks auth login` through the self-signed loopback and one MCP `tools/call` with the resulting token.
+Run `/goal complete everything in @GOAL.md` with Wes available. Attended; needs Wes's FreshBooks credentials through `fnox exec -- <cmd>` (never exported, never written). Branch `phase-7/live`, opus implementer, fable reviewers. `FRESHBOOKS_LIVE=1 mise exec -- go test -tags live ./freshbooks/...` for the read-only smoke; then, for each backlog item 7 fact, one captured request/response with synthetic IDs into `freshbooks/testdata/seed/`, the spec `STATE AS OF` callout upgraded from docs-only to CONFIRMED (or corrected), and a fixture seeded from the capture. Finish with a real `freshbooks auth login` through the self-signed loopback and one MCP `tools/call` with the resulting token.
 
 ## How to resume in a fresh session
 
