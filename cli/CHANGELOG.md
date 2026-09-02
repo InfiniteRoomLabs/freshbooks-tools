@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - `auth login` no longer prints a raw `http: TLS handshake error ... tls: bad certificate` line when the browser rejects the self-signed loopback certificate on its first attempt (the prompt already explains that warning); the loopback server's error log is discarded.
 - The command reference and `docs/getting-started.md` now say that every requested scope must be enabled on the app in the FreshBooks developer portal, the cause of "The requested scope is invalid, unknown, or malformed" at consent (found on the first real login with the released CLI).
+- `auth login`'s default scope set now requests only scopes FreshBooks actually defines. `user:profile:write`, `user:notifications:write`, and `user:reports:write` do not exist (the developer portal has `profile`, `notifications`, and `reports` as read-only objects), and one nonexistent scope rejects the entire consent, so the shipped 44-scope default could never complete a login. The default is now the 43 scopes the portal offers: read and write for the 19 read/write documented objects plus the undocumented `uploads` (which the upload endpoints need), and read for the three read-only objects. The portal-only `account` and `riskhub` objects stay out of the default; pass `--scopes` to request them.
 
 ## [0.1.0] - 2026-09-02
 
