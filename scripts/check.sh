@@ -140,7 +140,10 @@ fmt-check | vet | lint | test | cover | vuln | inventory-check)
 esac
 
 if [ "$usage_subcommand" = "all" ]; then
-  dirty=$(cd "$repo_root" && git status --porcelain)
+  # Exclude docs/phases/*/reports/: the QA lane writes its report while
+  # this gate is still running, and that in-flight write is not the kind
+  # of dirty tree this banner exists to catch (D8).
+  dirty=$(cd "$repo_root" && git status --porcelain -- . ':(exclude)docs/phases/*/reports/*')
   if [ -n "$dirty" ]; then
     echo "DIRTY TREE:"
     echo "$dirty"
