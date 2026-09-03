@@ -47,21 +47,42 @@ short_term_threshold=8
 
 # seed_number_allowed reports whether n (a 6+-digit run matched in a
 # freshbooks/testdata/ file) is a known synthetic placeholder rather than a
-# possible real value: well-known filler numbers (8675309 = Jenny's number,
-# 4242424 = the repo's synthetic identity_id, 5555550100 and 5550100100 =
-# synthetic phone numbers -- the plan's D3 decision names 5555550100, and
-# Phase 1's users_me.json capture already carries 5550100100 at line 33, so
-# both are allowlisted rather than choking the sweep on pre-existing
-# legitimate data (QA Q4), 999999999 and 1111111 = other conventional
-# filler, also pre-existing -- QA Q4), plus any run of all zeros (the
-# all-zero uuids and account numbers the seed captures already use).
+# possible real value.
+#
+# Conventional filler: 8675309 = Jenny's number, 4242424 = the repo's
+# synthetic identity_id, 5555550100 and 5550100100 = synthetic phone
+# numbers (the plan's D3 decision names 5555550100, and Phase 1's
+# users_me.json capture already carries 5550100100 at line 33, so both are
+# allowlisted rather than choking the sweep on pre-existing legitimate data
+# -- QA Q4), 999999999 and 1111111 = other conventional filler, also
+# pre-existing (QA Q4), plus any run of all zeros (the all-zero uuids and
+# account numbers the seed captures already use).
+#
+# FreshBooks' own published example ids: 1825574, 2003170, 2003174,
+# 47634496 and 2976412 each appear in
+# freshbooks/internal/inventory/testdata/freshbooks.postman_collection.json,
+# and 900123 is a hand-written transactionid added in Phase 2, before this
+# repo had a live token at all. All six predate the seed corpus and were
+# traced to source by the Phase 8 security lane; they are vendor sample
+# data, not account data. They need entries because Phase 8 A5 widened this
+# sweep from freshbooks/testdata/seed/ to freshbooks/testdata/, which is
+# where the fixtures carrying them live.
+#
 # FreshBooks-style synthetic ids (700NN, the range every capture in this
 # repo uses -- Phase 7 security A1) need no entry: 5 digits is below this
 # sweep's 6-digit threshold, so they are never matched in the first place
 # (Phase 8 code review R3, which found the old ^700[0-9]{2}$ branch dead).
 seed_number_allowed() {
-  [[ "$1" =~ ^(8675309|4242424|5555550100|5550100100|999999999|1111111|0+)$ ]]
+  [[ "$1" =~ ^(8675309|4242424|5555550100|5550100100|999999999|1111111|1825574|2003170|2003174|900123|47634496|2976412|0+)$ ]]
 }
+
+# timestamp_re matches an ISO-8601-ish instant, space- or T-separated, with
+# an optional fractional part and offset. A timestamp's microsecond field
+# is a 6-digit run and its date is not an identifier at all, so the sweep
+# strips instants before counting digits -- otherwise every capture's
+# updated_at is a finding. Whether an instant is itself too revealing is a
+# separate concern (Phase 8 security A6, rounding), not this sweep's.
+timestamp_re='[0-9]{4}-[0-9]{2}-[0-9]{2}[T ][0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?(Z|[+-][0-9]{2}:?[0-9]{2})?'
 
 uuid_re='[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'
 
@@ -128,6 +149,7 @@ scan_seed_numbers() {
   esac
   while IFS=$'\t' read -r lineno content; do
     [ -z "$lineno" ] && continue
+    content=$(printf '%s' "$content" | sed -E "s/$timestamp_re//g")
     # Drop exempt UUID-shaped tokens before the sweep; anything uuid-shaped
     # that is not exempt stays in the content and is swept like any other
     # digit run.

@@ -138,7 +138,7 @@ type Expense struct {
 	PotentialBillPayment bool `json:"potential_bill_payment,omitempty"`
 	// Version is an account-local revision stamp, distinct from Updated.
 	// Its wire format is a space-separated timestamp with fractional
-	// seconds ("2026-08-28 18:02:59.000000") that DateTime does not model
+	// seconds ("2026-08-28 00:00:00.000000") that DateTime does not model
 	// (spec 5.1's STATE AS OF 2026-09-03 (Phase 7, live) callout already
 	// recorded this for the sibling Invoice.Version field), so this stays
 	// a plain string.

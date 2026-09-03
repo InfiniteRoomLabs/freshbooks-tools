@@ -147,14 +147,14 @@ seed_json="freshbooks/testdata/seed/x.json"
 
 # -- the digit sweep ------------------------------------------------------
 probe "7-digit integer fails, naming file:line" \
-  "$seed_json" "1825574" 1 \
-  "redaction-check: unallowlisted 6+-digit number 1825574 in $seed_json:3" stub
+  "$seed_json" "9182736" 1 \
+  "redaction-check: unallowlisted 6+-digit number 9182736 in $seed_json:3" stub
 
 # The sweep covers every fixture, not just the raw captures (Phase 8
 # security A5 / code review R5): D2 re-seeded these paths from seed/.
 probe "the sweep reaches re-seeded fixtures" \
-  "freshbooks/testdata/accounting/expenses_list.json" "1825574" 1 \
-  "redaction-check: unallowlisted 6+-digit number 1825574 in freshbooks/testdata/accounting/expenses_list.json:3" stub
+  "freshbooks/testdata/accounting/expenses_list.json" "9182736" 1 \
+  "redaction-check: unallowlisted 6+-digit number 9182736 in freshbooks/testdata/accounting/expenses_list.json:3" stub
 
 # -- UUID handling (Phase 8 security A3) ----------------------------------
 probe "a real id wearing a synthetic uuid tail fails" \
@@ -162,8 +162,8 @@ probe "a real id wearing a synthetic uuid tail fails" \
   "redaction-check: unallowlisted 6+-digit number 12345678 in $seed_json:3" stub
 
 probe "an entirely decimal uuid-shaped token fails" \
-  "$seed_json" "18255740-1234-5678-9012-123456789012" 1 \
-  "redaction-check: unallowlisted 6+-digit number 18255740 in $seed_json:3" stub
+  "$seed_json" "91827360-1234-5678-9012-123456789012" 1 \
+  "redaction-check: unallowlisted 6+-digit number 91827360 in $seed_json:3" stub
 
 probe "the synthetic uuid convention passes" \
   "$seed_json" "00000000-0000-4000-8000-000000000123" 0 \
@@ -172,6 +172,13 @@ probe "the synthetic uuid convention passes" \
 probe "a genuine hex uuid passes" \
   "$seed_json" "9f8e7d6c-1a2b-4c3d-8e9f-0a1b2c3d4e5f" 0 \
   "redaction-check: clean" stub
+
+# -- timestamps are not identifiers ---------------------------------------
+probe "a microsecond timestamp passes" \
+  "$seed_json" "2022-09-22T08:47:04.668685Z" 0 "redaction-check: clean" stub
+
+probe "a space-separated instant passes" \
+  "$seed_json" "2026-08-22 04:32:55.000000" 0 "redaction-check: clean" stub
 
 # -- the allowlist --------------------------------------------------------
 probe "a 700NN synthetic id passes (below the sweep threshold)" \

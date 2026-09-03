@@ -46,7 +46,7 @@ func TestExpensesList(t *testing.T) {
 		if exp.BillMatches == nil || len(exp.BillMatches) != 0 {
 			t.Fatalf("BillMatches = %v, want a non-nil empty slice", exp.BillMatches)
 		}
-		if exp.Version != "2026-08-22 04:32:55.000000" {
+		if exp.Version != "2026-08-22 00:00:00.000000" {
 			t.Fatalf("Version = %q", exp.Version)
 		}
 	})

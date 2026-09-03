@@ -64,14 +64,10 @@ type timeEntryResponse struct {
 // PerClient stay raw JSON rather than a guessed struct -- INFERRED; see the
 // spec 5.1 STATE AS OF 2026-09-03 (Phase 8) callout.
 type TimeEntryTotals struct {
-	TotalLogged   int `json:"total_logged"`
-	TotalUnbilled int `json:"total_unbilled"`
-	// PerTeamMember is the meta.total_logged_per_team_member array,
-	// undecoded (see the type doc comment).
+	TotalLogged   int             `json:"total_logged"`
+	TotalUnbilled int             `json:"total_unbilled"`
 	PerTeamMember json.RawMessage `json:"total_logged_per_team_member,omitempty"`
-	// PerClient is the meta.total_logged_per_client array, undecoded (see
-	// the type doc comment).
-	PerClient json.RawMessage `json:"total_logged_per_client,omitempty"`
+	PerClient     json.RawMessage `json:"total_logged_per_client,omitempty"`
 }
 
 // TimeEntriesPage is the result of ListWithTotals: an ordinary

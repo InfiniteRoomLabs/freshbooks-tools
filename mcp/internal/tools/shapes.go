@@ -39,7 +39,8 @@ func (l listIn) search() freshbooks.Search { return searchOf(l.Search) }
 
 // reqOpts renders listIn as a []RequestOption, for the handful of methods
 // that take raw variadic RequestOptions instead of a *XListOptions struct
-// (JournalEntries.Details, JournalEntryAccounts.List).
+// (JournalEntries.Details, JournalEntryAccounts.List,
+// TimeEntries.ListWithTotals).
 func (l listIn) reqOpts() []freshbooks.RequestOption {
 	var opts []freshbooks.RequestOption
 	if s := l.search(); len(s) > 0 {
