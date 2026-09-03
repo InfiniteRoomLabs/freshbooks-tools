@@ -71,6 +71,8 @@ client.Invoices.List(ctx, acct,
 
 `List` returns `Page[T]{Items, Page, Pages, PerPage, Total}`. `All` is the auto-paginating iterator:
 
+> `TimeEntriesService.ListWithTotals` runs the same request as `TimeEntries.List` but returns a `TimeEntriesPage{Page[TimeEntry]; Totals TimeEntryTotals}`, carrying the business-wide `total_logged`/`total_unbilled` figures the time-entries endpoint's `meta` object holds beside the four pagination keys `Page[T]` already models.
+
 ```go
 for inv, err := range client.Invoices.All(ctx, acct, nil) {
     if err != nil {
