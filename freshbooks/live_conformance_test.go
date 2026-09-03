@@ -315,3 +315,110 @@ func TestLiveBusinessSortEcho(t *testing.T) {
 	}
 	t.Logf("the server echoed sort=%v for the library's Sort() encoding", page.Sort)
 }
+
+// TestLiveCallbacksEnvelope is fact D: /events/ was classified into the
+// accounting family from a Postman example alone. If the classification
+// were wrong the transport would look for a {"response":{"result":...}}
+// wrapper that is not there, and every pagination field would decode zero.
+func TestLiveCallbacksEnvelope(t *testing.T) {
+	c := liveClient(t)
+	ctx, cancel := liveCtx(t)
+	defer cancel()
+	m := liveScope(t, c, ctx)
+
+	const perPage = 3
+	page, err := c.Callbacks.List(ctx, m.AccountID, nil, freshbooks.PerPage(perPage))
+	if err != nil {
+		t.Fatalf("Callbacks.List: %v", err)
+	}
+	// page/per_page live inside the accounting result envelope, so they
+	// only survive if the envelope was peeled.
+	if page.Page != 1 {
+		t.Errorf("page = %d, want 1 -- the accounting envelope was not peeled", page.Page)
+	}
+	if page.PerPage != perPage {
+		t.Errorf("per_page = %d, want %d -- the accounting envelope was not peeled", page.PerPage, perPage)
+	}
+	if page.Total != len(page.Items) && page.Pages <= 1 {
+		t.Errorf("total = %d but the single page holds %d item(s)", page.Total, len(page.Items))
+	}
+}
+
+// TestLiveDateTimeFormats is fact Q: which live producers send which of the
+// wire timestamp formats DateTime accepts. Three of the four are confirmed
+// here with named producers; the fourth (the zoneless
+// "YYYY-MM-DDTHH:MM:SS") has no live producer on this account, because the
+// only endpoints whose Postman examples show it -- projects and time
+// entries -- hold no records, so it stays INFERRED.
+func TestLiveDateTimeFormats(t *testing.T) {
+	c := liveClient(t)
+	ctx, cancel := liveCtx(t)
+	defer cancel()
+	m := liveScope(t, c, ctx)
+
+	t.Run("accounting reads send space-separated and date-only", func(t *testing.T) {
+		expenses, err := c.Expenses.List(ctx, m.AccountID, nil, freshbooks.PerPage(1))
+		if err != nil {
+			t.Fatalf("Expenses.List: %v", err)
+		}
+		if len(expenses.Items) == 0 {
+			t.Skip("no expenses on the authorized account")
+		}
+		e := expenses.Items[0]
+		if e.Date.IsZero() {
+			t.Error("expense date did not parse")
+		}
+		if got := e.Updated.Layout(); got != freshbooks.DateTimeLayout {
+			t.Errorf("expense updated parsed as %q, want the space-separated layout", got)
+		}
+
+		clients, err := c.Clients.List(ctx, m.AccountID, nil, freshbooks.PerPage(1))
+		if err != nil {
+			t.Fatalf("Clients.List: %v", err)
+		}
+		if len(clients.Items) == 0 {
+			t.Skip("no clients on the authorized account")
+		}
+		if got := clients.Items[0].Updated.Layout(); got != freshbooks.DateTimeLayout {
+			t.Errorf("client updated parsed as %q, want the space-separated layout", got)
+		}
+	})
+
+	t.Run("the business and payments families send RFC 3339", func(t *testing.T) {
+		accounts, err := c.LedgerAccounts.List(ctx, m.BusinessUUID)
+		if err != nil {
+			t.Fatalf("LedgerAccounts.List: %v", err)
+		}
+		if len(accounts) == 0 {
+			t.Fatal("the chart of accounts is empty")
+		}
+		// Ledger accounts send RFC 3339 with fractional seconds, which is
+		// why UpdatedAt is a plain time.Time rather than a DateTime.
+		if accounts[0].UpdatedAt.IsZero() {
+			t.Error("ledger account updated_at did not parse")
+		}
+
+		conns, err := c.Gateways.Get(ctx, m.AccountID)
+		if err != nil {
+			t.Fatalf("Gateways.Get: %v", err)
+		}
+		for _, conn := range conns {
+			if su := conn.StripeUnified; su != nil {
+				if got := su.StripeAccountUpdatedAt.Layout(); got != freshbooks.RFC3339Layout {
+					t.Errorf("stripe_account_updated_at parsed as %q, want RFC 3339", got)
+				}
+			}
+		}
+	})
+
+	t.Run("no live producer for the zoneless layout", func(t *testing.T) {
+		projects, err := c.Projects.List(ctx, m.BusinessID, nil, freshbooks.PerPage(1))
+		if err != nil {
+			t.Fatalf("Projects.List: %v", err)
+		}
+		if projects.Total != 0 {
+			t.Skip("the account now has projects; assert their timestamp layouts and close out fact Q")
+		}
+		t.Log("the account holds no projects, so the zoneless YYYY-MM-DDTHH:MM:SS layout stays INFERRED from the Postman example")
+	})
+}
