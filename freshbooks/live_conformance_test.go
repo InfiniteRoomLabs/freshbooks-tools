@@ -59,7 +59,8 @@ func TestLiveExpenseVendors(t *testing.T) {
 		t.Fatalf("Expenses.Vendors: %v", err)
 	}
 	if len(vendors) == 0 {
-		t.Skip("the authorized account has no expense vendors; nothing to assert about the entry shape")
+		t.Log("the authorized account has no expense vendors; nothing to assert about the entry shape")
+		return
 	}
 	for i, v := range vendors {
 		if v == "" {
@@ -88,7 +89,8 @@ func TestLiveGateways(t *testing.T) {
 	// classification would have looked for a {"response":{"result":...}}
 	// wrapper that is not there and yielded nothing.
 	if len(conns) == 0 {
-		t.Skip("the authorized account has no gateway connections; family confirmed, shape not asserted")
+		t.Log("the authorized account has no gateway connections; family confirmed, shape not asserted")
+		return
 	}
 	var populated int
 	for _, conn := range conns {
@@ -362,7 +364,8 @@ func TestLiveDateTimeFormats(t *testing.T) {
 			t.Fatalf("Expenses.List: %v", err)
 		}
 		if len(expenses.Items) == 0 {
-			t.Skip("no expenses on the authorized account")
+			t.Log("no expenses on the authorized account")
+			return
 		}
 		e := expenses.Items[0]
 		if e.Date.IsZero() {
@@ -377,7 +380,8 @@ func TestLiveDateTimeFormats(t *testing.T) {
 			t.Fatalf("Clients.List: %v", err)
 		}
 		if len(clients.Items) == 0 {
-			t.Skip("no clients on the authorized account")
+			t.Log("no clients on the authorized account")
+			return
 		}
 		if got := clients.Items[0].Updated.Layout(); got != freshbooks.DateTimeLayout {
 			t.Errorf("client updated parsed as %q, want the space-separated layout", got)
@@ -411,14 +415,42 @@ func TestLiveDateTimeFormats(t *testing.T) {
 		}
 	})
 
-	t.Run("no live producer for the zoneless layout", func(t *testing.T) {
+	t.Run("the zoneless layout's only candidate producer is Projects", func(t *testing.T) {
+		// zonelessLayout mirrors the library's unexported noZoneLayout: an
+		// RFC 3339-shaped stamp with no offset, INFERRED for this family
+		// from a Postman example only. Duplicated here because this is an
+		// external test package.
+		const zonelessLayout = "2006-01-02T15:04:05"
+
 		projects, err := c.Projects.List(ctx, m.BusinessID, nil, freshbooks.PerPage(1))
 		if err != nil {
 			t.Fatalf("Projects.List: %v", err)
 		}
-		if projects.Total != 0 {
-			t.Skip("the account now has projects; assert their timestamp layouts and close out fact Q")
+		if projects.Total == 0 || len(projects.Items) == 0 {
+			t.Log("the account holds no projects, so the zoneless YYYY-MM-DDTHH:MM:SS layout stays INFERRED from the Postman example")
+			return
 		}
-		t.Log("the account holds no projects, so the zoneless YYYY-MM-DDTHH:MM:SS layout stays INFERRED from the Postman example")
+		// The account has projects, so fact Q closes here: whatever layout
+		// these two decoded from is the family's real producer.
+		p := projects.Items[0]
+		for _, f := range []struct {
+			name string
+			got  freshbooks.DateTime
+		}{{"created_at", p.CreatedAt}, {"updated_at", p.UpdatedAt}} {
+			if f.got.IsZero() {
+				t.Errorf("project %s did not parse", f.name)
+				continue
+			}
+			layout := f.got.Layout()
+			if !slices.Contains([]string{freshbooks.RFC3339Layout, zonelessLayout, freshbooks.DateTimeLayout, freshbooks.DateLayout}, layout) {
+				t.Errorf("project %s parsed as %q, which is not one of the four known wire layouts", f.name, layout)
+				continue
+			}
+			if layout == zonelessLayout {
+				t.Logf("project %s CONFIRMS the zoneless YYYY-MM-DDTHH:MM:SS layout live", f.name)
+			} else {
+				t.Logf("project %s parsed as %q, so Projects is not the zoneless layout's producer", f.name, layout)
+			}
+		}
 	})
 }

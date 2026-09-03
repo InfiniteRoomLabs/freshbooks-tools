@@ -40,7 +40,7 @@ Fix: "the 43 grantable user:* scopes this toolset's endpoints use (each must be 
 
 ### R6 -- ADVISORY (hand to the security lane) -- `jea_id`/`jesa_id` in the ledger capture look live, not synthetic
 
-`freshbooks/testdata/seed/ledger_accounts/list.json`: `jea_id` 4550415 / 4550417 and `jesa_id` 12108003 / 12108005 / 12108007 / 12108015. Every other id in the nine new captures follows the synthetic pattern (`ACM123`, `8675309`, `70001..70011`, zero-filled UUIDs, `acct_0000...`); these six do not. They are internal journal-entry-account row ids, so the exposure is low, and `redaction-check.sh` only knows the configured term list, which would not catch them. Flagging because I tripped over it; the security lane owns the call.
+`freshbooks/testdata/seed/ledger_accounts/list.json`: `jea_id` (two 7-digit values) and `jesa_id` (four 8-digit values) -- the literals are redacted from this report because quoting them here republished exactly what the finding is about; the security lane's A1 carries the shape evidence. Every other id in the nine new captures follows the synthetic pattern (`ACM123`, `8675309`, `70001..70011`, zero-filled UUIDs, `acct_0000...`); these six do not. They are internal journal-entry-account row ids, so the exposure is low, and `redaction-check.sh` only knows the configured term list, which would not catch them. Flagging because I tripped over it; the security lane owns the call.
 
 Fix if the security lane agrees: replace with a monotonic synthetic series (e.g. `700201..`) in the same commit that touches the capture, and re-run `scripts/redaction-check.sh`.
 

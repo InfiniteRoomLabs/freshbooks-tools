@@ -315,6 +315,19 @@ func TestExpensesVendors(t *testing.T) {
 		if len(vendors) != 0 {
 			t.Fatalf("vendors = %v", vendors)
 		}
+		// Non-nil: the MCP tool and the CLI command marshal this value
+		// directly, and a nil slice would put null on the wire where the
+		// pre-Phase-7 decode of "vendors": [] produced [].
+		if vendors == nil {
+			t.Fatal("vendors = nil, want an empty non-nil slice")
+		}
+		encoded, err := json.Marshal(vendors)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(encoded) != "[]" {
+			t.Fatalf("json.Marshal(vendors) = %s, want []", encoded)
+		}
 		if calls != 1 {
 			t.Fatalf("calls = %d, want 1", calls)
 		}

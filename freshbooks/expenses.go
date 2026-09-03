@@ -352,7 +352,10 @@ func (s *ExpensesService) Vendors(ctx context.Context, acct AccountID) ([]string
 	if err != nil {
 		return nil, err
 	}
-	var vendors []string
+	// Non-nil so an account with no vendors encodes as [] rather than
+	// null: the MCP tool and the CLI command both json.Marshal this
+	// return value straight onto the wire.
+	vendors := []string{}
 	for page := 1; ; page++ {
 		var env expenseVendorsEnvelope
 		if err := s.client.do(ctx, http.MethodGet, path, FamilyAccounting, nil, &env, PageNumber(page)); err != nil {
