@@ -10,9 +10,9 @@ This is a Go workspace (`go.work`) with three independently versioned, independe
 
 | Module | Path | Binary/import | Status |
 |---|---|---|---|
-| Library | `freshbooks/` | `github.com/InfiniteRoomLabs/freshbooks-tools/freshbooks` | `freshbooks/v0.1.0` |
-| MCP server | `mcp/` | `freshbooks-mcp` | `mcp/v0.1.0` |
-| CLI | `cli/` | `freshbooks` | `cli/v0.1.0` |
+| Library | `freshbooks/` | `github.com/InfiniteRoomLabs/freshbooks-tools/freshbooks` | `freshbooks/v0.2.0` |
+| MCP server | `mcp/` | `freshbooks-mcp` | `mcp/v0.1.1` |
+| CLI | `cli/` | `freshbooks` | `cli/v0.1.1` |
 
 API reference for the library: [pkg.go.dev/github.com/InfiniteRoomLabs/freshbooks-tools/freshbooks](https://pkg.go.dev/github.com/InfiniteRoomLabs/freshbooks-tools/freshbooks).
 
