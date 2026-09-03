@@ -11,8 +11,13 @@ package freshbooks_test
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/url"
 	"slices"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -221,4 +226,92 @@ func TestLiveStaffFields(t *testing.T) {
 		}
 	}
 	t.Logf("decoded %d business-group member(s)", len(members))
+}
+
+// TestLiveBusinessFilterEncoding is fact B: the business-scoped family
+// spells filters as bare field=value, and the accounting family's
+// search[field]=value spelling is silently ignored there, not rejected.
+//
+// The account carries no time entries, so a filter cannot be proved by
+// counting results. It is proved by the validator instead: a bare
+// updated_since the server cannot parse comes back 422 naming the field,
+// while the same bad value under search[updated_since] comes back 200 --
+// which can only happen if the server never saw it.
+func TestLiveBusinessFilterEncoding(t *testing.T) {
+	c := liveClient(t)
+	ctx, cancel := liveCtx(t)
+	defer cancel()
+	m := liveScope(t, c, ctx)
+
+	t.Run("bare field=value reaches the server's validator", func(t *testing.T) {
+		opts := &freshbooks.TimeEntryListOptions{Search: freshbooks.Search{"updated_since": "notadate"}}
+		_, err := c.TimeEntries.List(ctx, m.BusinessID, opts)
+		if err == nil {
+			t.Fatal("an unparseable updated_since was accepted; the filter never reached the server")
+		}
+		if !strings.Contains(err.Error(), "updated_since") {
+			t.Errorf("the 422 does not name the field: %v", err)
+		}
+	})
+
+	t.Run("the accounting search[field] spelling is ignored here", func(t *testing.T) {
+		path := fmt.Sprintf("/timetracking/business/%d/time_entries?search[updated_since]=notadate", m.BusinessID)
+		var out json.RawMessage
+		if err := c.Do(ctx, http.MethodGet, path, nil, &out); err != nil {
+			t.Fatalf("the bracket spelling was rejected rather than ignored: %v", err)
+		}
+	})
+
+	t.Run("a well-formed bare filter is accepted", func(t *testing.T) {
+		opts := &freshbooks.TimeEntryListOptions{
+			Search: freshbooks.Search{"updated_since": time.Now().Add(-24 * time.Hour).UTC().Format(freshbooks.RFC3339Layout)},
+		}
+		if _, err := c.TimeEntries.List(ctx, m.BusinessID, opts); err != nil {
+			t.Fatalf("TimeEntries.List with updated_since: %v", err)
+		}
+	})
+}
+
+// TestLiveBusinessSortEcho is fact C and fact O together.
+//
+// C (sort direction) is NOT resolved by this test, and the negative result
+// is the finding: the API accepts both the documented "-field" spelling and
+// the library's "field_desc" spelling with 200, and echoes back verbatim
+// whatever it was given -- including a field name that does not exist. It
+// validates nothing, so no probe distinguishes the two spellings on an
+// account with zero projects. Sort() is left as it is until an account with
+// projects can compare orderings.
+//
+// O (PageMeta dropping meta.sort) IS resolved: the block is there and the
+// library now surfaces it.
+func TestLiveBusinessSortEcho(t *testing.T) {
+	c := liveClient(t)
+	ctx, cancel := liveCtx(t)
+	defer cancel()
+	m := liveScope(t, c, ctx)
+
+	for _, sort := range []string{"-updated_at", "updated_at_desc", "no_such_field_desc"} {
+		path := fmt.Sprintf("/projects/business/%d/projects?per_page=3&sort=%s", m.BusinessID, url.QueryEscape(sort))
+		var out struct {
+			Meta struct {
+				Sort []string `json:"sort"`
+			} `json:"meta"`
+		}
+		if err := c.Do(ctx, http.MethodGet, path, nil, &out); err != nil {
+			t.Fatalf("sort=%s was rejected: %v", sort, err)
+		}
+		if len(out.Meta.Sort) != 1 || out.Meta.Sort[0] != sort {
+			t.Errorf("sort=%s echoed back as %v; the echo is meant to be verbatim", sort, out.Meta.Sort)
+		}
+	}
+
+	// Fact O: the typed list surfaces meta.sort instead of dropping it.
+	page, err := c.Projects.List(ctx, m.BusinessID, nil, freshbooks.Sort("updated_at", freshbooks.SortDesc))
+	if err != nil {
+		t.Fatalf("Projects.List: %v", err)
+	}
+	if len(page.Sort) == 0 {
+		t.Fatal("Page.Sort is empty; the business family's meta.sort is being dropped again")
+	}
+	t.Logf("the server echoed sort=%v for the library's Sort() encoding", page.Sort)
 }

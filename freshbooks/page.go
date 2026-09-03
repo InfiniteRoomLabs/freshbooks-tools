@@ -20,6 +20,15 @@ type Page[T any] struct {
 	PerPage int `json:"per_page"`
 	// Total is the total number of matching resources.
 	Total int `json:"total"`
+	// Sort is the sort the server reports it applied, echoed back from the
+	// request's "sort" parameter. Only the business-scoped family sends it
+	// (in meta.sort), so it is nil for every accounting-family list.
+	//
+	// It is an echo, not a validation: the API repeats whatever it was
+	// given, including a field that does not exist, and answers 200 either
+	// way (CONFIRMED live, 2026-09-03). Read it to see what was asked for,
+	// never as proof the sort was understood.
+	Sort []string `json:"sort,omitempty"`
 }
 
 // PageMeta is the pagination block both families return, ready to embed in a
@@ -29,6 +38,9 @@ type PageMeta struct {
 	Pages   int `json:"pages"`
 	PerPage int `json:"per_page"`
 	Total   int `json:"total"`
+	// Sort is the business-scoped family's meta.sort echo; see Page.Sort.
+	// The accounting family does not send it, so it stays nil there.
+	Sort []string `json:"sort,omitempty"`
 }
 
 // listOpts is the option plumbing every resource's list-options struct
@@ -67,7 +79,7 @@ func pageSize(perPage int) int {
 // PageMeta for the accounting family, a "meta" object for the business
 // family).
 func newPage[T any](items []T, m PageMeta) *Page[T] {
-	return &Page[T]{Items: items, Page: m.Page, Pages: m.Pages, PerPage: m.PerPage, Total: m.Total}
+	return &Page[T]{Items: items, Page: m.Page, Pages: m.Pages, PerPage: m.PerPage, Total: m.Total, Sort: m.Sort}
 }
 
 // All walks every page of a list endpoint and yields each item in order. It
