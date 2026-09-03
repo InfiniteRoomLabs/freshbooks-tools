@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- `ExpensesService.Vendors` decoded the wrong shape and could not return anything. Phase 2 inferred a bare string array under `"vendors"` (the Postman collection carries no example response); the live endpoint answers the ordinary paginated accounting result with each entry as a one-key object -- `{"page", "pages", "per_page", "total", "vendors": [{"vendor": "..."}]}` -- and applies a default page size of 15. Vendors now decodes that shape and walks every page before returning the flattened `[]string` its signature promises, rather than silently returning the first 15 (CONFIRMED live, 2026-09-03).
+
 ## [0.1.0] - 2026-09-02
 
 ### Added

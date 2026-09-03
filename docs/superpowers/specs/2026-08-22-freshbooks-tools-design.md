@@ -96,6 +96,11 @@ Verified 2026-08-22 against https://www.freshbooks.com/api/authentication, the P
 >
 > Two evidence conflicts inside this same batch were resolved in opposite directions, each for a stated reason: `TaxCreateRequest.Amount` follows the Postman example (`"amount": 13`, unquoted) over the docs, matching the retainer-fee precedent from batch a where a live-observed write shape wins; `ExpenseWriteRequest.TaxPercent1`/`TaxPercent2`/`MarkupPercent` follow the FreshBooks docs field table (`string`) over the Postman example's unquoted number, because the read model already types the same fields `string` in every captured response -- Postman's create-request example is the outlier there, not the response shape.
 
+> **STATE AS OF 2026-09-03 (Phase 7, live):** two of batch b's INFERRED shapes above are now resolved against a real account (read-only; the write rows G, H, I, J2 stay DEFERRED because the authorized account is production books, not a sandbox).
+>
+> - **`Expenses/Expense Vendors` is CORRECTED.** It does not answer a bare string array. The live payload is the ordinary paginated accounting result -- `{"page", "pages", "per_page", "total", "vendors": [{"vendor": "<name>"}]}` -- so each entry is a one-key object, and the server applies a default page size of 15. The Phase 2 struct (`Vendors []string`) decoded to an error, not to a short list, so this was a hard break rather than silent truncation. `ExpensesService.Vendors` now decodes the object form and walks every page before returning the flattened `[]string` its signature promises. Capture: `freshbooks/testdata/seed/expenses/vendors.json`; live test `TestLiveExpenseVendors`.
+> - **`Expenses/Delete Expense` (`vis_state`), `Expenses/Create Custom Expense Category`, and `Clients/Edit Secondary Contact ID` remain unconfirmed.** All three need a write against the account; Phase 7's authorized account is IRL's real books with no sandbox available, so they were not attempted. See `docs/phases/7/reports/lead-sandbox.md`.
+
 Anything above marked as inferred from examples must be confirmed against the live API during phase 1 and recorded with a `STATE AS OF` callout if wrong (section 9.6).
 
 ## 4. Repository layout

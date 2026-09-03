@@ -274,6 +274,61 @@ func TestExpensesVendors(t *testing.T) {
 			t.Fatalf("vendors = %v", vendors)
 		}
 	})
+
+	t.Run("[edge] walks every page of the paginated vendor list", func(t *testing.T) {
+		// Phase 7 (live): the endpoint paginates at 15 per page, so a
+		// single-request implementation truncates silently.
+		var pages []string
+		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			page := r.URL.Query().Get("page")
+			pages = append(pages, page)
+			w.Header().Set("Content-Type", "application/json")
+			body := `{"response":{"result":{"page":1,"pages":2,"per_page":1,"total":2,"vendors":[{"vendor":"First Vendor"}]}}}`
+			if page == "2" {
+				body = `{"response":{"result":{"page":2,"pages":2,"per_page":1,"total":2,"vendors":[{"vendor":"Second Vendor"}]}}}`
+			}
+			_, _ = w.Write([]byte(body))
+		}))
+		vendors, err := c.Expenses.Vendors(ctx, acct)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(vendors) != 2 || vendors[0] != "First Vendor" || vendors[1] != "Second Vendor" {
+			t.Fatalf("vendors = %v", vendors)
+		}
+		if len(pages) != 2 || pages[0] != "1" || pages[1] != "2" {
+			t.Fatalf("requested pages = %v", pages)
+		}
+	})
+
+	t.Run("[edge] stops on an empty page rather than looping forever", func(t *testing.T) {
+		calls := 0
+		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			calls++
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"response":{"result":{"page":1,"pages":9,"per_page":15,"total":0,"vendors":[]}}}`))
+		}))
+		vendors, err := c.Expenses.Vendors(ctx, acct)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(vendors) != 0 {
+			t.Fatalf("vendors = %v", vendors)
+		}
+		if calls != 1 {
+			t.Fatalf("calls = %d, want 1", calls)
+		}
+	})
+
+	t.Run("[sad] surfaces the transport error", func(t *testing.T) {
+		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = w.Write([]byte(`{"error":"unauthenticated"}`))
+		}))
+		if _, err := c.Expenses.Vendors(ctx, acct); !errors.Is(err, ErrUnauthorized) {
+			t.Fatalf("err = %v", err)
+		}
+	})
 }
 
 func TestExpensesCreateRecurring(t *testing.T) {
