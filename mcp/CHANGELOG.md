@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-09-03
+
+### Changed
+
+- Requires `freshbooks` v0.3.0: expense and ledger-account results carry the seventeen newly modelled keys; the new `time_entries_list_with_totals` tool (see Added) returns the page plus the account's `total_logged`/`total_unbilled` totals.
+
 ### Added
 
 - `time_entries_list_with_totals`: a 169th tool wrapping the new `freshbooks` `TimeEntriesService.ListWithTotals`, over the same wire endpoint as `time_entries_list` -- keyless, like `identity_whoami`, since it carries no inventory key of its own.

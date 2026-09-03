@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-09-03
+
+### Changed
+
+- Requires `freshbooks` v0.3.0: `expenses list|get` and `ledger-accounts` output carry the seventeen newly modelled keys; the new `time-entries list-with-totals` command (see Added) returns the page plus the totals in `-o json`/`-o yaml`.
+
 ### Added
 
 - `time-entries list-with-totals`: a 169th registry command wrapping the new `freshbooks` `TimeEntriesService.ListWithTotals`, over the same wire endpoint as `time-entries list` -- keyless, like `identity whoami`, since it carries no inventory key of its own. The totals reach the caller through `-o json` and `-o yaml`; `-o table` and `-o name` render the entries, as they do for `time-entries list`, and the command's help says so.

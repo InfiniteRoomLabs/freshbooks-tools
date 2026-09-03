@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `freshbooks-mcp` and the `freshbooks` CLI cut to 0.1.2 on `freshbooks` v0.3.0 (released as `freshbooks/v0.3.0`), ahead of the `mcp/v0.1.2` and `cli/v0.1.2` tags.
 - `freshbooks` v0.3.0 cut (additive: `TimeEntries.ListWithTotals`, the 17 modelled `Expense`/`LedgerAccount` keys), ahead of the `freshbooks/v0.3.0` tag.
 - Phase 8 (convergence) implemented: `TimeEntriesService.ListWithTotals` surfaces the time-entry `meta` totals `List` was dropping (`docs/progress.md` backlog item 12), and `Expense`/`LedgerAccount` gain the 17 wire keys QA Q3 found unmodelled (backlog item 14) -- see `freshbooks/CHANGELOG.md` for the field list. Both MCP and CLI gain a matching keyless tool/command (`time_entries_list_with_totals`, `time-entries list-with-totals`), 168 -> 169 throughout their frozen tool/command surfaces (see `mcp/CHANGELOG.md`, `cli/CHANGELOG.md`).
 - `freshbooks-mcp` and the `freshbooks` CLI cut to 0.1.1 on `freshbooks` v0.2.0 (released as `freshbooks/v0.2.0`), ahead of the `mcp/v0.1.1` and `cli/v0.1.1` tags. README Status column and `docs/progress.md` now point at the new releases; `GOAL.md` retargeted to Phase 8.
