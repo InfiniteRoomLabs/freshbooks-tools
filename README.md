@@ -62,4 +62,4 @@ go get github.com/InfiniteRoomLabs/freshbooks-tools/freshbooks
 - The gate: `mise run check` (or `mise run check -- <module>` for one module). See `docs/building.md` for what it runs.
 - Commits: [Conventional Commits](https://www.conventionalcommits.org/), imperative mood, scoped (`feat(freshbooks): ...`, `feat(mcp): ...`, `feat(cli): ...`, `chore(ci): ...`, `docs: ...`).
 - If you use Claude Code, install the [agent-ops marketplace](https://github.com/InfiniteRoomLabs/agent-ops) (`/plugin marketplace add InfiniteRoomLabs/agent-ops`) -- it provides the changelog guard that keeps each module's `CHANGELOG.md` honest.
-- `scripts/redaction-check.sh` (a pre-commit hygiene check) is optional for outside contributors; it no-ops if the internal term list it looks for isn't present.
+- `scripts/redaction-check.sh` (a pre-commit hygiene check) needs `usage` on your PATH -- it is the script's interpreter, so run `mise install` first -- and is otherwise optional for outside contributors: it no-ops if the internal term list it looks for isn't present. Its own regression test, `scripts/redaction-selftest.sh`, runs in the gate and needs neither.

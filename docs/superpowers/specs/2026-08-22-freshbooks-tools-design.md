@@ -354,7 +354,7 @@ Conventional commits, imperative, scoped (`feat(freshbooks): ...`, `feat(mcp): .
 
 ## 10. Public-repo hygiene
 
-No operator-specific strings in any commit: no vault item names, internal IPs/domains, real account/business IDs, personal correspondents. Fixture IDs are synthetic. `scripts/redaction-check.sh` greps staged content against the agent-ops redaction term list before commits (documented; also run in CI).
+No operator-specific strings in any commit: no vault item names, internal IPs/domains, real account/business IDs, personal correspondents. Fixture IDs are synthetic. `scripts/redaction-check.sh` greps staged content against the agent-ops redaction term list before commits; its self-test runs in the gate, and the check itself is run by the lead before each commit and by the gate lanes with `--range`.
 
 ## 11. Future work (not in scope)
 

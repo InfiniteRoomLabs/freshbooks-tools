@@ -1,5 +1,5 @@
 #!/usr/bin/env -S usage bash
-#USAGE arg "<subcommand>" help="fmt-check|vet|lint|test|cover|vuln|inventory-check|actionlint|build|docs|all"
+#USAGE arg "<subcommand>" help="fmt-check|vet|lint|test|cover|vuln|inventory-check|actionlint|redaction-selftest|build|docs|all"
 #USAGE arg "[modules]" var=#true help="Modules to check (default: freshbooks mcp cli)"
 
 set -euo pipefail
@@ -75,6 +75,13 @@ run_actionlint() {
   actionlint "$repo_root"/.github/workflows/*.yml
 }
 
+# Repo-wide, like actionlint: the redaction check is a security control, so
+# its own regression test runs once per gate (Phase 8 security A1/A9).
+run_redaction_selftest() {
+  echo "== redaction-selftest =="
+  "$repo_root/scripts/redaction-selftest.sh"
+}
+
 run_build() {
   echo "== build =="
   local buildable=()
@@ -117,6 +124,7 @@ steps=(fmt-check vet lint test cover vuln inventory-check)
 
 case "$usage_subcommand" in
 actionlint) run_actionlint ;;
+redaction-selftest) run_redaction_selftest ;;
 build) run_build ;;
 docs) run_docs ;;
 all)
@@ -126,6 +134,7 @@ all)
     done
   done
   run_actionlint
+  run_redaction_selftest
   run_build
   ;;
 fmt-check | vet | lint | test | cover | vuln | inventory-check)
