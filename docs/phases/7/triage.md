@@ -31,3 +31,10 @@ Inputs: `docs/phases/7/reports/{implementer,code-review,simplify,security}.md`. 
 ## Lane-vs-lane
 
 R6 (code review) and A1 (security) are the same finding, found independently. The dates disagreement (R4) is real: the first implementer run captured vendors and gateways on 2026-09-02, the resumed run wrote the callouts on 2026-09-03.
+
+## QA round (2026-09-03): PASS, four advisories
+
+- **Q1** (the six former row ids remain in three branch commits and the merge publishes them): **no scrub, decided knowingly.** They are internal journal-entry-account row ids of IRL's own ledger, not account/business ids, not credentials, and unusable without an authenticated session; the security lane reached the same call. Recorded in the merge commit body.
+- **Q2** (spec fact-Q understated `clients[].signup_date`): fixed in the QA-report commit -- the row now names the Phase 1 capture.
+- **Q3** (14 + 3 unmodelled wire keys on `Expense`/`LedgerAccount`): `docs/progress.md` backlog item 14.
+- **Q4** (the 6+-digit sweep still trips on three Phase 1 placeholders): the next gate prompt's exclusion pattern adds `999999999|5550100100|1111111`; no file change.
