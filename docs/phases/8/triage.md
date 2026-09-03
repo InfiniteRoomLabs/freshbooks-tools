@@ -40,3 +40,12 @@ Checkpoints: F1-F8 (script + docs), F9-F11 (wire tag + user-facing docs), F12-F1
 ## Lane-vs-lane
 
 R2 and S12 (untagged `Totals`) and R9 and S12 (table mode drops totals) converged independently. A1 and S6 point at the same line from opposite directions: the simplification (one extractor) is the security fix.
+
+## QA round (2026-09-03): NEEDS WORK -> fixed by the lead
+
+- **Q1** (BLOCKING, docs only): the six time-entry rows in `docs/phases/3/tools.md` were off by four after F13 moved the functions again; **Q2** the six expense rows drifted when D2 grew `Expense`. All twelve recomputed from the `func` declaration lines in the QA-report commit; verified programmatically that every corrected row points at its `func` line.
+- **Q3** (add a line-reference assertion to the parity parser): `docs/progress.md` backlog item 17; would have caught Q1/Q2 and the pre-existing drift on other rows.
+- **Q4** (F21's baseline skip hides a numeric leak once it reaches HEAD): accepted; the term scan is not baselined, the range mode is not baselined, and the pre-commit control's job is new content. Recorded in the script header.
+- **Q5** (`AccountName`/`BankName` asserted nowhere): backlog item 17 companion; the capture has them empty.
+- **Q6** (term findings carry no line number): backlog item 17.
+- **Q7** (`-o table` for list-with-totals unproven with real rows): the account has no time entries; F10 documented the limitation.
