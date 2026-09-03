@@ -35,7 +35,20 @@ Each step is also its own task (`mise run fmt-check`, `mise run vet`, `mise run 
 
 ## Release flow
 
-Each module tags and releases independently: `freshbooks/vX.Y.Z`, `mcp/vX.Y.Z`, `cli/vX.Y.Z`. Pushing a matching tag runs `.github/workflows/release.yml`:
+`mise run release -- <subcommand> [args] [flags]` (`scripts/release.sh`) automates the release sequence -- v0.1.0 through v0.3.0/0.1.2 were all done by hand, one `git`/`gh` command at a time; this runs the same sequence. Subcommands:
+
+| Subcommand | Does |
+|---|---|
+| `preflight` | main branch, clean tree, `gh auth status` scopes, `main`'s CI is green, toolchain resolvable, and prints (never applies) the tag-ruleset `gh api` call |
+| `cut <module> <version>` | for `freshbooks`: changelog cut, commit, push, CI watch, tag, tag push, Release watch, verify. For `mcp`/`cli`: tag, tag push, Release watch, verify (run `bump` first so the module's own changelog/go.mod are already committed) |
+| `bump <lib-version> [--binary-version A.B.C]` | in `mcp/` and `cli/`: `go get`+`go mod tidy` against the new `freshbooks` tag, a `### Changed` changelog line, the changelog cut, `fmt-check`/`vet`/`lint`/`test`/`cover`, one shared commit, push, CI watch |
+| `verify <tag>` | release view (not draft, named, asset count), and for `mcp`/`cli` the download+checksum+extract+run, `go install`+run, cli-only `md2man`/`blackfriday` absence check, and a dogfood copy into `$RELEASE_LOCAL_BIN` (default `~/.local/bin`) |
+| `docs` | rewrites the README Status column from `git tag --list '<module>/v*'` |
+| `all <lib-version> [--binary-version A.B.C]` | preflight -> cut freshbooks -> bump -> cut mcp -> cut cli -> docs -> a `docs: ship vX.Y.Z` commit |
+
+`--dry-run` performs zero writes (no git/gh mutation, no changelog edit, no dogfood copy) and echoes every command it would have run as `dry-run: <command>`; `--yes` skips the TTY confirmation before the first push; `--version auto` (on `cut`/`all`) derives the bump kind from the module's own `[Unreleased]` section (`**Breaking:**`/`### Changed` -> minor while `0.x`, `### Added` -> minor, only `### Fixed` -> patch) and prints the proposal before accepting it. Every mutating step checks its own postcondition first and prints `SKIP` when it is already done, so re-running `all`/`cut`/`bump` after a partial failure is safe -- verification itself never skips. Output is one `release: OK/SKIP/FAIL <step>` line per step; the script never reads `FRESHBOOKS_*`/`GITHUB_TOKEN` and never touches branch protection or tag rulesets. `scripts/release-selftest.sh` (`mise run release-selftest`, also wired into the gate) is its regression test, run entirely against scratch repos and fake `gh`/`go`.
+
+Each module tags and releases independently: `freshbooks/vX.Y.Z`, `mcp/vX.Y.Z`, `cli/vX.Y.Z`. Pushing a matching tag (which `release.sh cut` does) runs `.github/workflows/release.yml`:
 
 1. **guard** -- parses the module and version out of the tag, rejects anything that isn't strict semver, confirms the tag commit is an ancestor of `origin/main`, and fails fast if the module's `## [X.Y.Z]` changelog section (`scripts/changelog-section.sh`) doesn't exist.
 2. **ci** -- re-runs the full CI workflow via `workflow_call`; a red gate blocks the release.
