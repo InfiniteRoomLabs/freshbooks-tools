@@ -53,3 +53,7 @@ run = "scripts/docs.sh"
 [tasks.check]
 description = "Full gate: fmt-check, vet, lint, test, cover, inventory-check, actionlint, redaction-selftest, build, then a dirty-tree banner"
 run = "scripts/check.sh all"
+
+[tasks.release]
+description = "Release automation: preflight, cut, bump, verify, docs, all (see docs/building.md)"
+run = "scripts/release.sh"
