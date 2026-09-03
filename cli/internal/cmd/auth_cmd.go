@@ -144,7 +144,7 @@ func newAuthLoginCmd(state *runtimeState) *cobra.Command {
 		},
 	}
 	clientID, clientSecret = clientCredentialsFlags(cc)
-	cc.Flags().StringArrayVar(&scopes, "scopes", nil, "OAuth scopes to request (default: the 43 user:* scopes the developer portal offers; each must be enabled on the app)")
+	cc.Flags().StringArrayVar(&scopes, "scopes", nil, "OAuth scopes to request (default: the 43 grantable user:* scopes this toolset's endpoints use; each must be enabled on the app)")
 	cc.Flags().IntVar(&port, "callback-port", cliauth.DefaultPort, "loopback port for the browser callback")
 	cc.Flags().BoolVar(&noBrowser, "no-browser", false, "print the URL and read the redirect (or a bare code) from stdin instead of opening a browser")
 	// Q12 (Phase 4 QA): named "login-timeout", not "timeout", so it cannot

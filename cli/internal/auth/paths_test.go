@@ -106,7 +106,7 @@ func TestCredentialsDir(t *testing.T) {
 }
 
 func TestDefaultScopes(t *testing.T) {
-	t.Run("[happy] is pinned at 43 -- every scope the developer portal offers", func(t *testing.T) {
+	t.Run("[happy] is pinned at 43 -- the grantable user:* scopes this toolset's endpoints use", func(t *testing.T) {
 		// Q4 (Phase 4 QA): len(DefaultScopes) != len(objects)*2+... is
 		// mutation-blind -- emptying the object lists leaves both sides
 		// at 0. A literal 43 (and the hard-coded scope strings below)
