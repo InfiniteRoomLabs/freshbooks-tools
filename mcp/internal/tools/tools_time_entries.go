@@ -70,4 +70,15 @@ var timeEntriesSpecs = []Spec{
 		func(ctx context.Context, c *freshbooks.Client, scope Scope, in timeEntriesIDIn) (any, error) {
 			return void(c.TimeEntries.Delete(ctx, scope.BusinessID, in.ID))
 		}),
+	// time_entries_list_with_totals wraps ListWithTotals (Phase 8
+	// convergence), not a distinct Postman request -- same endpoint as
+	// time_entries_list, decoded for its totals too. Keyless, like
+	// identity_whoami: it carries no inventory key of its own.
+	newSpec("time_entries_list_with_totals",
+		"List a business's time entries along with the business-wide logged/unbilled totals FreshBooks reports alongside them. See https://www.freshbooks.com/api/time_tracking.",
+		"TimeEntries", "ListWithTotals",
+		nil, hintRO,
+		func(ctx context.Context, c *freshbooks.Client, scope Scope, in timeEntriesListIn) (any, error) {
+			return c.TimeEntries.ListWithTotals(ctx, scope.BusinessID, in.reqOpts()...)
+		}),
 }

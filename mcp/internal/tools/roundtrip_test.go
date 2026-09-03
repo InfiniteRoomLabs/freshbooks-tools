@@ -38,7 +38,7 @@ func primaryType(s *jsonschema.Schema) string {
 // synth builds the smallest value that satisfies schema's *required*
 // properties, recursively -- never an optional (omitempty) one, so every
 // scope field is left for Register's defaults to supply. It is deliberately
-// generic: it drives every one of the 168 tools' round trips without a
+// generic: it drives every one of the 169 tools' round trips without a
 // bespoke payload per tool.
 func synth(s *jsonschema.Schema) any {
 	if s == nil {
@@ -545,8 +545,8 @@ func TestRoundTrip(t *testing.T) {
 	clientSession := newTestSession(t, upstream, testScope, nil)
 	ctx := context.Background()
 
-	if len(All) != 168 {
-		t.Fatalf("registry has %d tools, want 168", len(All))
+	if len(All) != wantRegistrySize {
+		t.Fatalf("registry has %d tools, want %d", len(All), wantRegistrySize)
 	}
 
 	for _, spec := range All {

@@ -68,4 +68,18 @@ var timeEntriesCommands = []Command{
 			return void(c.TimeEntries.Delete(ctx, inv.Scope.BusinessID, inv.IntID()))
 		},
 	},
+	{
+		// Wraps ListWithTotals (Phase 8 convergence), the same wire
+		// endpoint as "list" above, decoded for its business-wide
+		// logged/unbilled totals too -- not a distinct Postman request, so
+		// it carries no inventory key of its own (mirrors
+		// time_entries_list_with_totals in mcp/internal/tools).
+		Group: "time-entries", Verb: "list-with-totals",
+		Short:   "List time entries with logged/unbilled totals (totals in -o json or -o yaml only; table mode shows the entries)",
+		Service: "TimeEntries", Method: "ListWithTotals",
+		Class: ClassRO, Scope: ScopeBusiness, List: true, HasSort: true,
+		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {
+			return c.TimeEntries.ListWithTotals(ctx, inv.Scope.BusinessID, inv.ReqOpts()...)
+		},
+	},
 }

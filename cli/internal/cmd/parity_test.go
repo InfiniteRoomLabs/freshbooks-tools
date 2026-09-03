@@ -13,11 +13,17 @@ import (
 )
 
 // commandsMDPath is docs/phases/4/commands.md relative to this package:
-// the definitive, frozen 168-row command surface this registry must
+// the definitive, frozen 169-row command surface this registry must
 // implement exactly in name, lib method, and inventory keys (the flags
 // column is a heuristic the lib signature is allowed to override -- see
 // the implementer report for every row where it does).
 const commandsMDPath = "../../../docs/phases/4/commands.md"
+
+// wantRegistrySize is the frozen command surface commands.md
+// documents, and the one number to bump when a lib method is added:
+// every other size assertion in this module derives from it or from
+// len(All).
+const wantRegistrySize = 169
 
 type mdRow struct {
 	command string // "freshbooks <group> <verb>"
@@ -62,8 +68,8 @@ func parseCommandsMD(t *testing.T) []mdRow {
 	if err := scanner.Err(); err != nil {
 		t.Fatalf("reading %s: %v", commandsMDPath, err)
 	}
-	if len(rows) != 168 {
-		t.Fatalf("parsed %d rows from %s, want 168", len(rows), commandsMDPath)
+	if len(rows) != wantRegistrySize {
+		t.Fatalf("parsed %d rows from %s, want %d", len(rows), commandsMDPath, wantRegistrySize)
 	}
 	return rows
 }
@@ -178,10 +184,21 @@ func TestParityAgainstClient(t *testing.T) {
 // method, so it is never a registry command.
 const authOwnedKey = "Authorization/Revoke Refresh Token"
 
+// keylessCommands are the "group verb" paths allowed to carry no
+// inventory key: "identity whoami" (a lib convenience over GET
+// /auth/api/v1/users/me) and "time-entries list-with-totals" (Phase 8
+// convergence -- the same Postman-backed endpoint as "time-entries list",
+// which already carries the three inventory keys; a second command over
+// the same wire request must not double-claim them).
+var keylessCommands = map[string]bool{
+	"identity whoami":               true,
+	"time-entries list-with-totals": true,
+}
+
 // TestParityKeyCoverage asserts the union of every command's inventory
 // keys is exactly the 212 command-carried keys commands.md documents,
-// each on exactly one command, and that only identity_whoami carries
-// none.
+// each on exactly one command, and that only a keylessCommands entry
+// carries none.
 func TestParityKeyCoverage(t *testing.T) {
 	rows := parseCommandsMD(t)
 
@@ -203,8 +220,8 @@ func TestParityKeyCoverage(t *testing.T) {
 		path := c.Group + " " + c.Verb
 		if len(c.Keys) == 0 {
 			keylessGot++
-			if path != "identity whoami" {
-				t.Errorf("%s carries no inventory key; only identity whoami should", path)
+			if !keylessCommands[path] {
+				t.Errorf("%s carries no inventory key; only %v should", path, keylessCommands)
 			}
 			continue
 		}
@@ -221,8 +238,8 @@ func TestParityKeyCoverage(t *testing.T) {
 	}
 	sort.Strings(gotKeys)
 
-	if keylessGot != 1 || keylessWant != 1 {
-		t.Errorf("keyless commands: got %d, want 1 (identity whoami)", keylessGot)
+	if keylessGot != len(keylessCommands) || keylessWant != len(keylessCommands) {
+		t.Errorf("keyless commands: got %d, want %d %v", keylessGot, len(keylessCommands), keylessCommands)
 	}
 	if len(gotKeys) != 212 {
 		t.Errorf("registry carries %d inventory keys, want 212", len(gotKeys))
@@ -233,7 +250,7 @@ func TestParityKeyCoverage(t *testing.T) {
 }
 
 // nonRegistryGroups are the cobra parent commands with subcommands of
-// their own that are NOT part of the 168-command registry (D1's
+// their own that are NOT part of the 169-command registry (D1's
 // "non-registry commands": auth, config). BuildTree only ever creates a
 // parent group for a registry entry's Command.Group, so these two names
 // can never collide with a real resource group.

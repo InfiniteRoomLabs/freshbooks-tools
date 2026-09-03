@@ -18,6 +18,11 @@ import (
 // (see docs/phases/3/plan.md, "The definitive tool surface").
 const toolsMDPath = "../../../docs/phases/3/tools.md"
 
+// wantRegistrySize is the frozen tool surface tools.md documents, and the
+// one number to bump when a lib method is added: every other size
+// assertion in this module derives from it or from len(All).
+const wantRegistrySize = 169
+
 type mdRow struct {
 	name    string
 	service string
@@ -63,8 +68,8 @@ func parseToolsMD(t *testing.T) []mdRow {
 	if err := scanner.Err(); err != nil {
 		t.Fatalf("reading %s: %v", toolsMDPath, err)
 	}
-	if len(rows) != 168 {
-		t.Fatalf("parsed %d rows from %s, want 168", len(rows), toolsMDPath)
+	if len(rows) != wantRegistrySize {
+		t.Fatalf("parsed %d rows from %s, want %d", len(rows), toolsMDPath, wantRegistrySize)
 	}
 	return rows
 }
@@ -178,9 +183,20 @@ func TestParityAgainstClient(t *testing.T) {
 // method, so it is never a tool (docs/phases/3/plan.md decision D2).
 const authOwnedKey = "Authorization/Revoke Refresh Token"
 
+// keylessTools are the tool names allowed to carry no inventory key:
+// identity_whoami (a lib convenience over GET /auth/api/v1/users/me) and
+// time_entries_list_with_totals (Phase 8 convergence -- the same
+// Postman-backed endpoint as time_entries_list, which already carries the
+// three inventory keys; a second tool over the same wire request must not
+// double-claim them).
+var keylessTools = map[string]bool{
+	"identity_whoami":               true,
+	"time_entries_list_with_totals": true,
+}
+
 // TestParityKeyCoverage asserts the union of every tool's inventory keys
 // is exactly the 212 tool-carried keys tools.md documents, each on
-// exactly one tool, and that only identity_whoami carries none.
+// exactly one tool, and that only a keylessTools entry carries none.
 func TestParityKeyCoverage(t *testing.T) {
 	rows := parseToolsMD(t)
 
@@ -201,8 +217,8 @@ func TestParityKeyCoverage(t *testing.T) {
 	for _, spec := range All {
 		if len(spec.Keys) == 0 {
 			keylessGot++
-			if spec.Name != "identity_whoami" {
-				t.Errorf("%s carries no inventory key; only identity_whoami should", spec.Name)
+			if !keylessTools[spec.Name] {
+				t.Errorf("%s carries no inventory key; only %v should", spec.Name, keylessTools)
 			}
 			continue
 		}
@@ -219,8 +235,8 @@ func TestParityKeyCoverage(t *testing.T) {
 	}
 	sort.Strings(gotKeys)
 
-	if keylessGot != 1 || keylessWant != 1 {
-		t.Errorf("keyless tools: got %d, want 1 (identity_whoami)", keylessGot)
+	if keylessGot != len(keylessTools) || keylessWant != len(keylessTools) {
+		t.Errorf("keyless tools: got %d, want %d %v", keylessGot, len(keylessTools), keylessTools)
 	}
 	if len(gotKeys) != 212 {
 		t.Errorf("registry carries %d inventory keys, want 212", len(gotKeys))

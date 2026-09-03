@@ -65,6 +65,36 @@ func TestLiveExpenseVendors(t *testing.T) {
 	t.Logf("decoded %d vendor name(s) from the paginated envelope", len(vendors))
 }
 
+// TestLiveExpenseFields is Phase 8 convergence (docs/progress.md backlog
+// item 14, QA Q3): fourteen keys on the wire had no struct tag on Expense
+// until this phase. Billable is the one a caller was most likely to have
+// missed; the rest are asserted only for a clean decode (most are null on
+// the captured account, so there is no value to compare against).
+func TestLiveExpenseFields(t *testing.T) {
+	c, ctx, m := liveSetup(t)
+
+	expenses, err := c.Expenses.List(ctx, m.AccountID, nil, freshbooks.PerPage(5))
+	if err != nil {
+		t.Fatalf("Expenses.List: %v", err)
+	}
+	if len(expenses.Items) == 0 {
+		t.Log("the authorized account has no expenses; nothing to assert about the new fields")
+		return
+	}
+	for i, e := range expenses.Items {
+		if e.AccountingSystemID == "" {
+			t.Errorf("expense %d: AccountingSystemID dropped", i)
+		}
+		// Billable, ExtInvoiceID, and ExtSystemID are always present (not
+		// null) on the capture, so a zero value here is a legitimate
+		// account state, not evidence of a decode failure -- logged, not
+		// asserted. Version is a real per-expense timestamp and the lead
+		// pastes this output into a public report, so only its presence
+		// is logged, never its value (Phase 8 security A7).
+		t.Logf("expense %d: Billable=%v ExtInvoiceID=%d ExtSystemID=%d Version set=%v", i, e.Billable, e.ExtInvoiceID, e.ExtSystemID, e.Version != "")
+	}
+}
+
 // TestLiveGateways is fact E: /payments/ was classified as the business
 // (flat, un-enveloped) family from a Postman example only. It also covers
 // the shape correction this phase found -- an account onboarded through
@@ -138,6 +168,71 @@ func TestLiveLedgerAccounts(t *testing.T) {
 			}
 		}
 		t.Logf("decoded %d ledger account(s)", len(accounts))
+	})
+
+	// Phase 8 convergence: CategoryID, JEAID, and JESAID (freshbooks:
+	// docs/progress.md backlog item 14) had no non-null evidence in the
+	// captured account. Counting non-nil pointers alone would pass on an
+	// all-null account and on a decoder that dropped every value alike
+	// (Phase 8 code review R10), so the same body is decoded raw beside
+	// the typed call and the two counts are compared: for each key, the
+	// number of non-null occurrences on the wire must equal the number of
+	// non-nil pointers the typed decode produced. That is exactly the
+	// "did not silently drop a populated value" property, and it fails if
+	// the tag is wrong. It still cannot prove the reverse -- an
+	// all-null account cannot distinguish "always null" from "this
+	// account has none set".
+	t.Run("category_id/jea_id/jesa_id decode without dropping a populated value", func(t *testing.T) {
+		accounts, err := c.LedgerAccounts.List(ctx, m.BusinessUUID)
+		if err != nil {
+			t.Fatalf("LedgerAccounts.List: %v", err)
+		}
+
+		path := "/accounting/businesses/" + string(m.BusinessUUID) + "/ledger_accounts/accounts"
+		var raw struct {
+			Data []map[string]json.RawMessage `json:"data"`
+		}
+		if err := c.Do(ctx, http.MethodGet, path, nil, &raw); err != nil {
+			t.Fatalf("raw ledger-accounts read: %v", err)
+		}
+		if len(raw.Data) != len(accounts) {
+			t.Fatalf("raw body has %d accounts, the typed call returned %d", len(raw.Data), len(accounts))
+		}
+
+		// wireCount counts the entries whose key is present and not JSON
+		// null; decodedCount counts the non-nil pointers for the same key.
+		wireCount := func(key string) int {
+			var n int
+			for _, entry := range raw.Data {
+				if v, ok := entry[key]; ok && string(v) != "null" {
+					n++
+				}
+			}
+			return n
+		}
+		decodedCount := func(pick func(freshbooks.LedgerAccount) *int64) int {
+			var n int
+			for _, a := range accounts {
+				if pick(a) != nil {
+					n++
+				}
+			}
+			return n
+		}
+		for _, tc := range []struct {
+			key  string
+			pick func(freshbooks.LedgerAccount) *int64
+		}{
+			{"category_id", func(a freshbooks.LedgerAccount) *int64 { return a.CategoryID }},
+			{"jea_id", func(a freshbooks.LedgerAccount) *int64 { return a.JEAID }},
+			{"jesa_id", func(a freshbooks.LedgerAccount) *int64 { return a.JESAID }},
+		} {
+			want, got := wireCount(tc.key), decodedCount(tc.pick)
+			if want != got {
+				t.Errorf("%s: %d non-null on the wire, %d non-nil after decode", tc.key, want, got)
+			}
+			t.Logf("%s: %d/%d accounts populated, decoded", tc.key, got, len(accounts))
+		}
 	})
 
 	t.Run("types are one-key objects", func(t *testing.T) {

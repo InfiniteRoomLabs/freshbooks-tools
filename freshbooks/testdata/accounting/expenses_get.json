@@ -35,7 +35,21 @@
         "isduplicate": true,
         "from_bulk_import": false,
         "profileid": null,
-        "vis_state": 0
+        "vis_state": 0,
+        "accounting_systemid": "ACM123",
+        "account_name": "",
+        "accountid": null,
+        "background_jobid": null,
+        "bank_name": "",
+        "bill_matches": [],
+        "billable": false,
+        "converse_projectid": null,
+        "ext_accountid": null,
+        "ext_invoiceid": 0,
+        "ext_systemid": 0,
+        "modern_projectid": null,
+        "potential_bill_payment": false,
+        "version": "2026-08-22 00:00:00.000000"
       }
     }
   }

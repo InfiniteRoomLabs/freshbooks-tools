@@ -34,6 +34,10 @@ run = "scripts/check.sh vuln"
 description = "Lint .github/workflows/*.yml"
 run = "actionlint .github/workflows/*.yml"
 
+[tasks.redaction-selftest]
+description = "Run the redaction-check.sh regression test (both modes, no network)"
+run = "scripts/redaction-selftest.sh"
+
 [tasks.inventory-check]
 description = "Run the inventory parity check against freshbooks source"
 run = "scripts/check.sh inventory-check"
@@ -47,5 +51,5 @@ description = "Regenerate docs/cli.md from the cobra command tree (cobra/doc)"
 run = "scripts/docs.sh"
 
 [tasks.check]
-description = "Full gate: fmt-check, vet, lint, test, cover, inventory-check, build, then a dirty-tree banner"
+description = "Full gate: fmt-check, vet, lint, test, cover, inventory-check, actionlint, redaction-selftest, build, then a dirty-tree banner"
 run = "scripts/check.sh all"

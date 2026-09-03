@@ -11,6 +11,9 @@
     "sub_accounts": ["34bb2ff8-8c1b-4142-a66b-b6c35b2e143a"],
     "auto_created": true,
     "state": "active",
-    "updated_at": "2022-09-22T08:47:04.668685Z"
+    "updated_at": "2022-09-22T08:47:04.668685Z",
+    "category_id": null,
+    "jea_id": 70020,
+    "jesa_id": null
   }
 }

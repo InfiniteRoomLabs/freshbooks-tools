@@ -7925,6 +7925,7 @@ Manage time-entries
 * [freshbooks time-entries create](#freshbooks-time-entries-create)	 - Create a time entry
 * [freshbooks time-entries delete](#freshbooks-time-entries-delete)	 - Delete a time entry (destructive: requires --yes on a TTY)
 * [freshbooks time-entries list](#freshbooks-time-entries-list)	 - List time entries
+* [freshbooks time-entries list-with-totals](#freshbooks-time-entries-list-with-totals)	 - List time entries with logged/unbilled totals (totals in -o json or -o yaml only; table mode shows the entries)
 * [freshbooks time-entries search](#freshbooks-time-entries-search)	 - Search time entries for an employee on a specific project
 * [freshbooks time-entries update](#freshbooks-time-entries-update)	 - Update a time entry
 
@@ -8011,6 +8012,45 @@ freshbooks time-entries list [flags]
 
 ```
   -h, --help                    help for list
+      --page int                1-based page number
+      --per-page int            page size
+      --search stringToString   filter as key=value (repeatable) (default [])
+      --sort string             sort as field[:asc|desc] (default asc; direction encoding for business-scoped resources is unconfirmed against the live API -- see docs/progress.md)
+```
+
+### Options inherited from parent commands
+
+```
+      --account string         FreshBooks account id (accounting-family scope)
+      --business string        FreshBooks business id (business-family scope)
+      --business-uuid string   FreshBooks business UUID (ledger-accounts scope)
+      --config string          path to config.yaml (default: $XDG_CONFIG_HOME/freshbooks/config.yaml, or ~/.config/freshbooks/config.yaml if $XDG_CONFIG_HOME is unset)
+      --context string         config context to use (default: config.yaml's current-context, else "default")
+      --dry-run                print the request that would be sent and send nothing
+      --log-level string       log level: debug, info, warn, or error (default warn; env twin FRESHBOOKS_LOG_LEVEL)
+      --no-headers             suppress the header row in table output
+  -o, --output string          output format: json, yaml, table, or name (default: table on a terminal, json otherwise)
+  -q, --quiet                  suppress non-result output (errors still print)
+      --timeout duration       per-request timeout (default 30s)
+      --yes                    confirm a destructive command
+```
+
+### SEE ALSO
+
+* [freshbooks time-entries](#freshbooks-time-entries)	 - Manage time-entries
+
+## freshbooks time-entries list-with-totals
+
+List time entries with logged/unbilled totals (totals in -o json or -o yaml only; table mode shows the entries)
+
+```
+freshbooks time-entries list-with-totals [flags]
+```
+
+### Options
+
+```
+  -h, --help                    help for list-with-totals
       --page int                1-based page number
       --per-page int            page size
       --search stringToString   filter as key=value (repeatable) (default [])

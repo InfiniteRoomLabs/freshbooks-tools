@@ -146,7 +146,7 @@ func (inv *Invocation) SortOpt() []freshbooks.RequestOption {
 // ReqOpts renders Search/Page/PerPage/Sort as a []RequestOption, for the
 // handful of lib methods that take raw variadic RequestOptions instead of
 // a *XListOptions struct (JournalEntries.Details,
-// JournalEntryAccounts.List).
+// JournalEntryAccounts.List, TimeEntries.ListWithTotals).
 func (inv *Invocation) ReqOpts() []freshbooks.RequestOption {
 	var opts []freshbooks.RequestOption
 	if s := inv.Search(); len(s) > 0 {

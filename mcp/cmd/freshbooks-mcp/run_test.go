@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+
+	"github.com/InfiniteRoomLabs/freshbooks-tools/mcp/internal/tools"
 )
 
 func TestRun(t *testing.T) {
@@ -30,8 +32,11 @@ func TestRun(t *testing.T) {
 		if err := json.Unmarshal(stdout.Bytes(), &manifest); err != nil {
 			t.Fatalf("tools output is not valid JSON: %v", err)
 		}
-		if len(manifest) != 168 {
-			t.Fatalf("got %d tools, want 168", len(manifest))
+		// The invariant under test is "the subcommand prints every
+		// registered tool", so derive the count rather than repeating the
+		// frozen-surface literal.
+		if len(manifest) != len(tools.All) {
+			t.Fatalf("got %d tools, want one per registry Spec (%d)", len(manifest), len(tools.All))
 		}
 		for _, entry := range manifest {
 			if _, ok := entry["name"]; !ok {

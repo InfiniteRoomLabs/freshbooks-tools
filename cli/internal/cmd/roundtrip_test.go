@@ -496,6 +496,7 @@ var wantPath = map[string]string{
 	"time-entries/create":                        "/timetracking/business/{business}/time_entries",
 	"time-entries/delete":                        "/timetracking/business/{business}/time_entries/{id}",
 	"time-entries/list":                          "/timetracking/business/{business}/time_entries",
+	"time-entries/list-with-totals":              "/timetracking/business/{business}/time_entries",
 	"time-entries/search":                        "/timetracking/business/{business}/time_entries/search",
 	"time-entries/update":                        "/timetracking/business/{business}/time_entries/{id}",
 }
@@ -654,8 +655,8 @@ func assertProbesInQuery(t *testing.T, c Command, rawQuery string) {
 // scope id lands in the path, page/per_page/search/include (when
 // registered) land in the query as exact key=value pairs, and exit 0.
 func TestRoundTrip(t *testing.T) {
-	if len(All) != 168 {
-		t.Fatalf("registry has %d commands, want 168", len(All))
+	if len(All) != wantRegistrySize {
+		t.Fatalf("registry has %d commands, want %d", len(All), wantRegistrySize)
 	}
 
 	setupCredentials(t)

@@ -174,5 +174,6 @@ Flags column: S = scope (`--account` or `--business` or `--business-uuid` from t
 | 166 | `freshbooks time-entries create` | `TimeEntries.Create` | W | S, B | `Time Tracking/Create a Time Entry` |
 | 167 | `freshbooks time-entries update` | `TimeEntries.Update` | I | S, ID, B | `Time Tracking/Update a Time Entry` |
 | 168 | `freshbooks time-entries delete` | `TimeEntries.Delete` | D | S, ID | `Time Tracking/Delete a Time Entry` |
+| 169 | `freshbooks time-entries list-with-totals` | `TimeEntries.ListWithTotals` | RO | S, L | - |
 
-**Totals:** 168 registry commands (168 lib methods, 212 inventory keys); `--all` covers the 17 `All` iterators (BillVendors, Bills, Callbacks, Clients, CreditNotes, Estimates, ExpenseCategories, Expenses, InvoiceProfiles, Invoices, Items, OtherIncome, Payments, Projects, Tasks, Taxes, TeamMembers).
+**Totals:** 169 registry commands (169 lib methods, 212 inventory keys); `--all` covers the 17 `All` iterators (BillVendors, Bills, Callbacks, Clients, CreditNotes, Estimates, ExpenseCategories, Expenses, InvoiceProfiles, Invoices, Items, OtherIncome, Payments, Projects, Tasks, Taxes, TeamMembers). Row 169 (Phase 8 convergence, 2026-09-03) is keyless like `identity whoami`: it wraps the same wire endpoint as row 164 (`time-entries list`), not a distinct Postman request, so it carries none of that endpoint's three keys a second time.

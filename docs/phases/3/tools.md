@@ -43,14 +43,14 @@ Annotation column: RO = `ReadOnlyHint: true`; D = `DestructiveHint: true` (delet
 | 35 | `expense_categories_list` | `ExpenseCategories.List` (expense_categories.go:93) | RO | `Expenses/List Expense Categories` |
 | 36 | `expense_categories_get` | `ExpenseCategories.Get` (expense_categories.go:121) | RO | `Expenses/Single Expense Category` |
 | 37 | `expense_categories_create` | `ExpenseCategories.Create` (expense_categories.go:138) | W | `Expenses/Create Custom Expense Category` |
-| 38 | `expenses_list` | `Expenses.List` (expenses.go:171) | RO | `Expenses/List Expenses` |
-| 39 | `expenses_get` | `Expenses.Get` (expenses.go:199) | RO | `Expenses/Single Expense` |
-| 40 | `expenses_create` | `Expenses.Create` (expenses.go:218) | W | `Expenses/Create Expense`; `Expenses/Create Expense with Receipt` |
-| 41 | `expenses_update` | `Expenses.Update` (expenses.go:241) | I | `Expenses/Update Expense`; `Expenses/Update Expense with Receipt` |
-| 42 | `expenses_delete` | `Expenses.Delete` (expenses.go:270) | D | `Expenses/Delete Expense` |
-| 43 | `expenses_summaries` | `Expenses.Summaries` (expenses.go:308) | RO | `Expenses/Expense Summaries` |
-| 44 | `expenses_vendors` | `Expenses.Vendors` (expenses.go:334) | RO | `Expenses/Expense Vendors` |
-| 45 | `expenses_create_recurring` | `Expenses.CreateRecurring` (expenses.go:404) | W | `Expenses/Create Recurring Expense` |
+| 38 | `expenses_list` | `Expenses.List` (expenses.go:227) | RO | `Expenses/List Expenses` |
+| 39 | `expenses_get` | `Expenses.Get` (expenses.go:255) | RO | `Expenses/Single Expense` |
+| 40 | `expenses_create` | `Expenses.Create` (expenses.go:274) | W | `Expenses/Create Expense`; `Expenses/Create Expense with Receipt` |
+| 41 | `expenses_update` | `Expenses.Update` (expenses.go:297) | I | `Expenses/Update Expense`; `Expenses/Update Expense with Receipt` |
+| 42 | `expenses_delete` | `Expenses.Delete` (expenses.go:326) | D | `Expenses/Delete Expense` |
+| 43 | `expenses_summaries` | `Expenses.Summaries` (expenses.go:364) | RO | `Expenses/Expense Summaries` |
+| 44 | `expenses_vendors` | `Expenses.Vendors` (expenses.go:394) | RO | `Expenses/Expense Vendors` |
+| 45 | `expenses_create_recurring` | `Expenses.CreateRecurring` (expenses.go:478) | W | `Expenses/Create Recurring Expense` |
 | 46 | `gateways_get` | `Gateways.Get` (gateways.go:101) | RO | `Tokenization/1a. [STRIPE] -  Get Publishable Key`; `Settings/Businesses/Gateway Details`; `Settings/Gateways/List Gateways` |
 | 47 | `identity_me` | `Identity.Me` (identity.go:88) | RO | `Authorization/Identity Info Call`; `Authorization/List User` |
 | 48 | `identity_whoami` | `Identity.Whoami` (identity.go:98) | RO | - |
@@ -169,10 +169,11 @@ Annotation column: RO = `ReadOnlyHint: true`; D = `DestructiveHint: true` (delet
 | 161 | `team_members_rates` | `TeamMembers.Rates` (team_members.go:180) | RO | `Projects/Team Member Rates` |
 | 162 | `team_members_update_rate` | `TeamMembers.UpdateRate` (team_members.go:199) | I | `My Team/Update Staff Rates`; `Projects/Update Team Member Rate` |
 | 163 | `team_members_invite` | `TeamMembers.Invite` (team_members.go:237) | W | `Projects/Invite Team Member to Project(s)` |
-| 164 | `time_entries_list` | `TimeEntries.List` (time_entries.go:108) | RO | `Time Tracking/List Entries`; `Time Tracking/Time Entries Updated Since Precise Time`; `Time Tracking/Time Entries for a Given Day` |
-| 165 | `time_entries_search` | `TimeEntries.Search` (time_entries.go:119) | RO | `Time Tracking/Time Entries For Employee on Specific Project` |
-| 166 | `time_entries_create` | `TimeEntries.Create` (time_entries.go:144) | W | `Time Tracking/Create a Time Entry` |
-| 167 | `time_entries_update` | `TimeEntries.Update` (time_entries.go:171) | I | `Time Tracking/Update a Time Entry` |
-| 168 | `time_entries_delete` | `TimeEntries.Delete` (time_entries.go:187) | D | `Time Tracking/Delete a Time Entry` |
+| 164 | `time_entries_list` | `TimeEntries.List` (time_entries.go:157) | RO | `Time Tracking/List Entries`; `Time Tracking/Time Entries Updated Since Precise Time`; `Time Tracking/Time Entries for a Given Day` |
+| 165 | `time_entries_search` | `TimeEntries.Search` (time_entries.go:179) | RO | `Time Tracking/Time Entries For Employee on Specific Project` |
+| 166 | `time_entries_create` | `TimeEntries.Create` (time_entries.go:204) | W | `Time Tracking/Create a Time Entry` |
+| 167 | `time_entries_update` | `TimeEntries.Update` (time_entries.go:231) | I | `Time Tracking/Update a Time Entry` |
+| 168 | `time_entries_delete` | `TimeEntries.Delete` (time_entries.go:247) | D | `Time Tracking/Delete a Time Entry` |
+| 169 | `time_entries_list_with_totals` | `TimeEntries.ListWithTotals` (time_entries.go:169) | RO | - |
 
-**Totals:** 168 tools, 212 inventory keys (+1 auth-owned key = 213).
+**Totals:** 169 tools, 212 inventory keys (+1 auth-owned key = 213). Row 169 (Phase 8 convergence, 2026-09-03) is keyless like `identity_whoami`: it wraps the same wire endpoint as row 164 (`time_entries_list`), not a distinct Postman request, so it carries none of that endpoint's three keys a second time.
