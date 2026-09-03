@@ -174,5 +174,6 @@ Annotation column: RO = `ReadOnlyHint: true`; D = `DestructiveHint: true` (delet
 | 166 | `time_entries_create` | `TimeEntries.Create` (time_entries.go:144) | W | `Time Tracking/Create a Time Entry` |
 | 167 | `time_entries_update` | `TimeEntries.Update` (time_entries.go:171) | I | `Time Tracking/Update a Time Entry` |
 | 168 | `time_entries_delete` | `TimeEntries.Delete` (time_entries.go:187) | D | `Time Tracking/Delete a Time Entry` |
+| 169 | `time_entries_list_with_totals` | `TimeEntries.ListWithTotals` (time_entries.go:164) | RO | - |
 
-**Totals:** 168 tools, 212 inventory keys (+1 auth-owned key = 213).
+**Totals:** 169 tools, 212 inventory keys (+1 auth-owned key = 213). Row 169 (Phase 8 convergence, 2026-09-03) is keyless like `identity_whoami`: it wraps the same wire endpoint as row 164 (`time_entries_list`), not a distinct Postman request, so it carries none of that endpoint's three keys a second time.

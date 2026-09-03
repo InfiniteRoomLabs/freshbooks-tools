@@ -2,6 +2,7 @@ package freshbooks
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 )
@@ -52,10 +53,53 @@ type timeEntryResponse struct {
 // timeEntriesListResponse's Meta carries two aggregate fields --
 // total_logged and total_unbilled -- that Page[TimeEntry] has no room for
 // (Page's four fields are the pagination block every list response shares,
-// not a per-resource aggregate). Reach them with (*Client).Do against the
-// same path if a caller needs them; List and Search silently drop them.
+// not a per-resource aggregate). List and Search silently drop them;
+// ListWithTotals is the way to reach them.
 type timeEntriesListResponse struct {
 	Meta        PageMeta    `json:"meta"`
+	TimeEntries []TimeEntry `json:"time_entries"`
+}
+
+// TimeEntryTotals carries the aggregate fields the time-entries list
+// endpoint's meta object holds beside the four pagination keys PageMeta
+// already models. TotalLogged and TotalUnbilled are totals across the
+// filtered set (not just this page); PerTeamMember and PerClient break the
+// same totals down further.
+//
+// The captured account (freshbooks/testdata/seed/time_entries/list.json)
+// has zero time entries, so both breakdown lists are always "[]" there, and
+// neither the Postman collection nor the FreshBooks docs page
+// (https://www.freshbooks.com/api/time_entries) shows a populated example.
+// With no element-shape evidence in either direction, PerTeamMember and
+// PerClient stay raw JSON rather than a guessed struct -- INFERRED; see the
+// spec 5.1 STATE AS OF 2026-09-03 (Phase 8) callout.
+type TimeEntryTotals struct {
+	TotalLogged   int `json:"total_logged"`
+	TotalUnbilled int `json:"total_unbilled"`
+	// PerTeamMember is the meta.total_logged_per_team_member array,
+	// undecoded (see the type doc comment).
+	PerTeamMember json.RawMessage `json:"total_logged_per_team_member,omitempty"`
+	// PerClient is the meta.total_logged_per_client array, undecoded (see
+	// the type doc comment).
+	PerClient json.RawMessage `json:"total_logged_per_client,omitempty"`
+}
+
+// TimeEntriesPage is the result of ListWithTotals: an ordinary
+// Page[TimeEntry] plus the totals its meta object carries.
+type TimeEntriesPage struct {
+	Page[TimeEntry]
+	Totals TimeEntryTotals
+}
+
+// timeEntriesListWithTotalsResponse decodes the same wire response as
+// timeEntriesListResponse, but keeps the totals PageMeta drops. Meta embeds
+// both PageMeta and TimeEntryTotals so their fields (no keys collide) land
+// flat under "meta", matching the wire shape in one decode.
+type timeEntriesListWithTotalsResponse struct {
+	Meta struct {
+		PageMeta
+		TimeEntryTotals
+	} `json:"meta"`
 	TimeEntries []TimeEntry `json:"time_entries"`
 }
 
@@ -108,6 +152,22 @@ func (s *TimeEntriesService) list(ctx context.Context, path string, opts []Reque
 func (s *TimeEntriesService) List(ctx context.Context, businessID BusinessID, opts *TimeEntryListOptions, extra ...RequestOption) (*Page[TimeEntry], error) {
 	reqOpts := append(opts.opts(), extra...)
 	return s.list(ctx, timeEntriesPath(businessID), reqOpts)
+}
+
+// ListWithTotals is List's sibling for callers who need the business's
+// logged/unbilled totals alongside the page: same one request, same
+// endpoint, decoded into TimeEntriesPage instead of Page[TimeEntry] so the
+// totals meta carries are not silently dropped. It takes RequestOption
+// directly (PageNumber, PerPage, Search, ...) rather than
+// *TimeEntryListOptions -- List is untouched and remains the plain-Page
+// call.
+func (s *TimeEntriesService) ListWithTotals(ctx context.Context, businessID BusinessID, opts ...RequestOption) (*TimeEntriesPage, error) {
+	var resp timeEntriesListWithTotalsResponse
+	if err := s.client.do(ctx, http.MethodGet, timeEntriesPath(businessID), FamilyBusiness, nil, &resp, opts...); err != nil {
+		return nil, err
+	}
+	page := newPage(resp.TimeEntries, resp.Meta.PageMeta)
+	return &TimeEntriesPage{Page: *page, Totals: resp.Meta.TimeEntryTotals}, nil
 }
 
 // Search runs a free-text query (e.g. an identity's name) against a

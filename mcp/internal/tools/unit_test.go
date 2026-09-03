@@ -140,8 +140,8 @@ func TestVoid(t *testing.T) {
 
 func TestManifest(t *testing.T) {
 	m := Manifest()
-	if len(m) != 168 {
-		t.Fatalf("len(Manifest()) = %d, want 168", len(m))
+	if len(m) != 169 {
+		t.Fatalf("len(Manifest()) = %d, want 169", len(m))
 	}
 	if !sort.SliceIsSorted(m, func(i, j int) bool { return m[i].Name < m[j].Name }) {
 		t.Fatal("Manifest() is not sorted by name")

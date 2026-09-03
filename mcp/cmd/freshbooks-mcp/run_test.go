@@ -30,8 +30,8 @@ func TestRun(t *testing.T) {
 		if err := json.Unmarshal(stdout.Bytes(), &manifest); err != nil {
 			t.Fatalf("tools output is not valid JSON: %v", err)
 		}
-		if len(manifest) != 168 {
-			t.Fatalf("got %d tools, want 168", len(manifest))
+		if len(manifest) != 169 {
+			t.Fatalf("got %d tools, want 169", len(manifest))
 		}
 		for _, entry := range manifest {
 			if _, ok := entry["name"]; !ok {

@@ -387,7 +387,7 @@ func (c Command) execute(cmd *cobra.Command, args []string, state *runtimeState)
 }
 
 // All is the full command registry: one Command per freshbooks
-// client-library method the phase 4 work order covers (168 entries,
+// client-library method the phase 4 work order covers (169 entries,
 // docs/phases/4/commands.md). Declared as a function so it evaluates
 // after every commandsXxx slice below has initialized, regardless of Go's
 // package-level var initialization order across files.

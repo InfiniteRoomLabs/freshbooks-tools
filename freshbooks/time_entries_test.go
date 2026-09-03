@@ -78,6 +78,82 @@ func TestTimeEntriesList(t *testing.T) {
 	})
 }
 
+func TestTimeEntriesListWithTotals(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("[happy] decodes the page and the totals from one request", func(t *testing.T) {
+		var gotPath string
+		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			gotPath = r.URL.Path
+			serveFixture(t, http.StatusOK, "time_entries", "list_with_totals")(w, r)
+		}))
+		page, err := c.TimeEntries.ListWithTotals(ctx, BusinessID(8675309))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if gotPath != "/timetracking/business/8675309/time_entries" {
+			t.Fatalf("path = %q", gotPath)
+		}
+		if len(page.Items) != 1 || page.Total != 1 {
+			t.Fatalf("page = %+v", page)
+		}
+		if page.Totals.TotalLogged != 54000 || page.Totals.TotalUnbilled != 12600 {
+			t.Fatalf("totals = %+v", page.Totals)
+		}
+		var perMember []map[string]any
+		if err := json.Unmarshal(page.Totals.PerTeamMember, &perMember); err != nil {
+			t.Fatalf("PerTeamMember did not decode as raw JSON: %v", err)
+		}
+		if len(perMember) != 1 || perMember[0]["identity_id"] != float64(4242424) {
+			t.Fatalf("PerTeamMember = %v", perMember)
+		}
+		var perClient []map[string]any
+		if err := json.Unmarshal(page.Totals.PerClient, &perClient); err != nil {
+			t.Fatalf("PerClient did not decode as raw JSON: %v", err)
+		}
+		if len(perClient) != 1 || perClient[0]["client_id"] != float64(55001) {
+			t.Fatalf("PerClient = %v", perClient)
+		}
+	})
+
+	t.Run("[edge] empty totals lists decode as empty raw arrays", func(t *testing.T) {
+		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			_, _ = io.WriteString(w, `{"meta": {"total": 0, "page": 1, "pages": 0, "per_page": 15, "total_logged": 0, "total_unbilled": 0, "total_logged_per_team_member": [], "total_logged_per_client": []}, "time_entries": []}`)
+		}))
+		page, err := c.TimeEntries.ListWithTotals(ctx, BusinessID(1))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if page.Totals.TotalLogged != 0 || page.Totals.TotalUnbilled != 0 {
+			t.Fatalf("totals = %+v", page.Totals)
+		}
+		if string(page.Totals.PerTeamMember) != "[]" || string(page.Totals.PerClient) != "[]" {
+			t.Fatalf("totals = %+v", page.Totals)
+		}
+	})
+
+	t.Run("[happy] opts pass through as plain RequestOptions", func(t *testing.T) {
+		var gotQuery url.Values
+		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			gotQuery = r.URL.Query()
+			serveFixture(t, http.StatusOK, "time_entries", "list_with_totals")(w, r)
+		}))
+		if _, err := c.TimeEntries.ListWithTotals(ctx, BusinessID(8675309), PerPage(5), Search{"billed": "0"}); err != nil {
+			t.Fatal(err)
+		}
+		if gotQuery.Get("per_page") != "5" || gotQuery.Get("billed") != "0" {
+			t.Fatalf("query = %v", gotQuery)
+		}
+	})
+
+	t.Run("[sad] a 401 is ErrUnauthorized", func(t *testing.T) {
+		c, _ := newTestClient(t, serveFixture(t, http.StatusUnauthorized, "auth", "error_401"))
+		if _, err := c.TimeEntries.ListWithTotals(ctx, BusinessID(1)); !errors.Is(err, ErrUnauthorized) {
+			t.Fatalf("err = %v", err)
+		}
+	})
+}
+
 func TestTimeEntriesSearch(t *testing.T) {
 	ctx := context.Background()
 

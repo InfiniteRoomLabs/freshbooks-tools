@@ -217,7 +217,8 @@ func Manifest() []*mcp.Tool {
 
 // All is the full tool registry: one Spec per freshbooks client-library
 // method, minus the 17 All iterators and Authorization/Revoke Refresh
-// Token (see docs/phases/3/plan.md decisions D1-D2). 168 entries.
+// Token (see docs/phases/3/plan.md decisions D1-D2). 169 entries (168
+// from Phase 3, plus Phase 8's keyless time_entries_list_with_totals).
 var All = buildRegistry()
 
 func buildRegistry() []Spec {

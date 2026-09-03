@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- `time-entries list-with-totals`: a 169th registry command wrapping the new `freshbooks` `TimeEntriesService.ListWithTotals`, over the same wire endpoint as `time-entries list` -- keyless, like `identity whoami`, since it carries no inventory key of its own.
+
 ## [0.1.1] - 2026-09-03
 
 ### Changed

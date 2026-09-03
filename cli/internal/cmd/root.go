@@ -1,5 +1,5 @@
 // Package cmd builds the freshbooks CLI's cobra command tree: the
-// data-driven registry of 168 resource commands (registry.go,
+// data-driven registry of 169 resource commands (registry.go,
 // commands_*.go), the auth/config/api non-registry commands, and the
 // global flag plumbing (scope resolution, output formatting, dry-run,
 // exit codes) every command shares.
@@ -21,7 +21,7 @@ import (
 // NewRootCmd builds the freshbooks root command: every global flag, the
 // non-registry commands (auth, config, api, version, plus any build-tag
 // gated extras registered in extraCommands -- the hidden docs command under
-// -tags docsgen), and the full 168-command registry tree. version is embedded so `freshbooks version`
+// -tags docsgen), and the full 169-command registry tree. version is embedded so `freshbooks version`
 // reports the binary that was actually built.
 func NewRootCmd(version string) *cobra.Command {
 	state := &runtimeState{version: version}
