@@ -9,6 +9,13 @@
 # lives in a sibling private repo) this exits 0 with a notice instead of
 # failing. scripts/redaction-selftest.sh is this script's regression test
 # and runs once per `mise run check`.
+#
+# The digit sweep reports NEW content only. Staged mode reads the whole
+# staged file, so a one-line fixture edit would otherwise re-report every
+# 6+-digit run already in that file; a number that is already in the same
+# file at HEAD is not newly introduced, so it is skipped (Phase 8 gate
+# F21). A file with no HEAD baseline is entirely new, so every number in
+# it counts. Range mode needs none of this -- it reads added lines only.
 #USAGE flag "--range <range>" help="Scan a git diff range (base..head)'s added lines instead of the staged index, e.g. main..phase-8/converge"
 
 set -euo pipefail
@@ -108,6 +115,29 @@ uuid_exempt() {
   [[ "$1" =~ ^0{8}-0{4}-[0-9]0{3}-[0-9]0{3}-0{4}[0-9]{8}$ ]]
 }
 
+# baseline_has reports whether n is already among the 6+-digit runs file
+# carries at HEAD -- i.e. whether this commit introduced it. The runs are
+# matched whole, not as substrings, so a longer pre-existing number cannot
+# vouch for a shorter new one. Cached for the one file the scan is on,
+# since the caller sweeps a file's lines together. A missing HEAD blob (a
+# new file, or a repo with no commits) yields an empty baseline, so nothing
+# is skipped.
+baseline_file=""
+baseline_nums=""
+
+baseline_has() {
+  local file="$1" n="$2" nums
+  if [ "$baseline_file" != "$file" ]; then
+    nums=$(git show "HEAD:$file" 2>/dev/null | grep -oE '[0-9]{6,}' | sort -u || true)
+    baseline_file="$file"
+    baseline_nums=$'\n'"$nums"$'\n'
+  fi
+  case "$baseline_nums" in
+  *$'\n'"$n"$'\n'*) return 0 ;;
+  esac
+  return 1
+}
+
 # added_lines_with_numbers emits "lineno<TAB>content" for each added
 # (non-context) line in file's diff over range, using the new-file line
 # numbers from the unified diff's hunk headers -- pure bash, no gawk
@@ -158,6 +188,12 @@ scan_seed_numbers() {
     done < <(printf '%s\n' "$content" | grep -oE "$uuid_re")
     while IFS= read -r n; do
       seed_number_allowed "$n" && continue
+      # Staged mode sees the whole staged file; only what this commit
+      # introduces is a finding (F21). Range mode already scans added
+      # lines, so it needs no baseline.
+      if [ -z "${usage_range:-}" ] && baseline_has "$file" "$n"; then
+        continue
+      fi
       echo "redaction-check: unallowlisted 6+-digit number $n in $file:$lineno" >&2
       found=1
     done < <(printf '%s\n' "$content" | grep -oE '[0-9]{6,}')

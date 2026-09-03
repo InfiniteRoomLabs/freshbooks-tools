@@ -197,6 +197,84 @@ probe "a short stub term fails in both modes" \
 probe "a long stub term fails in both modes, mid-identifier" \
   "notes.txt" "id_${stub_long}_x" 1 "redaction-check: possible leak in notes.txt" stub
 
+# -- staged mode reports new content only (Phase 8 gate F21) --------------
+#
+# These need a repo whose HEAD already carries the fixture, so they build
+# their own sequence instead of going through probe().
+
+# write_fixture <dir> <rel> <line2> <line3> [line4]
+write_fixture() {
+  local dir="$1" rel="$2"
+  mkdir -p "$dir/$(dirname "$rel")"
+  {
+    printf '{\n'
+    printf '  "unrelated": "%s",\n' "$3"
+    if [ -n "${5:-}" ]; then
+      printf '  "planted": "%s",\n' "$4"
+      printf '  "added": "%s"\n' "$5"
+    else
+      printf '  "planted": "%s"\n' "$4"
+    fi
+    printf '}\n'
+  } >"$dir/$rel"
+}
+
+# staged_run <dir> ; echoes the output, sets staged_status
+staged_run() {
+  set +e
+  staged_out=$(cd "$1" && env -u BASH_ENV HOME="$stub_home" PATH="$stub_bin:$PATH" ./redaction-check.sh 2>&1)
+  staged_status=$?
+  set -e
+}
+
+# (a) a number already in this file at HEAD is not a finding when the file
+#     is re-staged with an unrelated edit.
+case_n=$((case_n + 1))
+f21_dir="$(new_repo "$case_n")"
+write_fixture "$f21_dir" "$seed_json" "value" "9182736"
+git -C "$f21_dir" add "$seed_json"
+git -C "$f21_dir" commit -q -m baseline
+write_fixture "$f21_dir" "$seed_json" "edited" "9182736"
+git -C "$f21_dir" add "$seed_json"
+staged_run "$f21_dir"
+if [ "$staged_status" -ne 0 ]; then
+  fail_msg "a pre-existing number survives an unrelated edit" "exit $staged_status, want 0: $staged_out"
+elif ! printf '%s' "$staged_out" | grep -qF -- "redaction-check: clean"; then
+  fail_msg "a pre-existing number survives an unrelated edit" "output does not contain the expected marker"
+else
+  pass_msg "a pre-existing number survives an unrelated edit"
+fi
+
+# (b) a NEW number in that same file is still a finding, named with its
+#     line -- and the pre-existing one is still not reported.
+write_fixture "$f21_dir" "$seed_json" "value" "9182736" "7654321"
+git -C "$f21_dir" add "$seed_json"
+staged_run "$f21_dir"
+if [ "$staged_status" -ne 1 ]; then
+  fail_msg "a new number in a baselined file still fails" "exit $staged_status, want 1"
+elif ! printf '%s' "$staged_out" | grep -qF -- "redaction-check: unallowlisted 6+-digit number 7654321 in $seed_json:4"; then
+  fail_msg "a new number in a baselined file still fails" "output does not name the new number and line"
+elif printf '%s' "$staged_out" | grep -qF -- "9182736"; then
+  fail_msg "a new number in a baselined file still fails" "the pre-existing number was reported too"
+else
+  pass_msg "a new number in a baselined file still fails"
+fi
+
+# (c) a genuinely new file has no baseline, so the same number fails there.
+write_fixture "$f21_dir" "freshbooks/testdata/seed/y.json" "value" "9182736"
+git -C "$f21_dir" add "freshbooks/testdata/seed/y.json"
+# Leave only the new file staged, so the finding can only come from it.
+git -C "$f21_dir" reset -q -- "$seed_json"
+git -C "$f21_dir" checkout -q -- "$seed_json"
+staged_run "$f21_dir"
+if [ "$staged_status" -ne 1 ]; then
+  fail_msg "a new file has no baseline" "exit $staged_status, want 1"
+elif ! printf '%s' "$staged_out" | grep -qF -- "redaction-check: unallowlisted 6+-digit number 9182736 in freshbooks/testdata/seed/y.json:3"; then
+  fail_msg "a new file has no baseline" "output does not name the number and line"
+else
+  pass_msg "a new file has no baseline"
+fi
+
 # -- an unusable range fails loudly (Phase 8 security A2) -----------------
 case_n=$((case_n + 1))
 bad_dir="$(new_repo "$case_n")"

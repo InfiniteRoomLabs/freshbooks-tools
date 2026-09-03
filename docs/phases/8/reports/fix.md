@@ -24,6 +24,7 @@ Branch `phase-8/converge`, from `2bc0ff7`. Four checkpoint commits, `docs/phases
 | F18 | R6 | done | (checkpoint 4) |
 | F19 | R12 | done | (checkpoint 4) |
 | F20 | S9 | done | (checkpoint 4) |
+| F21 | lead ruling on the F5 residual | done | (checkpoint 5) |
 
 Nothing was skipped.
 
@@ -151,7 +152,7 @@ The self-test's planted integer moved from `1825574` to `9182736` for the obviou
 - **55 of them would report at least one finding if staged**, roughly 70 distinct numbers (`4054453`, `2003192`, `635972`, `45454545`, `1313600`, ...)
 - **0 of them are under `seed/`** -- the original scope is entirely clean, and stays clean
 
-So the control is correct on this branch and will cry wolf on the next fixture edit. Allowlisting 70 more literals would gut the sweep, so it needs a rule, not entries. The cheapest one that keeps F1 intact: in staged mode, skip a finding whose number already appears in `git show HEAD:$file` -- pre-existing content is not a newly introduced leak, which is exactly what a pre-commit control is for, and Phase 7 A1's capture-derived id would still have been caught the moment it was introduced. Five lines, no new extractor, and it subsumes both of the fixes above. I left it out because it changes a security control's semantics in a way the triage did not ask for, and two forced changes to that control already felt like the ceiling for an unattended fix agent. Recommend it as a Phase 9 item, or as a one-line follow-up here if the lead wants it in this gate.
+So the control was correct on this branch and would have cried wolf on the next fixture edit. Allowlisting 70 more literals would gut the sweep, so it needed a rule, not entries. **The lead ruled: apply that rule now, as F21 -- see the checkpoint 5 section below.** With F21 in, all 55 pass.
 
 ## Checkpoint 2 -- `6f5b4d0` `fix(converge): apply the review-gate findings (F9-F11)`
 
@@ -178,9 +179,56 @@ So the control is correct on this branch and will cry wolf on the next fixture e
 - **F19.** `listIn.reqOpts` (mcp) and `Invocation.ReqOpts` (cli) doc comments name `TimeEntries.ListWithTotals` alongside `JournalEntries.Details` and `JournalEntryAccounts.List`.
 - **F20.** The two `TimeEntryTotals` field comments that restated the type doc are gone; the type doc and the json tags carry the evidence.
 
+
+## Checkpoint 5 -- F21 (the lead's ruling on the F5 residual)
+
+**F21.** In staged mode a 6+-digit finding is skipped when the same number already appears in `git show HEAD:$file`. Staged mode reads the whole staged file, so without this a one-line fixture edit re-reports every pre-existing run in it; a number already in that file at HEAD is not content this commit introduced, and this is a pre-commit control over new content. A file with no HEAD blob (new file, or a repo with no commits) has an empty baseline, so every number in it counts. Range mode is untouched -- it already reads added lines only.
+
+Matching is whole-run, not substring: the baseline is `git show HEAD:$file | grep -oE '[0-9]{6,}' | sort -u` and `$n` is compared against those runs between newline sentinels, so a longer pre-existing number cannot vouch for a shorter new one (`12345678` at HEAD does not excuse a new `1234567`). The baseline is computed once per file, since the caller sweeps a file's lines together. The rule is recorded in the script's header comment and at the sweep site.
+
+Three self-test probes, all in one scratch repo whose HEAD already carries the fixture:
+
+- **(a)** the fixture is committed with an unallowlisted `9182736`, then re-staged with an unrelated edit to a different line -- staged mode reports `clean`, exit 0.
+- **(b)** the same file is re-staged with a NEW unallowlisted `7654321` -- exit 1 naming `7654321` and its line, and the output does not mention `9182736` at all (asserted, so the rule cannot silently swallow the new one alongside the old).
+- **(c)** a genuinely new `freshbooks/testdata/seed/y.json` carrying the old `9182736`, with the baselined file unstaged -- exit 1 naming that number and line. No baseline, no skip.
+
+**Non-vacuity check.** With the skip forced off (`if false; then`), probe (a) fails exactly as it should and probe (b)'s "the pre-existing number was reported too" assertion fires:
+
+```
+redaction-selftest: FAIL a pre-existing number survives an unrelated edit -- exit 1, want 0: redaction-check: unallowlisted 6+-digit number 9182736 in freshbooks/testdata/seed/x.json:3
+redaction-selftest: 2 assertion(s) failed
+```
+
+**Verified against the real residual.** `freshbooks/testdata/services/single.json` is one of the 55 files that reported findings before F21. Touched and staged, it now reports `clean` (exit 0); with a new `7654321` inserted it reports `unallowlisted 6+-digit number 7654321 in freshbooks/testdata/services/single.json:2` (exit 1). Working tree restored both times.
+
+### The self-test after F21
+
+```
+redaction-selftest: PASS 7-digit integer fails, naming file:line
+redaction-selftest: PASS the sweep reaches re-seeded fixtures
+redaction-selftest: PASS a real id wearing a synthetic uuid tail fails
+redaction-selftest: PASS an entirely decimal uuid-shaped token fails
+redaction-selftest: PASS the synthetic uuid convention passes
+redaction-selftest: PASS a genuine hex uuid passes
+redaction-selftest: PASS a microsecond timestamp passes
+redaction-selftest: PASS a space-separated instant passes
+redaction-selftest: PASS a 700NN synthetic id passes (below the sweep threshold)
+redaction-selftest: PASS an allowlisted filler number passes
+redaction-selftest: PASS an all-zero run passes
+redaction-selftest: PASS a short stub term fails in both modes
+redaction-selftest: PASS a long stub term fails in both modes, mid-identifier
+redaction-selftest: PASS a pre-existing number survives an unrelated edit
+redaction-selftest: PASS a new number in a baselined file still fails
+redaction-selftest: PASS a new file has no baseline
+redaction-selftest: PASS an unusable range exits 2
+redaction-selftest: PASS a short private term fails in both modes
+redaction-selftest: PASS a long private term fails in both modes
+redaction-selftest: OK
+```
+
 ## Gate
 
-Full `mise run check` after every checkpoint, green except the dirty-tree banner (expected -- it runs before the commit). Final run on the committed tree is clean.
+Full `mise run check` after every one of the five checkpoints, green except the dirty-tree banner (expected -- it runs before the commit). Final run on the committed tree is clean.
 
 ```
 coverage-gate: <repo root>/freshbooks/coverage.out total = 91.9% (floor 90%)
