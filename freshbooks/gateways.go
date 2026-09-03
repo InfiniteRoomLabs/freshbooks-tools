@@ -78,12 +78,57 @@ type StripeConnection struct {
 	MaxACHFee int `json:"max_ach_fee"`
 }
 
+// StripeCapability is one Stripe capability flag on a unified connection.
+type StripeCapability struct {
+	Capability string `json:"capability"`
+	IsActive   bool   `json:"is_active"`
+}
+
+// StripeUnifiedConnection is the account's Stripe connection under
+// FreshBooks' newer "unified" onboarding. CONFIRMED live 2026-09-02 (Phase
+// 7): a live account onboarded through FreshBooks Payments answers with
+// "stripe": null and the whole connection under "stripe_unified" instead,
+// and the response carries no "fbpay" key at all. StripeConnection (the
+// older "stripe" shape, from the Postman capture) is kept because an
+// account onboarded before the change still answers there.
+type StripeUnifiedConnection struct {
+	ID              string `json:"id"`
+	StripeAccountID string `json:"stripe_account_id"`
+	Country         string `json:"country"`
+	PublishableKey  string `json:"publishable_key"`
+	StripeEmail     string `json:"stripe_email"`
+	AccountStatus   string `json:"account_status"`
+	// AvailableOnboardingStrategies lists the onboarding flows FreshBooks
+	// offers for this account, e.g. "hosted".
+	AvailableOnboardingStrategies  []string `json:"available_onboarding_strategies"`
+	StripeChargesEnabled           bool     `json:"stripe_charges_enabled"`
+	StripePayoutsEnabled           bool     `json:"stripe_payouts_enabled"`
+	StripePayoutsScheduleInterval  string   `json:"stripe_payouts_schedule_interval"`
+	StripePayoutsScheduleDelayDays int      `json:"stripe_payouts_schedule_delay_days"`
+	HasCurrentlyDueRequirements    bool     `json:"has_currently_due_requirements"`
+	HasPendingVerifications        bool     `json:"has_pending_verifications"`
+	OnboardingCompletionPercent    int      `json:"onboarding_completion_percent"`
+	ChargesFirstEnabledAt          DateTime `json:"charges_first_enabled_at"`
+	PayoutsFirstEnabledAt          DateTime `json:"payouts_first_enabled_at"`
+	StripeTOSAcceptedDate          DateTime `json:"stripe_tos_accepted_date"`
+	StripeAccountUpdatedAt         DateTime `json:"stripe_account_updated_at"`
+	// StripeRequirementsCurrentDeadline and Configuration are null and {}
+	// respectively in the live capture, so their populated shapes are
+	// unconfirmed; kept raw rather than guessed.
+	StripeRequirementsCurrentDeadline json.RawMessage    `json:"stripe_requirements_current_deadline"`
+	Configuration                     json.RawMessage    `json:"configuration"`
+	Capabilities                      []StripeCapability `json:"capabilities"`
+}
+
 // GatewayConnection is one set of payment-gateway connections for the
 // account. FreshBooks answers a one-element array of these; a nil gateway
 // field means the account has not connected that gateway.
 type GatewayConnection struct {
 	FBPay  *FBPayConnection  `json:"fbpay"`
 	Stripe *StripeConnection `json:"stripe"`
+	// StripeUnified carries the newer unified-onboarding Stripe connection.
+	// A live account has exactly one of Stripe and StripeUnified populated.
+	StripeUnified *StripeUnifiedConnection `json:"stripe_unified"`
 	// PayPal is null in every captured example, so its populated shape is
 	// unconfirmed; kept rather than dropped so an account with PayPal
 	// connected does not look identical to one without it.

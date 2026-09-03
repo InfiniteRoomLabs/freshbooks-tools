@@ -61,3 +61,53 @@ func TestLiveExpenseVendors(t *testing.T) {
 	}
 	t.Logf("decoded %d vendor name(s) from the paginated envelope", len(vendors))
 }
+
+// TestLiveGateways is fact E: /payments/ was classified as the business
+// (flat, un-enveloped) family from a Postman example only. It also covers
+// the shape correction this phase found -- an account onboarded through
+// FreshBooks Payments answers under "stripe_unified", with "stripe": null
+// and no "fbpay" key at all.
+func TestLiveGateways(t *testing.T) {
+	c := liveClient(t)
+	ctx, cancel := liveCtx(t)
+	defer cancel()
+	m := liveScope(t, c, ctx)
+
+	conns, err := c.Gateways.Get(ctx, m.AccountID)
+	if err != nil {
+		t.Fatalf("Gateways.Get: %v", err)
+	}
+	// Decoding at all is the family assertion: an accounting-family
+	// classification would have looked for a {"response":{"result":...}}
+	// wrapper that is not there and yielded nothing.
+	if len(conns) == 0 {
+		t.Skip("the authorized account has no gateway connections; family confirmed, shape not asserted")
+	}
+	var populated int
+	for _, conn := range conns {
+		if conn.FBPay != nil {
+			populated++
+		}
+		if conn.Stripe != nil {
+			populated++
+		}
+		if su := conn.StripeUnified; su != nil {
+			populated++
+			if su.StripeAccountID == "" || su.PublishableKey == "" {
+				t.Error("stripe_unified decoded without its account id or publishable key")
+			}
+			if su.AccountStatus == "" {
+				t.Error("stripe_unified decoded without an account_status")
+			}
+			if len(su.Capabilities) == 0 {
+				t.Error("stripe_unified decoded without capabilities")
+			}
+			if su.StripeAccountUpdatedAt.IsZero() {
+				t.Error("stripe_account_updated_at did not parse")
+			}
+		}
+	}
+	if populated == 0 {
+		t.Error("every gateway field decoded nil -- the connection shape is not modelled")
+	}
+}

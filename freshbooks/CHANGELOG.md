@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- `GatewayConnection` silently dropped a live account's whole Stripe connection. An account onboarded through FreshBooks Payments answers `"stripe": null`, no `"fbpay"` key at all, and the connection under `"stripe_unified"` -- a key set the Postman `stripe` example does not contain. Added `StripeUnifiedConnection` and `GatewayConnection.StripeUnified`, plus `StripeCapability` for its `capabilities` array; the older `Stripe` field stays for accounts onboarded before the change (CONFIRMED live, 2026-09-03).
 - `ExpensesService.Vendors` decoded the wrong shape and could not return anything. Phase 2 inferred a bare string array under `"vendors"` (the Postman collection carries no example response); the live endpoint answers the ordinary paginated accounting result with each entry as a one-key object -- `{"page", "pages", "per_page", "total", "vendors": [{"vendor": "..."}]}` -- and applies a default page size of 15. Vendors now decodes that shape and walks every page before returning the flattened `[]string` its signature promises, rather than silently returning the first 15 (CONFIRMED live, 2026-09-03).
 
 ## [0.1.0] - 2026-09-02
