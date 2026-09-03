@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-03
+
 ### Added
 
 - `TimeEntriesService.ListWithTotals` and `TimeEntriesPage`/`TimeEntryTotals`: the time-entries list endpoint's `meta` object carries `total_logged`, `total_unbilled`, and two per-team-member/per-client breakdown lists beside the four pagination keys `PageMeta` already models; `List` was silently dropping all four. `ListWithTotals` runs the same one request and returns them alongside the page. The two breakdown lists stay `json.RawMessage`: the captured account has no time entries, and neither the Postman collection nor the FreshBooks docs show a populated example, so there is no evidence for their element shape (INFERRED). `TimeEntriesPage.Totals` marshals as `totals`, snake_case like the pagination fields the embedded `Page[TimeEntry]` promotes beside it.
