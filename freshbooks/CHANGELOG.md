@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-03
+
 ### Changed
 
 - **Breaking:** `LedgerAccountsService.Types`, `SubTypes`, and `SubType` returned `json.RawMessage` because Phase 2 had no evidence for their payloads (no Postman example, no docs page). Observed live 2026-09-03 and now typed: `Types` returns `[]LedgerAccountType` (the entries are `{"name": "asset"}` objects, not bare strings, and the income type is spelled `income`, not `revenue`), `SubTypes` returns `[]LedgerAccountSubType` and `SubType` a `*LedgerAccountSubType` (`id` is a bare JSON number, and each entry carries a `base_number` the old fixture did not have). Callers that unmarshalled the raw message themselves must switch to the typed values.
