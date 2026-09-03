@@ -381,8 +381,16 @@ func TestToken(t *testing.T) {
 		}
 		store := brokenSaveStore{inner}
 		cfg := fbauth.Config{ClientID: "id", ClientSecret: "secret", Endpoints: oauth.endpoints()}
-		if _, err := Token(context.Background(), cfg, store, true, nil); err == nil {
+		_, err := Token(context.Background(), cfg, store, true, nil)
+		if err == nil {
 			t.Fatal("Token() error = nil, want the store's save error")
+		}
+		// The old refresh token is spent and the new pair never landed, so
+		// the message has to tell the user to log in again rather than
+		// leaving them to retry a command that cannot now succeed.
+		if !strings.Contains(err.Error(), "the rotated token could not be stored") ||
+			!strings.Contains(err.Error(), "freshbooks auth login") {
+			t.Fatalf("Token() error = %q, want it to say the rotated token was not stored and to re-login", err)
 		}
 	})
 }

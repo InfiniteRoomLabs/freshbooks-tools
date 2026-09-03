@@ -47,9 +47,7 @@ func TestGatewaysGet(t *testing.T) {
 		// Phase 7 (live, 2026-09-02): an account onboarded through
 		// FreshBooks Payments answers "stripe": null, no "fbpay" key at
 		// all, and the whole connection under "stripe_unified".
-		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			serveFixture(t, http.StatusOK, "gateways", "get_stripe_unified")(w, r)
-		}))
+		c, _ := newTestClient(t, serveFixture(t, http.StatusOK, "gateways", "get_stripe_unified"))
 		got, err := c.Gateways.Get(ctx, "ACM123")
 		if err != nil {
 			t.Fatal(err)

@@ -36,6 +36,14 @@ type StatusInfo struct {
 	Scopes []string `json:"scopes"`
 }
 
+// clock returns now, or time.Now when the caller passed nil.
+func clock(now func() time.Time) func() time.Time {
+	if now == nil {
+		return time.Now
+	}
+	return now
+}
+
 // Status reports a context's credential state without ever touching the
 // network or printing the token.
 func Status(ctx context.Context, contextName, credentialsPath string, store fbauth.TokenStore, now func() time.Time) (*StatusInfo, error) {
@@ -49,12 +57,8 @@ func Status(ctx context.Context, contextName, credentialsPath string, store fbau
 		return nil, fmt.Errorf("auth: loading the stored credentials: %w", err)
 	}
 
-	nowFn := now
-	if nowFn == nil {
-		nowFn = time.Now
-	}
 	info.LoggedIn = true
-	info.Valid = tok.Valid(nowFn(), fbauth.DefaultExpirySkew)
+	info.Valid = tok.Valid(clock(now)(), fbauth.DefaultExpirySkew)
 	info.Expiry = tok.Expiry
 	info.Scopes = tok.Scopes
 	return info, nil
@@ -110,11 +114,7 @@ func Token(ctx context.Context, cfg fbauth.Config, store fbauth.TokenStore, refr
 		return "", fmt.Errorf("auth: loading the stored credentials: %w", err)
 	}
 
-	nowFn := now
-	if nowFn == nil {
-		nowFn = time.Now
-	}
-	if !refresh && tok.Valid(nowFn(), fbauth.DefaultExpirySkew) {
+	if !refresh && tok.Valid(clock(now)(), fbauth.DefaultExpirySkew) {
 		return tok.AccessToken, nil
 	}
 	if tok.RefreshToken == "" {
@@ -128,7 +128,10 @@ func Token(ctx context.Context, cfg fbauth.Config, store fbauth.TokenStore, refr
 		return "", err
 	}
 	if err := store.Save(ctx, next); err != nil {
-		return "", fmt.Errorf("auth: saving the refreshed token: %w", err)
+		// The OAuth server has already consumed the old refresh token
+		// (they are one-time use) and the rotated pair never reached
+		// disk, so there is nothing left to retry against.
+		return "", fmt.Errorf("auth: saving the refreshed token: %w; the rotated token could not be stored, run 'freshbooks auth login' again", err)
 	}
 	return next.AccessToken, nil
 }

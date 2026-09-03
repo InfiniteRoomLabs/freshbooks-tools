@@ -24,10 +24,14 @@ import (
 	"github.com/InfiniteRoomLabs/freshbooks-tools/freshbooks"
 )
 
-// liveScope returns the first membership of the authorized account: the
-// account id, business id, and business uuid every other fact needs.
-func liveScope(t *testing.T, c *freshbooks.Client, ctx context.Context) freshbooks.Membership {
+// liveSetup builds the client, a 60s context tied to the test's lifetime,
+// and the first membership every fact needs (account id, business id,
+// business uuid).
+func liveSetup(t *testing.T) (*freshbooks.Client, context.Context, freshbooks.Membership) {
 	t.Helper()
+	c := liveClient(t)
+	ctx, cancel := context.WithTimeout(t.Context(), 60*time.Second)
+	t.Cleanup(cancel)
 	ms, err := c.Identity.Me(ctx)
 	if err != nil {
 		t.Fatalf("Identity.Me: %v", err)
@@ -35,13 +39,7 @@ func liveScope(t *testing.T, c *freshbooks.Client, ctx context.Context) freshboo
 	if len(ms) == 0 {
 		t.Fatal("the authorized account has no business memberships")
 	}
-	return ms[0]
-}
-
-// liveCtx builds the per-test context.
-func liveCtx(t *testing.T) (context.Context, context.CancelFunc) {
-	t.Helper()
-	return context.WithTimeout(context.Background(), 60*time.Second)
+	return c, ctx, ms[0]
 }
 
 // TestLiveExpenseVendors is fact J1: Phase 2 inferred that
@@ -49,10 +47,7 @@ func liveCtx(t *testing.T) (context.Context, context.CancelFunc) {
 // (the Postman collection carries no example). It does not: the payload is
 // the paginated accounting shape, and each entry is a one-key object.
 func TestLiveExpenseVendors(t *testing.T) {
-	c := liveClient(t)
-	ctx, cancel := liveCtx(t)
-	defer cancel()
-	m := liveScope(t, c, ctx)
+	c, ctx, m := liveSetup(t)
 
 	vendors, err := c.Expenses.Vendors(ctx, m.AccountID)
 	if err != nil {
@@ -76,10 +71,7 @@ func TestLiveExpenseVendors(t *testing.T) {
 // FreshBooks Payments answers under "stripe_unified", with "stripe": null
 // and no "fbpay" key at all.
 func TestLiveGateways(t *testing.T) {
-	c := liveClient(t)
-	ctx, cancel := liveCtx(t)
-	defer cancel()
-	m := liveScope(t, c, ctx)
+	c, ctx, m := liveSetup(t)
 
 	conns, err := c.Gateways.Get(ctx, m.AccountID)
 	if err != nil {
@@ -127,10 +119,7 @@ func TestLiveGateways(t *testing.T) {
 // Postman example and no public docs page -- had no evidence for their
 // payload shape at all.
 func TestLiveLedgerAccounts(t *testing.T) {
-	c := liveClient(t)
-	ctx, cancel := liveCtx(t)
-	defer cancel()
-	m := liveScope(t, c, ctx)
+	c, ctx, m := liveSetup(t)
 
 	t.Run("list answers flat data", func(t *testing.T) {
 		accounts, err := c.LedgerAccounts.List(ctx, m.BusinessUUID)
@@ -201,10 +190,7 @@ func TestLiveLedgerAccounts(t *testing.T) {
 // language -- were being dropped; the sibling business fields are dropped
 // deliberately (see staffListResponse).
 func TestLiveStaffFields(t *testing.T) {
-	c := liveClient(t)
-	ctx, cancel := liveCtx(t)
-	defer cancel()
-	m := liveScope(t, c, ctx)
+	c, ctx, m := liveSetup(t)
 
 	members, err := c.Staff.List(ctx, m.BusinessID)
 	if err != nil {
@@ -240,10 +226,7 @@ func TestLiveStaffFields(t *testing.T) {
 // while the same bad value under search[updated_since] comes back 200 --
 // which can only happen if the server never saw it.
 func TestLiveBusinessFilterEncoding(t *testing.T) {
-	c := liveClient(t)
-	ctx, cancel := liveCtx(t)
-	defer cancel()
-	m := liveScope(t, c, ctx)
+	c, ctx, m := liveSetup(t)
 
 	t.Run("bare field=value reaches the server's validator", func(t *testing.T) {
 		opts := &freshbooks.TimeEntryListOptions{Search: freshbooks.Search{"updated_since": "notadate"}}
@@ -287,10 +270,7 @@ func TestLiveBusinessFilterEncoding(t *testing.T) {
 // O (PageMeta dropping meta.sort) IS resolved: the block is there and the
 // library now surfaces it.
 func TestLiveBusinessSortEcho(t *testing.T) {
-	c := liveClient(t)
-	ctx, cancel := liveCtx(t)
-	defer cancel()
-	m := liveScope(t, c, ctx)
+	c, ctx, m := liveSetup(t)
 
 	for _, sort := range []string{"-updated_at", "updated_at_desc", "no_such_field_desc"} {
 		path := fmt.Sprintf("/projects/business/%d/projects?per_page=3&sort=%s", m.BusinessID, url.QueryEscape(sort))
@@ -323,10 +303,7 @@ func TestLiveBusinessSortEcho(t *testing.T) {
 // were wrong the transport would look for a {"response":{"result":...}}
 // wrapper that is not there, and every pagination field would decode zero.
 func TestLiveCallbacksEnvelope(t *testing.T) {
-	c := liveClient(t)
-	ctx, cancel := liveCtx(t)
-	defer cancel()
-	m := liveScope(t, c, ctx)
+	c, ctx, m := liveSetup(t)
 
 	const perPage = 3
 	page, err := c.Callbacks.List(ctx, m.AccountID, nil, freshbooks.PerPage(perPage))
@@ -353,10 +330,7 @@ func TestLiveCallbacksEnvelope(t *testing.T) {
 // only endpoints whose Postman examples show it -- projects and time
 // entries -- hold no records, so it stays INFERRED.
 func TestLiveDateTimeFormats(t *testing.T) {
-	c := liveClient(t)
-	ctx, cancel := liveCtx(t)
-	defer cancel()
-	m := liveScope(t, c, ctx)
+	c, ctx, m := liveSetup(t)
 
 	t.Run("accounting reads send space-separated and date-only", func(t *testing.T) {
 		expenses, err := c.Expenses.List(ctx, m.AccountID, nil, freshbooks.PerPage(1))

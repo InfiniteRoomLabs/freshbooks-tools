@@ -324,27 +324,15 @@ func expenseVendorsPath(acct AccountID) (string, error) {
 	return fmt.Sprintf("/accounting/account/%s/expenses/vendors", acct), nil
 }
 
-// expenseVendorsEnvelope is the accounting result this endpoint answers
-// with: a PAGINATED list of one-key objects, not the bare string array
-// Phase 2 inferred. CONFIRMED live 2026-09-02 (Phase 7).
-type expenseVendorsEnvelope struct {
-	PageMeta
-	Vendors []struct {
-		Vendor string `json:"vendor"`
-	} `json:"vendors"`
-}
-
 // Vendors returns the distinct vendor names used across the account's
 // expenses, walking every page.
 //
 // The wire shape is {"vendors": [{"vendor": "..."}], "page", "pages",
 // "per_page", "total"} -- a paginated list of objects, each wrapping a
-// single free-text vendor name (CONFIRMED live 2026-09-02; Phase 2 had
-// inferred a bare string array from the absence of a Postman example, and
-// that shape does not decode). The default page size the API applies is 15,
-// so this walks the pages and returns the flattened list: the method
-// promises "the account's vendors", and silently returning the first 15
-// would be a trap.
+// single free-text vendor name (CONFIRMED live 2026-09-02). The default
+// page size the API applies is 15, so this walks the pages and returns the
+// flattened list: the method promises "the account's vendors", and silently
+// returning the first 15 would be a trap.
 //
 // inventory: Expenses/Expense Vendors
 func (s *ExpensesService) Vendors(ctx context.Context, acct AccountID) ([]string, error) {
@@ -357,7 +345,12 @@ func (s *ExpensesService) Vendors(ctx context.Context, acct AccountID) ([]string
 	// return value straight onto the wire.
 	vendors := []string{}
 	for page := 1; ; page++ {
-		var env expenseVendorsEnvelope
+		var env struct {
+			PageMeta
+			Vendors []struct {
+				Vendor string `json:"vendor"`
+			} `json:"vendors"`
+		}
 		if err := s.client.do(ctx, http.MethodGet, path, FamilyAccounting, nil, &env, PageNumber(page)); err != nil {
 			return nil, err
 		}
