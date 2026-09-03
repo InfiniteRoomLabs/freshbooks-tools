@@ -303,6 +303,15 @@ new_scratch_repo() {
   echo "$work"
 }
 
+# commit_scratch <work> <subject> -- commits and pushes whatever a probe
+# just wrote into the scratch tree. `cut`/`bump` require a clean tree (A5),
+# so a probe that seeds a changelog has to land it first.
+commit_scratch() {
+  git -C "$1" add -A
+  git -C "$1" commit -q -m "$2"
+  git -C "$1" push -q origin main
+}
+
 # release_run <work> <args...> -- invokes the scratch repo's copy of
 # release.sh with the fake gh/go wiring plus any probe-specific env the
 # caller staged into the global RELEASE_EXTRA_ENV array beforehand (bash
@@ -369,6 +378,7 @@ w=$(new_scratch_repo "auto-fixed")
   echo "### Fixed"
   echo "- something"
 } >"$w/freshbooks/CHANGELOG.md"
+commit_scratch "$w" "seed unreleased notes"
 set +e
 RELEASE_EXTRA_ENV=()
 out=$(release_run "$w" cut freshbooks auto --yes --dry-run 2>&1)
@@ -388,6 +398,7 @@ w=$(new_scratch_repo "auto-added")
   echo "### Added"
   echo "- something new"
 } >"$w/freshbooks/CHANGELOG.md"
+commit_scratch "$w" "seed unreleased notes"
 set +e
 RELEASE_EXTRA_ENV=()
 out=$(release_run "$w" cut freshbooks auto --yes --dry-run 2>&1)

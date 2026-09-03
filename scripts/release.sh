@@ -35,6 +35,12 @@ YES=false
 BINARY_VERSION="${usage_binary_version:-}"
 TIMEOUT="${usage_timeout:-1200}"
 
+# Poll intervals in seconds. Overridable so scripts/release-selftest.sh can
+# exercise the discovery retry (F2/R2) without sleeping through the real
+# intervals; nothing else sets them.
+DISCOVERY_INTERVAL="${RELEASE_DISCOVERY_INTERVAL:-15}"
+POLL_INTERVAL="${RELEASE_POLL_INTERVAL:-30}"
+
 if [ -z "${usage_args:-}" ]; then
   args=()
 else
@@ -134,9 +140,27 @@ changelog_unreleased_section() {
   ' "$1"
 }
 
-# changelog_has_section <file> <version> -- true if "## [<version>]" exists.
+# changelog_has_section <file> <version> -- true if a line starts with the
+# literal "## [<version>]". Literal, never a regex: a version carrying a
+# metacharacter (".*") would otherwise match "## [Unreleased]" and make
+# the changelog cut SKIP itself (A3). require_semver rejects such versions
+# at the entry points too; this is the second lock on the same door.
 changelog_has_section() {
-  grep -qxF "## [$2]" "$1" 2>/dev/null || grep -qE "^## \\[$2\\]" "$1" 2>/dev/null
+  awk -v prefix="## [$2]" '
+    index($0, prefix) == 1 { found = 1; exit }
+    END { exit found ? 0 : 1 }
+  ' "$1" 2>/dev/null
+}
+
+# require_semver <version> -- the version argument reaches `git tag -a`,
+# `git push origin <tag>` and `go get ...@v<version>`, and a bad tag on the
+# public remote can never be deleted (D8). Mirror the regex
+# .github/workflows/release.yml enforces on the tag so the two cannot
+# drift.
+require_semver() {
+  if ! [[ "$1" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    step_fail "version-guard" "strict semver X.Y.Z" "$1"
+  fi
 }
 
 # commit_with_subject_exists <subject> -- D3 says "release commit already
@@ -147,8 +171,17 @@ changelog_has_section() {
 # history for the exact subject instead -- safe here because
 # scripts/branch-protection.sh enforces required_linear_history, so a
 # commit's subject, once on main, never moves or gets rewritten.
+#
+# NOTE: do NOT pipe `git log` into `grep -q`. `set -o pipefail` is in
+# force, `grep -q` exits on its first match, and the still-streaming
+# `git log` dies with SIGPIPE -- so the pipeline reports 141 and the
+# function answers "not found" for every commit that is not the repo's
+# oldest. That made resume silently dead on any real-sized history (R1).
+# Let git do the filtering and match the captured output with no pipe.
 commit_with_subject_exists() {
-  git -C "$repo_root" log --format=%s 2>/dev/null | grep -qxF "$1"
+  local subject="$1" found
+  found=$(git -C "$repo_root" log main --format=%s --fixed-strings --grep="$subject" 2>/dev/null) || return 1
+  grep -qxF -- "$subject" <<<"$found"
 }
 
 # derive_bump_kind <changelog-file> <current-version> -- echoes
@@ -294,28 +327,46 @@ module_go_path() {
 
 # --- CI / Release run watching (D4) ---------------------------------------
 
-# watch_run <step> <workflow> <branch> [expect-sha] -- finds the most
-# recent run of <workflow> filtered by <branch>, polls its conclusion every
-# 30s up to TIMEOUT seconds. Always executes for real: watching is a read,
+# watch_run <step> <workflow> <branch> [expect-sha] -- finds the run of
+# <workflow> filtered by <branch>, then polls its conclusion every
+# POLL_INTERVAL seconds. Always executes for real: watching is a read,
 # never a write, so it is not gated by DRY_RUN.
+#
+# Discovery is itself a poll (R2/A7): GitHub takes seconds to register a
+# workflow run after a push, so a one-shot `gh run list` right after the
+# push returns the PREVIOUS commit's run (CI) or nothing at all (Release),
+# and the old code turned that race into a hard FAIL on every real run.
+# Retry the listing every DISCOVERY_INTERVAL seconds until a run whose
+# headSha is $expect_sha appears (CI), or any run for the branch/tag
+# appears (Release, which has no sha to pin -- see A8). Both waits share
+# the one TIMEOUT budget.
 watch_run() {
   local step="$1" workflow="$2" branch="$3" expect_sha="${4:-}"
-  local run_json id sha waited=0 status conclusion
-
-  run_json=$(read_cmd gh run list --workflow "$workflow" --branch "$branch" --limit 1 \
-    --json databaseId,headSha,conclusion,status --jq '.[0] // empty') || true
-  if [ -z "$run_json" ]; then
-    step_fail "$step" "a $workflow run on $branch" "no run found"
-  fi
-  id=$(printf '%s' "$run_json" | grep -oE '"databaseId":[0-9]+' | grep -oE '[0-9]+')
-  sha=$(printf '%s' "$run_json" | grep -oE '"headSha":"[^"]*"' | sed -E 's/.*:"(.*)"/\1/')
-  if [ -n "$expect_sha" ] && [ "$sha" != "$expect_sha" ]; then
-    step_fail "$step" "a $workflow run for $expect_sha" "latest run is for $sha"
-  fi
+  local listed id="" sha="" waited=0 view status conclusion
 
   while :; do
-    status=$(gh_jq '.status' -- run view "$id" --json status)
-    conclusion=$(gh_jq '.conclusion' -- run view "$id" --json conclusion)
+    listed=$(read_cmd gh run list --workflow "$workflow" --branch "$branch" --limit 1 \
+      --json databaseId,headSha --jq '.[0] // empty | "\(.databaseId) \(.headSha)"') || listed=""
+    if [ -n "$listed" ]; then
+      read -r id sha <<<"$listed"
+      if [ -z "$expect_sha" ] || [ "$sha" = "$expect_sha" ]; then
+        break
+      fi
+    fi
+    if [ "$waited" -ge "$TIMEOUT" ]; then
+      if [ -n "$expect_sha" ]; then
+        step_fail "$step" "a $workflow run for $expect_sha within ${TIMEOUT}s" "newest run is for ${sha:-no run at all}"
+      fi
+      step_fail "$step" "a $workflow run on $branch within ${TIMEOUT}s" "no run found"
+    fi
+    sleep "$DISCOVERY_INTERVAL"
+    waited=$((waited + DISCOVERY_INTERVAL))
+  done
+
+  while :; do
+    view=$(gh_jq '"\(.status) \(.conclusion // "")"' -- run view "$id" --json status,conclusion) ||
+      step_fail "$step" "gh run view $id to succeed" "gh run view failed"
+    read -r status conclusion <<<"$view"
     if [ "$status" = "completed" ]; then
       if [ "$conclusion" = "success" ]; then
         step_ok "$step"
@@ -326,8 +377,8 @@ watch_run() {
     if [ "$waited" -ge "$TIMEOUT" ]; then
       step_fail "$step" "completed within ${TIMEOUT}s" "still $status after ${TIMEOUT}s"
     fi
-    sleep 30
-    waited=$((waited + 30))
+    sleep "$POLL_INTERVAL"
+    waited=$((waited + POLL_INTERVAL))
   done
 }
 
@@ -342,10 +393,23 @@ require_main_unless_dry_run() {
   fi
 }
 
+# require_clean_tree <step> -- A5: `cut` and `bump` are standalone entry
+# points to a public tag push, and only `all` used to reach preflight's
+# clean-tree check. Same rule, same strictness (a dirty tree fails under
+# --dry-run too, exactly as preflight does).
+require_clean_tree() {
+  local step="$1" dirty
+  dirty=$(git -C "$repo_root" status --porcelain)
+  if [ -n "$dirty" ]; then
+    step_fail "$step" "clean working tree" "dirty tree"
+  fi
+  step_ok "$step"
+}
+
 # --- preflight --------------------------------------------------------------
 
 cmd_preflight() {
-  local branch dirty auth_out sha ci_conclusion
+  local branch dirty auth_out sha ci_json ci_sha ci_status ci_conclusion
 
   branch=$(git -C "$repo_root" rev-parse --abbrev-ref HEAD)
   if [ "$branch" = "main" ]; then
@@ -373,13 +437,24 @@ cmd_preflight() {
     step_fail "preflight-gh-auth" "gh authenticated" "gh auth status failed"
   fi
 
+  # R4: the plan's precondition is "CI green FOR HEAD". Comparing only the
+  # newest run's conclusion passes whenever main's last run was green --
+  # including when local main is ahead of what CI has seen, which is the
+  # one check standing between an unbuilt commit and a tag push.
   sha=$(git -C "$repo_root" rev-parse HEAD)
-  ci_conclusion=$(gh_jq '.[0].conclusion // "none"' -- run list --workflow CI --branch main --limit 1 --json headSha,conclusion) || ci_conclusion="none"
-  if [ "$ci_conclusion" = "success" ]; then
-    step_ok "preflight-ci-green"
-  else
-    step_fail "preflight-ci-green" "success" "$ci_conclusion"
+  ci_json=$(gh_jq '.[0] // empty | "\(.headSha) \(.status) \(.conclusion // "none")"' \
+    -- run list --workflow CI --branch main --limit 1 --json headSha,status,conclusion) || ci_json=""
+  if [ -z "$ci_json" ]; then
+    step_fail "preflight-ci-green" "a completed CI run for HEAD $sha" "no CI run on main"
   fi
+  read -r ci_sha ci_status ci_conclusion <<<"$ci_json"
+  if [ "$ci_sha" != "$sha" ]; then
+    step_fail "preflight-ci-green" "the newest CI run to be for HEAD $sha" "newest run is for $ci_sha"
+  fi
+  if [ "$ci_status" != "completed" ] || [ "$ci_conclusion" != "success" ]; then
+    step_fail "preflight-ci-green" "status=completed conclusion=success for $sha" "status=$ci_status conclusion=$ci_conclusion"
+  fi
+  step_ok "preflight-ci-green"
 
   if read_cmd mise which go >/dev/null; then
     step_ok "preflight-mise-install"
@@ -587,14 +662,18 @@ verify_after_cut() {
 
 cmd_cut() {
   local module="${args[0]:-}" version="${args[1]:-}" kind
-  [ -z "$module" ] || [ -z "$version" ] && step_fail "cut" "cut <module> <version>" "missing argument(s)"
+  if [ -z "$module" ] || [ -z "$version" ]; then
+    step_fail "cut" "cut <module> <version>" "missing argument(s)"
+  fi
   kind=$(module_kind "$module") || step_fail "cut" "module in {freshbooks,mcp,cli}" "$module"
   require_main_unless_dry_run
+  require_clean_tree "cut-clean-tree"
 
   if [ "$version" = "auto" ]; then
     accept_proposed_version "$module"
     version="$ACCEPTED_VERSION"
   fi
+  require_semver "$version"
 
   local tag="$module/v$version"
   if [ "$kind" = "lib" ]; then
@@ -721,10 +800,25 @@ cut_lib() {
 }
 
 # cut_binary implements the binary release flow (plan steps 12-16, minus
-# the bump commit, which is the `bump` subcommand's job): tag, tag push,
-# Release watch. do_verify (called by the caller) covers steps 14-17.
+# the bump commit, which is the `bump` subcommand's job): CI watch, tag,
+# tag push, Release watch. do_verify (called by the caller) covers steps
+# 14-17.
 cut_binary() {
   local module="$1" version="$2" tag="$3"
+
+  # A1: cut_lib gated its tag push behind the CI run for the exact pushed
+  # sha; cut_binary did not, so `cut mcp <v>` could publish a permanent
+  # public tag off a red main -- and D8 forbids ever deleting one. Inside
+  # `all` this is a cheap no-op (do_bump's watch just went green); it
+  # closes the standalone path.
+  if [ "$DRY_RUN" = true ]; then
+    dry_echo "watch CI on main for the bump commit"
+    step_skip "cut-ci-watch" "dry-run"
+  else
+    local head_sha
+    head_sha=$(git -C "$repo_root" rev-parse HEAD)
+    watch_run "cut-ci-watch" "CI" "main" "$head_sha"
+  fi
 
   if git -C "$repo_root" ls-remote --tags origin "refs/tags/$tag" 2>>"$LOG_FILE" | grep -q "$tag"; then
     step_skip "cut-tag-push" "$tag already on origin"
@@ -754,9 +848,12 @@ cmd_bump() {
   local lib_version="${args[0]:-}" binary_version="$BINARY_VERSION"
   [ -z "$lib_version" ] && step_fail "bump" "bump <lib-version>" "missing argument"
   require_main_unless_dry_run
+  require_clean_tree "bump-clean-tree"
+  require_semver "$lib_version"
   if [ -z "$binary_version" ]; then
     binary_version=$(propose_binary_version)
   fi
+  require_semver "$binary_version"
   do_bump "$lib_version" "$binary_version"
 }
 
@@ -876,6 +973,7 @@ cmd_all() {
     accept_proposed_version "freshbooks"
     lib_version="$ACCEPTED_VERSION"
   fi
+  require_semver "$lib_version"
 
   cut_lib "freshbooks" "$lib_version" "freshbooks/v$lib_version"
   verify_after_cut "freshbooks/v$lib_version"
@@ -883,6 +981,7 @@ cmd_all() {
   if [ -z "$binary_version" ]; then
     binary_version=$(propose_binary_version)
   fi
+  require_semver "$binary_version"
   do_bump "$lib_version" "$binary_version"
 
   cut_binary "mcp" "$binary_version" "mcp/v$binary_version"
