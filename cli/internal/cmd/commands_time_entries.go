@@ -75,7 +75,7 @@ var timeEntriesCommands = []Command{
 		// it carries no inventory key of its own (mirrors
 		// time_entries_list_with_totals in mcp/internal/tools).
 		Group: "time-entries", Verb: "list-with-totals",
-		Short:   "List time entries along with logged/unbilled totals",
+		Short:   "List time entries with logged/unbilled totals (totals in -o json or -o yaml only; table mode shows the entries)",
 		Service: "TimeEntries", Method: "ListWithTotals",
 		Class: ClassRO, Scope: ScopeBusiness, List: true, HasSort: true,
 		Run: func(ctx context.Context, c *freshbooks.Client, inv *Invocation) (any, error) {

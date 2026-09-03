@@ -85,10 +85,14 @@ type TimeEntryTotals struct {
 }
 
 // TimeEntriesPage is the result of ListWithTotals: an ordinary
-// Page[TimeEntry] plus the totals its meta object carries.
+// Page[TimeEntry] plus the totals its meta object carries. The embedded
+// Page stays untagged so its own fields promote flat (the MCP and CLI
+// output layers key off "items"); Totals carries a tag so the one field
+// this type adds is snake_case like every other serialized field in the
+// package rather than Go-cased "Totals".
 type TimeEntriesPage struct {
 	Page[TimeEntry]
-	Totals TimeEntryTotals
+	Totals TimeEntryTotals `json:"totals"`
 }
 
 // timeEntriesListWithTotalsResponse decodes the same wire response as

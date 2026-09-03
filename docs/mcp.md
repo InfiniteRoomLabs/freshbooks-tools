@@ -1,6 +1,6 @@
 # MCP server
 
-`freshbooks-mcp` is a stateless Model Context Protocol server: 168 tools, one per `freshbooks` client-library method (minus the 17 `All` iterators and the auth-owned `Authorization/Revoke Refresh Token`, which the MCP never touches -- see "Errors and security" below). Every call goes straight through to the FreshBooks API; nothing is cached, sessioned, or written to disk except the optional stdio token file you configure yourself.
+`freshbooks-mcp` is a stateless Model Context Protocol server: 169 tools, one per `freshbooks` client-library method (minus the 17 `All` iterators and the auth-owned `Authorization/Revoke Refresh Token`, which the MCP never touches -- see "Errors and security" below). One of the 169, `time_entries_list_with_totals`, carries no inventory key of its own: it wraps the same wire endpoint as `time_entries_list`, decoded for the business-wide totals too. Every call goes straight through to the FreshBooks API; nothing is cached, sessioned, or written to disk except the optional stdio token file you configure yourself.
 
 ## Install
 

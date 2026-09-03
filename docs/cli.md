@@ -7925,7 +7925,7 @@ Manage time-entries
 * [freshbooks time-entries create](#freshbooks-time-entries-create)	 - Create a time entry
 * [freshbooks time-entries delete](#freshbooks-time-entries-delete)	 - Delete a time entry (destructive: requires --yes on a TTY)
 * [freshbooks time-entries list](#freshbooks-time-entries-list)	 - List time entries
-* [freshbooks time-entries list-with-totals](#freshbooks-time-entries-list-with-totals)	 - List time entries along with logged/unbilled totals
+* [freshbooks time-entries list-with-totals](#freshbooks-time-entries-list-with-totals)	 - List time entries with logged/unbilled totals (totals in -o json or -o yaml only; table mode shows the entries)
 * [freshbooks time-entries search](#freshbooks-time-entries-search)	 - Search time entries for an employee on a specific project
 * [freshbooks time-entries update](#freshbooks-time-entries-update)	 - Update a time entry
 
@@ -8041,7 +8041,7 @@ freshbooks time-entries list [flags]
 
 ## freshbooks time-entries list-with-totals
 
-List time entries along with logged/unbilled totals
+List time entries with logged/unbilled totals (totals in -o json or -o yaml only; table mode shows the entries)
 
 ```
 freshbooks time-entries list-with-totals [flags]

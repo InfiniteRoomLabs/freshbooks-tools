@@ -152,6 +152,33 @@ func TestTimeEntriesListWithTotals(t *testing.T) {
 			t.Fatalf("err = %v", err)
 		}
 	})
+
+	// The MCP tool returns this value as StructuredContent and the CLI
+	// renders it for -o json/-o yaml, so the key is a published wire shape:
+	// snake_case "totals" beside the promoted Page fields, never Go-cased
+	// "Totals" (Phase 8 code review R2 / simplification S12).
+	t.Run("[corner] the page marshals with a snake_case totals key", func(t *testing.T) {
+		b, err := json.Marshal(&TimeEntriesPage{
+			Page:   Page[TimeEntry]{Items: []TimeEntry{}, Page: 1, Pages: 1, PerPage: 15},
+			Totals: TimeEntryTotals{TotalLogged: 54000, TotalUnbilled: 12600},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		var got map[string]json.RawMessage
+		if err := json.Unmarshal(b, &got); err != nil {
+			t.Fatal(err)
+		}
+		if _, ok := got["totals"]; !ok {
+			t.Fatalf("no \"totals\" key in %s", b)
+		}
+		if _, ok := got["Totals"]; ok {
+			t.Fatalf("Go-cased \"Totals\" key in %s", b)
+		}
+		if _, ok := got["items"]; !ok {
+			t.Fatalf("embedded Page did not promote flat: %s", b)
+		}
+	})
 }
 
 func TestTimeEntriesSearch(t *testing.T) {
