@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-09-03
+
+### Changed
+
+- Requires `freshbooks` v0.2.0: `gateways get`, `expenses vendors`, `ledger-accounts types|sub-types|sub-type`, `staff list`, and business-family list output now match the live wire shapes captured in the Phase 7 conformance pass (an empty vendor list encodes `[]`).
+
 ### Fixed
 
 - `auth token` no longer prints an expired access token. It refreshed only under `--refresh`, so a stored token past its expiry was printed verbatim with exit 0 and the documented `TOKEN=$(freshbooks auth token)` idiom handed callers a credential that 401s on first use (found live, 2026-09-03: `auth status` reported `valid: false` while `auth token` still printed the stale value). The command now refreshes through the store -- the same rotation-persisting path `--refresh` uses -- whenever the stored token has expired or expires within the library's default skew, and reports a distinct error when it has expired with no refresh token to rotate.

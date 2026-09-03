@@ -1,5 +1,5 @@
-github.com/InfiniteRoomLabs/freshbooks-tools/freshbooks v0.1.0 h1:85KN7a0MhGiI50q9CxNxL14p6G3dwZt5u/Vfm4MeQkE=
-github.com/InfiniteRoomLabs/freshbooks-tools/freshbooks v0.1.0/go.mod h1:6QOvvWIFW3eB204HQSqOCGCxFrAMqW+P2XzhJKAmSo4=
+github.com/InfiniteRoomLabs/freshbooks-tools/freshbooks v0.2.0 h1:SHvFjfupRV/TSPGb/T49PVFAdpFUiMy7D45leSHXXdM=
+github.com/InfiniteRoomLabs/freshbooks-tools/freshbooks v0.2.0/go.mod h1:6QOvvWIFW3eB204HQSqOCGCxFrAMqW+P2XzhJKAmSo4=
 github.com/cpuguy83/go-md2man/v2 v2.0.6/go.mod h1:oOW0eioCTA6cOiMLiUPZOpcVxMig6NIQQ7OS05n1F4g=
 github.com/golang-jwt/jwt/v5 v5.3.1 h1:kYf81DTWFe7t+1VvL7eS+jKFVWaUnK9cB1qbwn63YCY=
 github.com/golang-jwt/jwt/v5 v5.3.1/go.mod h1:fxCRLWMO43lRc8nhHWY6LGqRcf+1gQWArsqaEUEa5bE=

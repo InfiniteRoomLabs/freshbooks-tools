@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-09-03
+
+### Changed
+
+- Requires `freshbooks` v0.2.0: tool results now carry the unified Stripe gateway connection (`stripe_unified`), the full paginated expense-vendor list (an empty account encodes `[]`), typed ledger-account taxonomy objects (`{"name": ...}` types, numeric sub-type ids with `base_number`), `identity_uuid`/`language` on staff members, and `sort` on business-family pages -- all corrected against live captures in the Phase 7 conformance pass.
+
 ## [0.1.0] - 2026-09-02
 
 ### Added
