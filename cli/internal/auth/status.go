@@ -92,18 +92,36 @@ func Logout(ctx context.Context, cfg fbauth.Config, credentialsPath string, stor
 }
 
 // Token returns the stored access token, refreshing (and persisting the
-// rotated pair) first when refresh is true.
-func Token(ctx context.Context, cfg fbauth.Config, store fbauth.TokenStore, refresh bool) (string, error) {
+// rotated pair) first when refresh is true OR when the stored access token
+// has already expired.
+//
+// The expiry check is not a convenience. Without it `auth token` printed a
+// dead token and exited 0 (observed live, 2026-09-03: `auth status` reported
+// valid: false while `auth token` still printed the stale value), so every
+// caller of the documented `TOKEN=$(freshbooks auth token)` idiom got a
+// silent 401 on its next call instead of a working credential. A token that
+// is about to expire inside the lib's DefaultExpirySkew counts as expired
+// here, matching what `auth status` calls valid.
+//
+// now supplies the clock; nil means time.Now.
+func Token(ctx context.Context, cfg fbauth.Config, store fbauth.TokenStore, refresh bool, now func() time.Time) (string, error) {
 	tok, err := store.Load(ctx)
 	if err != nil {
 		return "", fmt.Errorf("auth: loading the stored credentials: %w", err)
 	}
 
-	if !refresh {
+	nowFn := now
+	if nowFn == nil {
+		nowFn = time.Now
+	}
+	if !refresh && tok.Valid(nowFn(), fbauth.DefaultExpirySkew) {
 		return tok.AccessToken, nil
 	}
 	if tok.RefreshToken == "" {
-		return "", errors.New("auth: no refresh token is stored; run 'freshbooks auth login' again")
+		if refresh {
+			return "", errors.New("auth: no refresh token is stored; run 'freshbooks auth login' again")
+		}
+		return "", errors.New("auth: the stored access token has expired and no refresh token is stored; run 'freshbooks auth login' again")
 	}
 	next, err := cfg.Refresh(ctx, tok.RefreshToken)
 	if err != nil {

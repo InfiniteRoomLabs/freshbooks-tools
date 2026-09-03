@@ -203,7 +203,11 @@ func newAuthTokenCmd(state *runtimeState) *cobra.Command {
 	cc := &cobra.Command{
 		Use:   "token",
 		Short: "Print the current context's access token (the one place this CLI ever prints one)",
-		Args:  cobra.NoArgs,
+		Long: "Print the current context's access token -- the one place this CLI ever prints one.\n\n" +
+			"An expired (or about-to-expire) stored token is refreshed and the rotated pair persisted before printing, so\n" +
+			"TOKEN=$(freshbooks auth token) always yields a usable credential. --refresh forces that rotation even when the\n" +
+			"stored token is still good.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			id, secret := resolveClientCredentials(*clientID, *clientSecret)
 			ctxName, _, store, err := state.credentialStore(cmd)
@@ -211,7 +215,7 @@ func newAuthTokenCmd(state *runtimeState) *cobra.Command {
 				return err
 			}
 			cfg := libauth.Config{ClientID: id, ClientSecret: secret, Endpoints: authEndpoints()}
-			tok, err := cliauth.Token(cmd.Context(), cfg, store, refresh)
+			tok, err := cliauth.Token(cmd.Context(), cfg, store, refresh, nil)
 			if err != nil {
 				return classifyAuthError(err, ctxName)
 			}
@@ -220,6 +224,6 @@ func newAuthTokenCmd(state *runtimeState) *cobra.Command {
 		},
 	}
 	clientID, clientSecret = clientCredentialsFlags(cc)
-	cc.Flags().BoolVar(&refresh, "refresh", false, "force a refresh, rotating and persisting the token pair before printing")
+	cc.Flags().BoolVar(&refresh, "refresh", false, "force a refresh even when the stored token is still valid (an expired one is refreshed either way)")
 	return cc
 }

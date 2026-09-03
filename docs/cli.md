@@ -402,6 +402,14 @@ freshbooks auth status [flags]
 
 Print the current context's access token (the one place this CLI ever prints one)
 
+### Synopsis
+
+Print the current context's access token -- the one place this CLI ever prints one.
+
+An expired (or about-to-expire) stored token is refreshed and the rotated pair persisted before printing, so
+TOKEN=$(freshbooks auth token) always yields a usable credential. --refresh forces that rotation even when the
+stored token is still good.
+
 ```
 freshbooks auth token [flags]
 ```
@@ -412,7 +420,7 @@ freshbooks auth token [flags]
       --client-id string       the registered application's client id (default: FRESHBOOKS_CLIENT_ID)
       --client-secret string   the registered application's client secret (default: FRESHBOOKS_CLIENT_SECRET)
   -h, --help                   help for token
-      --refresh                force a refresh, rotating and persisting the token pair before printing
+      --refresh                force a refresh even when the stored token is still valid (an expired one is refreshed either way)
 ```
 
 ### Options inherited from parent commands
