@@ -52,7 +52,10 @@ trap 'rm -f "$LOG_FILE"' EXIT
 # GO_BIN resolves the mise.toml-pinned go toolchain by absolute path, so it
 # is correct even for commands run outside the repo (e.g. the proxy-pickup
 # check in /tmp), where `mise exec` would fall back to the global pin.
-GO_BIN="$(cd "$repo_root" && mise where go)/bin/go"
+# RELEASE_GO_BIN overrides it -- used only by scripts/release-selftest.sh
+# to point at a fake `go` shim instead of resolving mise in a scratch repo
+# that carries no real mise.toml of its own.
+GO_BIN="${RELEASE_GO_BIN:-$(cd "$repo_root" && mise where go)/bin/go}"
 
 # --- output contract helpers --------------------------------------------
 
@@ -134,6 +137,18 @@ changelog_unreleased_section() {
 # changelog_has_section <file> <version> -- true if "## [<version>]" exists.
 changelog_has_section() {
   grep -qxF "## [$2]" "$1" 2>/dev/null || grep -qE "^## \\[$2\\]" "$1" 2>/dev/null
+}
+
+# commit_with_subject_exists <subject> -- D3 says "release commit already
+# on main (subject match in `git log -1`) -> SKIP", but a plain `git log
+# -1` only sees HEAD, which is wrong inside a single `all` run: by the
+# time bump/all-ship check whether an EARLIER step's commit already
+# happened, later commits have moved HEAD past it. Search all of main's
+# history for the exact subject instead -- safe here because
+# scripts/branch-protection.sh enforces required_linear_history, so a
+# commit's subject, once on main, never moves or gets rewritten.
+commit_with_subject_exists() {
+  git -C "$repo_root" log --format=%s 2>/dev/null | grep -qxF "$1"
 }
 
 # derive_bump_kind <changelog-file> <current-version> -- echoes
@@ -635,7 +650,13 @@ accept_proposed_version() {
 # cut, root changelog line, commit, push, CI watch, tag, tag push, Release
 # watch. Each mutating step checks its own postcondition first (D3).
 cut_lib() {
-  local module="$1" version="$2" tag="$3" changelog="$repo_root/$module/CHANGELOG.md" today
+  # NOTE: `local a=$1 b=$a` does NOT see the just-assigned a -- all RHS
+  # expansions in one `local` statement happen before any of it takes
+  # effect, so a same-line reference to an earlier name in the same
+  # statement falls through to dynamic scope (the caller's variable of
+  # that name, or unbound). changelog must be its own statement.
+  local module="$1" version="$2" tag="$3" today
+  local changelog="$repo_root/$module/CHANGELOG.md"
   today=$(date -u +%F)
 
   if changelog_has_section "$changelog" "$version"; then
@@ -651,10 +672,9 @@ cut_lib() {
     step_ok "cut-changelog"
   fi
 
-  local head_subject expect_subject="release($module): v$version"
-  head_subject=$(git -C "$repo_root" log -1 --format=%s 2>/dev/null || true)
-  if [ "$head_subject" = "$expect_subject" ]; then
-    step_skip "cut-commit" "HEAD is already \"$expect_subject\""
+  local expect_subject="release($module): v$version"
+  if commit_with_subject_exists "$expect_subject"; then
+    step_skip "cut-commit" "a commit \"$expect_subject\" is already on main"
   else
     confirm_first_push
     run_cmd git -C "$repo_root" add "$module/CHANGELOG.md" CHANGELOG.md ||
@@ -817,10 +837,8 @@ do_bump() {
   done
 
   local expect_subject="release(mcp,cli): require freshbooks v$lib_version and cut $binary_version"
-  local head_subject
-  head_subject=$(git -C "$repo_root" log -1 --format=%s 2>/dev/null || true)
-  if [ "$head_subject" = "$expect_subject" ]; then
-    step_skip "bump-commit" "HEAD is already \"$expect_subject\""
+  if commit_with_subject_exists "$expect_subject"; then
+    step_skip "bump-commit" "a commit \"$expect_subject\" is already on main"
   else
     confirm_first_push
     run_cmd git -C "$repo_root" add mcp/go.mod mcp/go.sum mcp/CHANGELOG.md cli/go.mod cli/go.sum cli/CHANGELOG.md CHANGELOG.md ||
@@ -881,10 +899,8 @@ cmd_all() {
   # correct on every run, resumed or not.
 
   local expect_subject="docs: ship v$lib_version"
-  local head_subject
-  head_subject=$(git -C "$repo_root" log -1 --format=%s 2>/dev/null || true)
-  if [ "$head_subject" = "$expect_subject" ]; then
-    step_skip "all-ship-commit" "HEAD is already \"$expect_subject\""
+  if commit_with_subject_exists "$expect_subject"; then
+    step_skip "all-ship-commit" "a commit \"$expect_subject\" is already on main"
   else
     confirm_first_push
     run_cmd git -C "$repo_root" add README.md ||

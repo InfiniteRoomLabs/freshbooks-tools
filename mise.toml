@@ -38,6 +38,10 @@ run = "actionlint .github/workflows/*.yml"
 description = "Run the redaction-check.sh regression test (both modes, no network)"
 run = "scripts/redaction-selftest.sh"
 
+[tasks.release-selftest]
+description = "Run the release.sh regression test (scratch repos, fake gh/go, no network)"
+run = "scripts/release-selftest.sh"
+
 [tasks.inventory-check]
 description = "Run the inventory parity check against freshbooks source"
 run = "scripts/check.sh inventory-check"
@@ -51,7 +55,7 @@ description = "Regenerate docs/cli.md from the cobra command tree (cobra/doc)"
 run = "scripts/docs.sh"
 
 [tasks.check]
-description = "Full gate: fmt-check, vet, lint, test, cover, inventory-check, actionlint, redaction-selftest, build, then a dirty-tree banner"
+description = "Full gate: fmt-check, vet, lint, test, cover, inventory-check, actionlint, redaction-selftest, release-selftest, build, readme-drift-check, then a dirty-tree banner"
 run = "scripts/check.sh all"
 
 [tasks.release]

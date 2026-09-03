@@ -1,5 +1,5 @@
 #!/usr/bin/env -S usage bash
-#USAGE arg "<subcommand>" help="fmt-check|vet|lint|test|cover|vuln|inventory-check|actionlint|redaction-selftest|build|docs|all"
+#USAGE arg "<subcommand>" help="fmt-check|vet|lint|test|cover|vuln|inventory-check|actionlint|redaction-selftest|release-selftest|readme-drift-check|build|docs|all"
 #USAGE arg "[modules]" var=#true help="Modules to check (default: freshbooks mcp cli)"
 
 set -euo pipefail
@@ -82,6 +82,14 @@ run_redaction_selftest() {
   "$repo_root/scripts/redaction-selftest.sh"
 }
 
+# scripts/release.sh is release automation with network-mutating power
+# (git push, tag push); its regression test runs once per gate, entirely
+# against scratch repos and fake gh/go (Phase 9 D6).
+run_release_selftest() {
+  echo "== release-selftest =="
+  "$repo_root/scripts/release-selftest.sh"
+}
+
 run_build() {
   echo "== build =="
   local buildable=()
@@ -98,6 +106,24 @@ run_build() {
 run_docs() {
   echo "== docs =="
   "$repo_root/scripts/docs.sh"
+}
+
+# README.md's Status column (D5) is regenerated from git tags by
+# `scripts/release.sh docs`, which is a pure, deterministic, local-only
+# rewrite (no network write) -- so it is safe to run for real here, the
+# same way docs_drift_test.go runs the cobra doc generator for real to
+# check docs/cli.md. A rewrite that changes anything means the tags moved
+# without the README being updated to match.
+run_readme_drift_check() {
+  echo "== readme-drift-check =="
+  "$repo_root/scripts/release.sh" docs
+  local diff
+  diff=$(cd "$repo_root" && git diff -- README.md)
+  if [ -n "$diff" ]; then
+    echo "readme-drift-check: README.md Status column is stale -- run 'mise run release -- docs'" >&2
+    echo "$diff" >&2
+    return 1
+  fi
 }
 
 run_step() {
@@ -125,6 +151,8 @@ steps=(fmt-check vet lint test cover vuln inventory-check)
 case "$usage_subcommand" in
 actionlint) run_actionlint ;;
 redaction-selftest) run_redaction_selftest ;;
+release-selftest) run_release_selftest ;;
+readme-drift-check) run_readme_drift_check ;;
 build) run_build ;;
 docs) run_docs ;;
 all)
@@ -135,7 +163,9 @@ all)
   done
   run_actionlint
   run_redaction_selftest
+  run_release_selftest
   run_build
+  run_readme_drift_check
   ;;
 fmt-check | vet | lint | test | cover | vuln | inventory-check)
   for module in "${modules[@]}"; do
