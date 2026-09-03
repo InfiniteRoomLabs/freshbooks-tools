@@ -29,6 +29,12 @@ func TestStaffList(t *testing.T) {
 		if len(members) != 2 {
 			t.Fatalf("got %d members", len(members))
 		}
+		// Phase 7 (live): identity_uuid and language are on the wire but
+		// absent from the Postman example this struct was built from, so
+		// they were being dropped on decode.
+		if members[0].IdentityUUID == "" || members[0].Language != "en" {
+			t.Errorf("identity_uuid/language dropped: %+v", members[0])
+		}
 		if members[0].IdentityID != 4242424 || members[0].Role != "owner" {
 			t.Errorf("member = %+v", members[0])
 		}

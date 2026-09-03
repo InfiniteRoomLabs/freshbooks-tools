@@ -187,3 +187,38 @@ func TestLiveLedgerAccounts(t *testing.T) {
 		}
 	})
 }
+
+// TestLiveStaffFields is fact P: StaffService.List decodes the auth
+// family's "business + its group" payload and returns only the members.
+// Two member keys the Postman example does not have -- identity_uuid and
+// language -- were being dropped; the sibling business fields are dropped
+// deliberately (see staffListResponse).
+func TestLiveStaffFields(t *testing.T) {
+	c := liveClient(t)
+	ctx, cancel := liveCtx(t)
+	defer cancel()
+	m := liveScope(t, c, ctx)
+
+	members, err := c.Staff.List(ctx, m.BusinessID)
+	if err != nil {
+		t.Fatalf("Staff.List: %v", err)
+	}
+	if len(members) == 0 {
+		t.Fatal("the business has no group members; the authorized identity is itself one")
+	}
+	for i, member := range members {
+		if member.ID == 0 || member.GroupID == 0 || member.IdentityID == 0 {
+			t.Errorf("member %d decoded without its ids", i)
+		}
+		if member.IdentityUUID == "" {
+			t.Errorf("member %d: identity_uuid dropped", i)
+		}
+		if member.Language == "" {
+			t.Errorf("member %d: language dropped", i)
+		}
+		if member.Role == "" {
+			t.Errorf("member %d decoded without a role", i)
+		}
+	}
+	t.Logf("decoded %d business-group member(s)", len(members))
+}

@@ -11,12 +11,20 @@ import (
 // identity_id every time-tracking write needs, alongside the role that
 // governs what that identity can do in the business.
 type BusinessGroupMember struct {
-	ID                   int64  `json:"id"`
-	GroupID              int64  `json:"group_id"`
-	Role                 string `json:"role"`
-	IdentityID           int64  `json:"identity_id"`
-	FirstName            string `json:"first_name"`
-	LastName             string `json:"last_name"`
+	ID         int64  `json:"id"`
+	GroupID    int64  `json:"group_id"`
+	Role       string `json:"role"`
+	IdentityID int64  `json:"identity_id"`
+	// IdentityUUID is the member's identity as a UUID. The live response
+	// carries it beside identity_id (CONFIRMED live, 2026-09-03); the
+	// Postman example this struct was built from did not, so it was being
+	// dropped on decode.
+	IdentityUUID string `json:"identity_uuid"`
+	FirstName    string `json:"first_name"`
+	LastName     string `json:"last_name"`
+	// Language is the member's UI language, e.g. "en" (CONFIRMED live,
+	// 2026-09-03; also absent from the Postman example).
+	Language             string `json:"language"`
 	Email                string `json:"email"`
 	Company              string `json:"company"`
 	BusinessID           int64  `json:"business_id"`
@@ -36,6 +44,17 @@ type BusinessGroup struct {
 // staffListResponse is the auth family's "business + its group" shape,
 // after the transport has already peeled off the {"response": ...}
 // envelope.
+//
+// The endpoint answers the whole business record, not just its group.
+// Observed live (2026-09-03) the response also carries account_id, active,
+// address, advanced_accounting_enabled, billing_country_code,
+// business_clients, business_type, business_uuid, date_format,
+// first_day_of_week, id, industry, name, number_format, phone_number,
+// status, and timezone. List deliberately returns only the members: it is
+// the staff listing, and a business record reached through a method named
+// List(businessID) would be a surprising second return value. A caller who
+// needs those fields has SettingsService for the business record, or
+// (*Client).Do against this same path.
 type staffListResponse struct {
 	BusinessGroup BusinessGroup `json:"business_group"`
 }
