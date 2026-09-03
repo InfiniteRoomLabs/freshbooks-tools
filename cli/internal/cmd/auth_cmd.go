@@ -144,7 +144,7 @@ func newAuthLoginCmd(state *runtimeState) *cobra.Command {
 		},
 	}
 	clientID, clientSecret = clientCredentialsFlags(cc)
-	cc.Flags().StringArrayVar(&scopes, "scopes", nil, "OAuth scopes to request (default: the full documented user:*:read/write set)")
+	cc.Flags().StringArrayVar(&scopes, "scopes", nil, "OAuth scopes to request (default: the 43 grantable user:* scopes this toolset's endpoints use; each must be enabled on the app)")
 	cc.Flags().IntVar(&port, "callback-port", cliauth.DefaultPort, "loopback port for the browser callback")
 	cc.Flags().BoolVar(&noBrowser, "no-browser", false, "print the URL and read the redirect (or a bare code) from stdin instead of opening a browser")
 	// Q12 (Phase 4 QA): named "login-timeout", not "timeout", so it cannot
@@ -203,7 +203,11 @@ func newAuthTokenCmd(state *runtimeState) *cobra.Command {
 	cc := &cobra.Command{
 		Use:   "token",
 		Short: "Print the current context's access token (the one place this CLI ever prints one)",
-		Args:  cobra.NoArgs,
+		Long: "Print the current context's access token -- the one place this CLI ever prints one.\n\n" +
+			"An expired (or about-to-expire) stored token is refreshed and the rotated pair persisted before printing, so\n" +
+			"TOKEN=$(freshbooks auth token) always yields a usable credential. --refresh forces that rotation even when the\n" +
+			"stored token is still good.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			id, secret := resolveClientCredentials(*clientID, *clientSecret)
 			ctxName, _, store, err := state.credentialStore(cmd)
@@ -211,7 +215,7 @@ func newAuthTokenCmd(state *runtimeState) *cobra.Command {
 				return err
 			}
 			cfg := libauth.Config{ClientID: id, ClientSecret: secret, Endpoints: authEndpoints()}
-			tok, err := cliauth.Token(cmd.Context(), cfg, store, refresh)
+			tok, err := cliauth.Token(cmd.Context(), cfg, store, refresh, nil)
 			if err != nil {
 				return classifyAuthError(err, ctxName)
 			}
@@ -220,6 +224,6 @@ func newAuthTokenCmd(state *runtimeState) *cobra.Command {
 		},
 	}
 	clientID, clientSecret = clientCredentialsFlags(cc)
-	cc.Flags().BoolVar(&refresh, "refresh", false, "force a refresh, rotating and persisting the token pair before printing")
+	cc.Flags().BoolVar(&refresh, "refresh", false, "force a refresh even when the stored token is still valid (an expired one is refreshed either way)")
 	return cc
 }

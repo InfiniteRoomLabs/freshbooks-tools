@@ -4,7 +4,7 @@
 
 1. Go to https://www.freshbooks.com/api/start and register a developer application. Note the client id and client secret it gives you.
 2. Set the app's redirect URI to `https://localhost:8765/callback` (or another `https://localhost:<port>/callback` -- the developer portal rejects `http://localhost` outright; see `docs/authentication.md`).
-3. Pick the scopes your use needs from https://www.freshbooks.com/api/scopes. `user:profile:read` is granted regardless of what you ask for; every other object needs an explicit `user:<object>:read` and/or `user:<object>:write`.
+3. Enable the scopes your use needs on the app, in the developer portal's own scope picker. The portal is the authority, not https://www.freshbooks.com/api/scopes -- that page lists three objects (`profile`, `notifications`, `reports`) that have no write scope, and omits objects the portal does offer (`uploads`, `account`, `riskhub`). `user:profile:read` is granted regardless of what you ask for; every other object needs an explicit `user:<object>:read` and/or `user:<object>:write`. Every scope you request must both exist and be enabled on the app: FreshBooks answers the consent with "The requested scope is invalid, unknown, or malformed" otherwise, and stores nothing. See `docs/authentication.md`.
 4. Export the two values so the examples below can use them:
 
 ```sh

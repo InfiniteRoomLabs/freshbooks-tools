@@ -213,7 +213,7 @@ func TestToken(t *testing.T) {
 		if err := store.Save(context.Background(), &fbauth.Token{AccessToken: "tok", RefreshToken: "ref"}); err != nil {
 			t.Fatal(err)
 		}
-		got, err := Token(context.Background(), fbauth.Config{}, store, false)
+		got, err := Token(context.Background(), fbauth.Config{}, store, false, nil)
 		if err != nil {
 			t.Fatalf("Token() error = %v", err)
 		}
@@ -230,7 +230,7 @@ func TestToken(t *testing.T) {
 		}
 		cfg := fbauth.Config{ClientID: "id", ClientSecret: "secret", Endpoints: oauth.endpoints()}
 
-		got, err := Token(context.Background(), cfg, store, true)
+		got, err := Token(context.Background(), cfg, store, true, nil)
 		if err != nil {
 			t.Fatalf("Token() error = %v", err)
 		}
@@ -246,25 +246,112 @@ func TestToken(t *testing.T) {
 		}
 	})
 
+	t.Run("[sad] an expired token refreshes instead of printing the dead one", func(t *testing.T) {
+		// Phase 7 (live, 2026-09-03): `auth token` without --refresh
+		// printed an already-expired token and exited 0, so the
+		// documented TOKEN=$(freshbooks auth token) idiom handed every
+		// caller a credential that 401s on first use.
+		oauth := newFakeOAuthServer(t, "id", "secret", "")
+		store := fbauth.NewMemoryStore()
+		expired := &fbauth.Token{
+			AccessToken:  "stale",
+			RefreshToken: "ref-1",
+			Expiry:       time.Date(2026, 9, 3, 12, 0, 0, 0, time.UTC),
+		}
+		if err := store.Save(context.Background(), expired); err != nil {
+			t.Fatal(err)
+		}
+		cfg := fbauth.Config{ClientID: "id", ClientSecret: "secret", Endpoints: oauth.endpoints()}
+		now := func() time.Time { return time.Date(2026, 9, 3, 13, 0, 0, 0, time.UTC) }
+
+		got, err := Token(context.Background(), cfg, store, false, now)
+		if err != nil {
+			t.Fatalf("Token() error = %v", err)
+		}
+		if got != "rotated-access-token" {
+			t.Errorf("got %q, want the refreshed token", got)
+		}
+		saved, err := store.Load(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if saved.RefreshToken != "rotated-refresh-token" {
+			t.Errorf("stored refresh token = %q, want the rotation persisted", saved.RefreshToken)
+		}
+	})
+
+	t.Run("[edge] a token expiring inside the skew is refreshed too", func(t *testing.T) {
+		oauth := newFakeOAuthServer(t, "id", "secret", "")
+		store := fbauth.NewMemoryStore()
+		expiry := time.Date(2026, 9, 3, 13, 0, 0, 0, time.UTC)
+		if err := store.Save(context.Background(), &fbauth.Token{AccessToken: "stale", RefreshToken: "ref-1", Expiry: expiry}); err != nil {
+			t.Fatal(err)
+		}
+		cfg := fbauth.Config{ClientID: "id", ClientSecret: "secret", Endpoints: oauth.endpoints()}
+		now := func() time.Time { return expiry.Add(-fbauth.DefaultExpirySkew / 2) }
+
+		got, err := Token(context.Background(), cfg, store, false, now)
+		if err != nil {
+			t.Fatalf("Token() error = %v", err)
+		}
+		if got != "rotated-access-token" {
+			t.Errorf("got %q, want the refreshed token", got)
+		}
+	})
+
+	t.Run("[edge] a still-valid token is printed without a network call", func(t *testing.T) {
+		store := fbauth.NewMemoryStore()
+		expiry := time.Date(2026, 9, 3, 13, 0, 0, 0, time.UTC)
+		if err := store.Save(context.Background(), &fbauth.Token{AccessToken: "fresh", RefreshToken: "ref-1", Expiry: expiry}); err != nil {
+			t.Fatal(err)
+		}
+		// An empty Config cannot reach any OAuth endpoint, so this only
+		// passes if no refresh was attempted.
+		now := func() time.Time { return expiry.Add(-2 * fbauth.DefaultExpirySkew) }
+		got, err := Token(context.Background(), fbauth.Config{}, store, false, now)
+		if err != nil {
+			t.Fatalf("Token() error = %v", err)
+		}
+		if got != "fresh" {
+			t.Errorf("got %q, want fresh", got)
+		}
+	})
+
+	t.Run("[sad] an expired token with no refresh token says so", func(t *testing.T) {
+		store := fbauth.NewMemoryStore()
+		expiry := time.Date(2026, 9, 3, 12, 0, 0, 0, time.UTC)
+		if err := store.Save(context.Background(), &fbauth.Token{AccessToken: "stale", Expiry: expiry}); err != nil {
+			t.Fatal(err)
+		}
+		now := func() time.Time { return expiry.Add(time.Hour) }
+		_, err := Token(context.Background(), fbauth.Config{}, store, false, now)
+		if err == nil {
+			t.Fatal("Token() error = nil, want an expired-with-no-refresh-token error")
+		}
+		if !strings.Contains(err.Error(), "expired") {
+			t.Errorf("error = %v, want it to name the expiry", err)
+		}
+	})
+
 	t.Run("[sad] --refresh with no stored refresh token", func(t *testing.T) {
 		store := fbauth.NewMemoryStore()
 		if err := store.Save(context.Background(), &fbauth.Token{AccessToken: "tok"}); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := Token(context.Background(), fbauth.Config{}, store, true); err == nil {
+		if _, err := Token(context.Background(), fbauth.Config{}, store, true, nil); err == nil {
 			t.Fatal("Token() error = nil, want an error for no refresh token")
 		}
 	})
 
 	t.Run("[sad] no stored token at all", func(t *testing.T) {
 		store := fbauth.NewMemoryStore()
-		if _, err := Token(context.Background(), fbauth.Config{}, store, false); err == nil {
+		if _, err := Token(context.Background(), fbauth.Config{}, store, false, nil); err == nil {
 			t.Fatal("Token() error = nil, want an error")
 		}
 	})
 
 	t.Run("[sad] a store load error propagates", func(t *testing.T) {
-		if _, err := Token(context.Background(), fbauth.Config{}, brokenLoadStore{}, false); err == nil {
+		if _, err := Token(context.Background(), fbauth.Config{}, brokenLoadStore{}, false, nil); err == nil {
 			t.Fatal("Token() error = nil, want the store's error")
 		}
 	})
@@ -281,7 +368,7 @@ func TestToken(t *testing.T) {
 			t.Fatal(err)
 		}
 		cfg := fbauth.Config{Endpoints: fbauth.Endpoints{TokenURL: srv.URL}}
-		if _, err := Token(context.Background(), cfg, store, true); err == nil {
+		if _, err := Token(context.Background(), cfg, store, true, nil); err == nil {
 			t.Fatal("Token() error = nil, want the OAuth server's error")
 		}
 	})
@@ -294,8 +381,16 @@ func TestToken(t *testing.T) {
 		}
 		store := brokenSaveStore{inner}
 		cfg := fbauth.Config{ClientID: "id", ClientSecret: "secret", Endpoints: oauth.endpoints()}
-		if _, err := Token(context.Background(), cfg, store, true); err == nil {
+		_, err := Token(context.Background(), cfg, store, true, nil)
+		if err == nil {
 			t.Fatal("Token() error = nil, want the store's save error")
+		}
+		// The old refresh token is spent and the new pair never landed, so
+		// the message has to tell the user to log in again rather than
+		// leaving them to retry a command that cannot now succeed.
+		if !strings.Contains(err.Error(), "the rotated token could not be stored") ||
+			!strings.Contains(err.Error(), "freshbooks auth login") {
+			t.Fatalf("Token() error = %q, want it to say the rotated token was not stored and to re-login", err)
 		}
 	})
 }

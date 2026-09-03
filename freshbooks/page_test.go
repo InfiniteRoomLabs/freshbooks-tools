@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 )
 
@@ -146,8 +147,21 @@ func TestPageMeta(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := PageMeta{Page: 2, Pages: 4, PerPage: 15, Total: 53}
-	if got != want {
+	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("decoded %+v, want %+v", got, want)
+	}
+
+	// The business-scoped family adds meta.sort, echoing back whatever the
+	// request's sort parameter said (CONFIRMED live, 2026-09-03).
+	var withSort PageMeta
+	if err := json.Unmarshal([]byte(`{"sort": ["-updated_at"], "total": 0, "per_page": 3, "page": 1, "pages": 0}`), &withSort); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(withSort.Sort, []string{"-updated_at"}) {
+		t.Fatalf("meta.sort decoded as %v", withSort.Sort)
+	}
+	if got.Sort != nil {
+		t.Fatalf("an accounting-family block sends no sort, got %v", got.Sort)
 	}
 
 	// And the projects fixture's real meta block decodes through it.

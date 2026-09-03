@@ -1,6 +1,6 @@
 {
   "data": [
-    {"id": "1", "name": "Cash & Bank", "type": "asset"},
-    {"id": "2", "name": "Current Asset", "type": "asset"}
+    {"id": 1, "type": "asset", "name": "Cash & Bank", "base_number": "1000"},
+    {"id": 2, "type": "asset", "name": "Current Asset", "base_number": "1200"}
   ]
 }

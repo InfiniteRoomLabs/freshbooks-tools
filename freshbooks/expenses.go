@@ -325,10 +325,14 @@ func expenseVendorsPath(acct AccountID) (string, error) {
 }
 
 // Vendors returns the distinct vendor names used across the account's
-// expenses. The Postman collection carries no example response for this
-// request; the shape here (a bare string list under "vendors") is INFERRED
-// from the fact that Expense.Vendor is a free-text field, not a foreign key
-// -- a Phase 2 live check should confirm it.
+// expenses, walking every page.
+//
+// The wire shape is {"vendors": [{"vendor": "..."}], "page", "pages",
+// "per_page", "total"} -- a paginated list of objects, each wrapping a
+// single free-text vendor name (CONFIRMED live 2026-09-02). The default
+// page size the API applies is 15, so this walks the pages and returns the
+// flattened list: the method promises "the account's vendors", and silently
+// returning the first 15 would be a trap.
 //
 // inventory: Expenses/Expense Vendors
 func (s *ExpensesService) Vendors(ctx context.Context, acct AccountID) ([]string, error) {
@@ -336,13 +340,27 @@ func (s *ExpensesService) Vendors(ctx context.Context, acct AccountID) ([]string
 	if err != nil {
 		return nil, err
 	}
-	var env struct {
-		Vendors []string `json:"vendors"`
+	// Non-nil so an account with no vendors encodes as [] rather than
+	// null: the MCP tool and the CLI command both json.Marshal this
+	// return value straight onto the wire.
+	vendors := []string{}
+	for page := 1; ; page++ {
+		var env struct {
+			PageMeta
+			Vendors []struct {
+				Vendor string `json:"vendor"`
+			} `json:"vendors"`
+		}
+		if err := s.client.do(ctx, http.MethodGet, path, FamilyAccounting, nil, &env, PageNumber(page)); err != nil {
+			return nil, err
+		}
+		for _, v := range env.Vendors {
+			vendors = append(vendors, v.Vendor)
+		}
+		if len(env.Vendors) == 0 || env.Pages <= page {
+			return vendors, nil
+		}
 	}
-	if err := s.client.do(ctx, http.MethodGet, path, FamilyAccounting, nil, &env); err != nil {
-		return nil, err
-	}
-	return env.Vendors, nil
 }
 
 // ExpenseProfile is a recurring-expense template. There is no

@@ -37,6 +37,16 @@ PKCE S256 is accepted by both authorize endpoints. Whether FreshBooks *rejects* 
 
 The developer portal rejects `http://localhost:...` outright, contradicting several third-party guides. The registered development redirect is `https://localhost:8765/callback`. The CLI's loopback listener therefore serves an ephemeral self-signed certificate on `127.0.0.1` (the browser shows a one-time warning) and always offers a paste-the-redirected-URL fallback that needs no listener at all. See `cli/internal/auth/` and `docs/cli.md`'s "First login" section.
 
+## Scopes
+
+Scopes are `user:<object>:<action>`, one object per FreshBooks resource family, `read` and `write` as separate scopes. Three things about them are not on https://www.freshbooks.com/api/scopes, and all three were observed against the live developer portal on 2026-09-02:
+
+- **Three objects are read-only.** `profile`, `notifications`, and `reports` have a `:read` scope and no `:write` scope at all. There is nothing to grant, so requesting `user:profile:write` does not produce a partial grant -- it rejects the entire consent with "The requested scope is invalid, unknown, or malformed", and nothing is stored.
+- **The published object list is incomplete.** The portal also offers `uploads` (read/write -- the library's three upload endpoints need it), plus `account` and `riskhub` (read/write) and an `mcp:*` family, none of which the docs page lists. The developer portal's own scope picker, not the docs page, is the authority on what exists.
+- **A scope must also be enabled on the app.** FreshBooks only grants scopes the application was registered with. Requesting one the app does not have fails exactly like a nonexistent scope -- the same generic message, after login, with no indication of which scope was at fault. Enable the full set on the app in the portal, or pass a narrower `--scopes` list to `freshbooks auth login`.
+
+`user:profile:read` is granted regardless of what you request. The CLI's default set (`cli/internal/auth/scopes.go`) is 43 scopes: read and write for the 19 documented read/write objects plus `uploads`, and read for the three read-only objects. `account` and `riskhub` are left out deliberately -- nothing in this repo calls them.
+
 ## Token lifetimes and rotation
 
 The token response looks like this:

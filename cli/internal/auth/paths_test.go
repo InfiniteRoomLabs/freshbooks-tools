@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -105,13 +106,13 @@ func TestCredentialsDir(t *testing.T) {
 }
 
 func TestDefaultScopes(t *testing.T) {
-	t.Run("[happy] is pinned at 44 -- 22 FreshBooks-documented objects, read+write each", func(t *testing.T) {
-		// Q4 (Phase 4 QA): len(DefaultScopes) != len(scopeObjects)*2 is
-		// mutation-blind -- emptying scopeObjects leaves both sides at 0.
-		// A literal 44 (and two hard-coded scope strings below) can only
-		// pass against the real, documented scope set.
-		if len(DefaultScopes) != 44 {
-			t.Fatalf("got %d scopes, want 44", len(DefaultScopes))
+	t.Run("[happy] is pinned at 43 -- the grantable user:* scopes this toolset's endpoints use", func(t *testing.T) {
+		// Q4 (Phase 4 QA): len(DefaultScopes) != len(objects)*2+... is
+		// mutation-blind -- emptying the object lists leaves both sides
+		// at 0. A literal 43 (and the hard-coded scope strings below)
+		// can only pass against the real, portal-observed scope set.
+		if len(DefaultScopes) != 43 {
+			t.Fatalf("got %d scopes, want 43", len(DefaultScopes))
 		}
 	})
 
@@ -123,14 +124,45 @@ func TestDefaultScopes(t *testing.T) {
 		}
 	})
 
-	t.Run("[happy] carries both read and write for every object", func(t *testing.T) {
-		if len(DefaultScopes) != len(scopeObjects)*2 {
-			t.Fatalf("got %d scopes, want %d", len(DefaultScopes), len(scopeObjects)*2)
+	t.Run("[sad] omits the three write scopes FreshBooks does not define", func(t *testing.T) {
+		// Phase 7 (live, 2026-09-02): requesting any of these rejects the
+		// whole consent with "The requested scope is invalid, unknown, or
+		// malformed" -- the portal has profile, notifications, and reports
+		// as read-only objects.
+		for _, w := range []string{"user:profile:write", "user:notifications:write", "user:reports:write"} {
+			if slices.Contains(DefaultScopes, w) {
+				t.Errorf("DefaultScopes must not request the nonexistent scope %q", w)
+			}
 		}
+	})
+
+	t.Run("[edge] carries the undocumented uploads scopes the upload endpoints need", func(t *testing.T) {
+		for _, w := range []string{"user:uploads:read", "user:uploads:write"} {
+			if !slices.Contains(DefaultScopes, w) {
+				t.Errorf("DefaultScopes missing %q", w)
+			}
+		}
+	})
+
+	t.Run("[edge] leaves the undocumented account and riskhub objects out", func(t *testing.T) {
+		for _, s := range DefaultScopes {
+			if strings.HasPrefix(s, "user:account:") || strings.HasPrefix(s, "user:riskhub:") {
+				t.Errorf("DefaultScopes should not request %q by default", s)
+			}
+		}
+	})
+
+	t.Run("[happy] is exactly read+write per read-write object plus read per read-only object", func(t *testing.T) {
 		want := map[string]bool{}
-		for _, obj := range scopeObjects {
+		for _, obj := range readWriteScopeObjects {
 			want["user:"+obj+":read"] = true
 			want["user:"+obj+":write"] = true
+		}
+		for _, obj := range readOnlyScopeObjects {
+			want["user:"+obj+":read"] = true
+		}
+		if len(DefaultScopes) != len(want) {
+			t.Fatalf("got %d scopes, want %d", len(DefaultScopes), len(want))
 		}
 		for _, s := range DefaultScopes {
 			if !want[s] {

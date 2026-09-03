@@ -1,7 +1,18 @@
 {
   "response": {
     "result": {
-      "vendors": ["Example Fuel Co", "Example Office Supplies"]
+      "page": 1,
+      "pages": 1,
+      "per_page": 15,
+      "total": 2,
+      "vendors": [
+        {
+          "vendor": "Example Fuel Co"
+        },
+        {
+          "vendor": "Example Office Supplies"
+        }
+      ]
     }
   }
 }

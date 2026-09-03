@@ -58,7 +58,7 @@ Every registry command accepts `--dry-run`, which prints the request's method an
 
 Destructive commands -- the ones whose `Short` help line in the command reference below ends with " (destructive: requires --yes on a TTY)" -- refuse to run without `--yes` when stdin is a terminal.
 
-A Binary command's `-o <file>` (`invoices pdf`, `reports download-invoice-details-csv`) refuses to overwrite an existing file without `--force`, and refuses `-o -` when stdout is a terminal (binary bytes would corrupt it). This `-o` is a different flag from the global `-o/--output` formatting flag above and shadows it locally on these two commands; similarly, `auth login --login-timeout` (how long to wait for the browser callback) is a different flag from the global `--timeout` (per-request timeout) -- named differently precisely so it does not shadow it.
+A Binary command's `-o <file>` (`invoices pdf`, `reports download-invoice-details-csv`) refuses to overwrite an existing file without `--force`, and refuses `-o -` when stdout is a terminal (binary bytes would corrupt it). This `-o` is a different flag from the global `-o/--output` formatting flag above and shadows it locally on these two commands; similarly, `auth login --login-timeout` (how long to wait for the browser callback) is a different flag from the global `--timeout` (per-request timeout) -- named differently precisely so it does not shadow it. The scopes `auth login` requests (43 by default -- the grantable `user:*` scopes this toolset's endpoints use, which is not the same list as https://www.freshbooks.com/api/scopes and deliberately leaves out `account`, `riskhub`, and `mcp:*` -- or an explicit `--scopes` list) must all exist AND be enabled on the app in the developer portal; otherwise the consent page answers "The requested scope is invalid, unknown, or malformed" and nothing is stored. See `docs/authentication.md`.
 
 ## The api escape hatch
 
@@ -302,7 +302,7 @@ freshbooks auth login [flags]
   -h, --help                     help for login
       --login-timeout duration   how long to wait for the browser callback (default 5m0s)
       --no-browser               print the URL and read the redirect (or a bare code) from stdin instead of opening a browser
-      --scopes stringArray       OAuth scopes to request (default: the full documented user:*:read/write set)
+      --scopes stringArray       OAuth scopes to request (default: the 43 grantable user:* scopes this toolset's endpoints use; each must be enabled on the app)
 ```
 
 ### Options inherited from parent commands
@@ -402,6 +402,14 @@ freshbooks auth status [flags]
 
 Print the current context's access token (the one place this CLI ever prints one)
 
+### Synopsis
+
+Print the current context's access token -- the one place this CLI ever prints one.
+
+An expired (or about-to-expire) stored token is refreshed and the rotated pair persisted before printing, so
+TOKEN=$(freshbooks auth token) always yields a usable credential. --refresh forces that rotation even when the
+stored token is still good.
+
 ```
 freshbooks auth token [flags]
 ```
@@ -412,7 +420,7 @@ freshbooks auth token [flags]
       --client-id string       the registered application's client id (default: FRESHBOOKS_CLIENT_ID)
       --client-secret string   the registered application's client secret (default: FRESHBOOKS_CLIENT_SECRET)
   -h, --help                   help for token
-      --refresh                force a refresh, rotating and persisting the token pair before printing
+      --refresh                force a refresh even when the stored token is still valid (an expired one is refreshed either way)
 ```
 
 ### Options inherited from parent commands

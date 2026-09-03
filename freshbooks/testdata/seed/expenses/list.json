@@ -1,0 +1,60 @@
+{
+  "response": {
+    "result": {
+      "expenses": [
+        {
+          "account_name": "",
+          "accountid": null,
+          "accounting_systemid": "ACM123",
+          "amount": {
+            "amount": "100.00",
+            "code": "USD"
+          },
+          "background_jobid": null,
+          "bank_name": "",
+          "bill_matches": [],
+          "billable": false,
+          "categoryid": 70010,
+          "clientid": 0,
+          "compounded_tax": false,
+          "converse_projectid": null,
+          "date": "2026-08-28",
+          "expenseid": 70011,
+          "ext_accountid": null,
+          "ext_invoiceid": 0,
+          "ext_systemid": 0,
+          "from_bulk_import": false,
+          "has_receipt": false,
+          "id": 70011,
+          "include_receipt": false,
+          "invoiceid": null,
+          "is_cogs": false,
+          "isduplicate": false,
+          "markup_percent": "0",
+          "modern_projectid": null,
+          "notes": "Example expense note",
+          "potential_bill_payment": false,
+          "profileid": null,
+          "projectid": 0,
+          "staffid": 1,
+          "status": 0,
+          "taxAmount1": null,
+          "taxAmount2": null,
+          "taxName1": null,
+          "taxName2": null,
+          "taxPercent1": null,
+          "taxPercent2": null,
+          "transactionid": null,
+          "updated": "2026-08-28 18:02:59",
+          "vendor": "Example Vendor Co.",
+          "version": "2026-08-28 18:02:59.000000",
+          "vis_state": 0
+        }
+      ],
+      "page": 1,
+      "pages": 1,
+      "per_page": 3,
+      "total": 1
+    }
+  }
+}

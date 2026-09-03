@@ -36,6 +36,14 @@ type StatusInfo struct {
 	Scopes []string `json:"scopes"`
 }
 
+// clock returns now, or time.Now when the caller passed nil.
+func clock(now func() time.Time) func() time.Time {
+	if now == nil {
+		return time.Now
+	}
+	return now
+}
+
 // Status reports a context's credential state without ever touching the
 // network or printing the token.
 func Status(ctx context.Context, contextName, credentialsPath string, store fbauth.TokenStore, now func() time.Time) (*StatusInfo, error) {
@@ -49,12 +57,8 @@ func Status(ctx context.Context, contextName, credentialsPath string, store fbau
 		return nil, fmt.Errorf("auth: loading the stored credentials: %w", err)
 	}
 
-	nowFn := now
-	if nowFn == nil {
-		nowFn = time.Now
-	}
 	info.LoggedIn = true
-	info.Valid = tok.Valid(nowFn(), fbauth.DefaultExpirySkew)
+	info.Valid = tok.Valid(clock(now)(), fbauth.DefaultExpirySkew)
 	info.Expiry = tok.Expiry
 	info.Scopes = tok.Scopes
 	return info, nil
@@ -92,25 +96,42 @@ func Logout(ctx context.Context, cfg fbauth.Config, credentialsPath string, stor
 }
 
 // Token returns the stored access token, refreshing (and persisting the
-// rotated pair) first when refresh is true.
-func Token(ctx context.Context, cfg fbauth.Config, store fbauth.TokenStore, refresh bool) (string, error) {
+// rotated pair) first when refresh is true OR when the stored access token
+// has already expired.
+//
+// The expiry check is not a convenience. Without it `auth token` printed a
+// dead token and exited 0 (observed live, 2026-09-03: `auth status` reported
+// valid: false while `auth token` still printed the stale value), so every
+// caller of the documented `TOKEN=$(freshbooks auth token)` idiom got a
+// silent 401 on its next call instead of a working credential. A token that
+// is about to expire inside the lib's DefaultExpirySkew counts as expired
+// here, matching what `auth status` calls valid.
+//
+// now supplies the clock; nil means time.Now.
+func Token(ctx context.Context, cfg fbauth.Config, store fbauth.TokenStore, refresh bool, now func() time.Time) (string, error) {
 	tok, err := store.Load(ctx)
 	if err != nil {
 		return "", fmt.Errorf("auth: loading the stored credentials: %w", err)
 	}
 
-	if !refresh {
+	if !refresh && tok.Valid(clock(now)(), fbauth.DefaultExpirySkew) {
 		return tok.AccessToken, nil
 	}
 	if tok.RefreshToken == "" {
-		return "", errors.New("auth: no refresh token is stored; run 'freshbooks auth login' again")
+		if refresh {
+			return "", errors.New("auth: no refresh token is stored; run 'freshbooks auth login' again")
+		}
+		return "", errors.New("auth: the stored access token has expired and no refresh token is stored; run 'freshbooks auth login' again")
 	}
 	next, err := cfg.Refresh(ctx, tok.RefreshToken)
 	if err != nil {
 		return "", err
 	}
 	if err := store.Save(ctx, next); err != nil {
-		return "", fmt.Errorf("auth: saving the refreshed token: %w", err)
+		// The OAuth server has already consumed the old refresh token
+		// (they are one-time use) and the rotated pair never reached
+		// disk, so there is nothing left to retry against.
+		return "", fmt.Errorf("auth: saving the refreshed token: %w; the rotated token could not be stored, run 'freshbooks auth login' again", err)
 	}
 	return next.AccessToken, nil
 }

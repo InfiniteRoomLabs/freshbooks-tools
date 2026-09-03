@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking:** `LedgerAccountsService.Types`, `SubTypes`, and `SubType` returned `json.RawMessage` because Phase 2 had no evidence for their payloads (no Postman example, no docs page). Observed live 2026-09-03 and now typed: `Types` returns `[]LedgerAccountType` (the entries are `{"name": "asset"}` objects, not bare strings, and the income type is spelled `income`, not `revenue`), `SubTypes` returns `[]LedgerAccountSubType` and `SubType` a `*LedgerAccountSubType` (`id` is a bare JSON number, and each entry carries a `base_number` the old fixture did not have). Callers that unmarshalled the raw message themselves must switch to the typed values.
+
+### Fixed
+
+- `Page[T]` and `PageMeta` dropped the business-scoped family's `meta.sort`. Both now carry `Sort []string` (omitted from JSON when empty, so accounting-family output is unchanged). The field's doc comment records what the live API actually does with `sort`: it echoes back whatever it was given -- including a field name that does not exist -- and answers 200 either way, so the value shows what was asked for, never that the sort was understood (CONFIRMED live, 2026-09-03).
+- `BusinessGroupMember` dropped two keys the live `GET /auth/api/v1/users/business/{businessId}` response carries and the Postman example does not: `identity_uuid` and `language`. Both are now decoded (CONFIRMED live, 2026-09-03). `StaffService.List` still returns only the group's members; the sibling business fields the same payload carries are now named in the code so the omission reads as deliberate.
+- `GatewayConnection` silently dropped a live account's whole Stripe connection. An account onboarded through FreshBooks Payments answers `"stripe": null`, no `"fbpay"` key at all, and the connection under `"stripe_unified"` -- a key set the Postman `stripe` example does not contain. Added `StripeUnifiedConnection` and `GatewayConnection.StripeUnified`, plus `StripeCapability` for its `capabilities` array; the older `Stripe` field stays for accounts onboarded before the change (CONFIRMED live, 2026-09-02).
+- `ExpensesService.Vendors` decoded the wrong shape and could not return anything. Phase 2 inferred a bare string array under `"vendors"` (the Postman collection carries no example response); the live endpoint answers the ordinary paginated accounting result with each entry as a one-key object -- `{"page", "pages", "per_page", "total", "vendors": [{"vendor": "..."}]}` -- and applies a default page size of 15. Vendors now decodes that shape and walks every page before returning the flattened `[]string` its signature promises, rather than silently returning the first 15 (CONFIRMED live, 2026-09-02).
+
 ## [0.1.0] - 2026-09-02
 
 ### Added
