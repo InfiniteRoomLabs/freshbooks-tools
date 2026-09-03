@@ -50,16 +50,6 @@ type timeEntryResponse struct {
 	TimeEntry TimeEntry `json:"time_entry"`
 }
 
-// timeEntriesListResponse's Meta carries two aggregate fields --
-// total_logged and total_unbilled -- that Page[TimeEntry] has no room for
-// (Page's four fields are the pagination block every list response shares,
-// not a per-resource aggregate). List and Search silently drop them;
-// ListWithTotals is the way to reach them.
-type timeEntriesListResponse struct {
-	Meta        PageMeta    `json:"meta"`
-	TimeEntries []TimeEntry `json:"time_entries"`
-}
-
 // TimeEntryTotals carries the aggregate fields the time-entries list
 // endpoint's meta object holds beside the four pagination keys PageMeta
 // already models. TotalLogged and TotalUnbilled are totals across the
@@ -69,7 +59,7 @@ type timeEntriesListResponse struct {
 // The captured account (freshbooks/testdata/seed/time_entries/list.json)
 // has zero time entries, so both breakdown lists are always "[]" there, and
 // neither the Postman collection nor the FreshBooks docs page
-// (https://www.freshbooks.com/api/time_entries) shows a populated example.
+// (https://www.freshbooks.com/api/time_tracking) shows a populated example.
 // With no element-shape evidence in either direction, PerTeamMember and
 // PerClient stay raw JSON rather than a guessed struct -- INFERRED; see the
 // spec 5.1 STATE AS OF 2026-09-03 (Phase 8) callout.
@@ -95,11 +85,13 @@ type TimeEntriesPage struct {
 	Totals TimeEntryTotals `json:"totals"`
 }
 
-// timeEntriesListWithTotalsResponse decodes the same wire response as
-// timeEntriesListResponse, but keeps the totals PageMeta drops. Meta embeds
+// timeEntriesListResponse decodes a time-entries list body. Meta embeds
 // both PageMeta and TimeEntryTotals so their fields (no keys collide) land
-// flat under "meta", matching the wire shape in one decode.
-type timeEntriesListWithTotalsResponse struct {
+// flat under "meta", matching the wire shape in one decode: the totals are
+// the aggregate fields Page[TimeEntry] has no room for (Page's fields are
+// the pagination block every list response shares, not a per-resource
+// aggregate), which List and Search drop and ListWithTotals keeps.
+type timeEntriesListResponse struct {
 	Meta struct {
 		PageMeta
 		TimeEntryTotals
@@ -129,14 +121,27 @@ func timeEntryPath(businessID BusinessID, id int64) string {
 	return fmt.Sprintf("%s/%d", timeEntriesPath(businessID), id)
 }
 
-// list is the shared GET path List and Search both run: same response
-// shape, same family, different URL and query.
-func (s *TimeEntriesService) list(ctx context.Context, path string, opts []RequestOption) (*Page[TimeEntry], error) {
+// listWithTotals is the one GET path every time-entries list runs: same
+// response shape, same family, different URL and query.
+func (s *TimeEntriesService) listWithTotals(ctx context.Context, path string, opts []RequestOption) (*TimeEntriesPage, error) {
 	var resp timeEntriesListResponse
 	if err := s.client.do(ctx, http.MethodGet, path, FamilyBusiness, nil, &resp, opts...); err != nil {
 		return nil, err
 	}
-	return newPage(resp.TimeEntries, resp.Meta), nil
+	return &TimeEntriesPage{
+		Page:   *newPage(resp.TimeEntries, resp.Meta.PageMeta),
+		Totals: resp.Meta.TimeEntryTotals,
+	}, nil
+}
+
+// list is listWithTotals projected down to the plain page List and Search
+// return.
+func (s *TimeEntriesService) list(ctx context.Context, path string, opts []RequestOption) (*Page[TimeEntry], error) {
+	p, err := s.listWithTotals(ctx, path, opts)
+	if err != nil {
+		return nil, err
+	}
+	return &p.Page, nil
 }
 
 // List returns one page of businessID's time entries. Filter it with
@@ -166,12 +171,7 @@ func (s *TimeEntriesService) List(ctx context.Context, businessID BusinessID, op
 // *TimeEntryListOptions -- List is untouched and remains the plain-Page
 // call.
 func (s *TimeEntriesService) ListWithTotals(ctx context.Context, businessID BusinessID, opts ...RequestOption) (*TimeEntriesPage, error) {
-	var resp timeEntriesListWithTotalsResponse
-	if err := s.client.do(ctx, http.MethodGet, timeEntriesPath(businessID), FamilyBusiness, nil, &resp, opts...); err != nil {
-		return nil, err
-	}
-	page := newPage(resp.TimeEntries, resp.Meta.PageMeta)
-	return &TimeEntriesPage{Page: *page, Totals: resp.Meta.TimeEntryTotals}, nil
+	return s.listWithTotals(ctx, timeEntriesPath(businessID), opts)
 }
 
 // Search runs a free-text query (e.g. an identity's name) against a

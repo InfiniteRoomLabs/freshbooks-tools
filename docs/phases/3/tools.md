@@ -169,11 +169,11 @@ Annotation column: RO = `ReadOnlyHint: true`; D = `DestructiveHint: true` (delet
 | 161 | `team_members_rates` | `TeamMembers.Rates` (team_members.go:180) | RO | `Projects/Team Member Rates` |
 | 162 | `team_members_update_rate` | `TeamMembers.UpdateRate` (team_members.go:199) | I | `My Team/Update Staff Rates`; `Projects/Update Team Member Rate` |
 | 163 | `team_members_invite` | `TeamMembers.Invite` (team_members.go:237) | W | `Projects/Invite Team Member to Project(s)` |
-| 164 | `time_entries_list` | `TimeEntries.List` (time_entries.go:152) | RO | `Time Tracking/List Entries`; `Time Tracking/Time Entries Updated Since Precise Time`; `Time Tracking/Time Entries for a Given Day` |
-| 165 | `time_entries_search` | `TimeEntries.Search` (time_entries.go:179) | RO | `Time Tracking/Time Entries For Employee on Specific Project` |
-| 166 | `time_entries_create` | `TimeEntries.Create` (time_entries.go:204) | W | `Time Tracking/Create a Time Entry` |
-| 167 | `time_entries_update` | `TimeEntries.Update` (time_entries.go:231) | I | `Time Tracking/Update a Time Entry` |
-| 168 | `time_entries_delete` | `TimeEntries.Delete` (time_entries.go:247) | D | `Time Tracking/Delete a Time Entry` |
-| 169 | `time_entries_list_with_totals` | `TimeEntries.ListWithTotals` (time_entries.go:164) | RO | - |
+| 164 | `time_entries_list` | `TimeEntries.List` (time_entries.go:161) | RO | `Time Tracking/List Entries`; `Time Tracking/Time Entries Updated Since Precise Time`; `Time Tracking/Time Entries for a Given Day` |
+| 165 | `time_entries_search` | `TimeEntries.Search` (time_entries.go:183) | RO | `Time Tracking/Time Entries For Employee on Specific Project` |
+| 166 | `time_entries_create` | `TimeEntries.Create` (time_entries.go:208) | W | `Time Tracking/Create a Time Entry` |
+| 167 | `time_entries_update` | `TimeEntries.Update` (time_entries.go:235) | I | `Time Tracking/Update a Time Entry` |
+| 168 | `time_entries_delete` | `TimeEntries.Delete` (time_entries.go:251) | D | `Time Tracking/Delete a Time Entry` |
+| 169 | `time_entries_list_with_totals` | `TimeEntries.ListWithTotals` (time_entries.go:173) | RO | - |
 
 **Totals:** 169 tools, 212 inventory keys (+1 auth-owned key = 213). Row 169 (Phase 8 convergence, 2026-09-03) is keyless like `identity_whoami`: it wraps the same wire endpoint as row 164 (`time_entries_list`), not a distinct Postman request, so it carries none of that endpoint's three keys a second time.

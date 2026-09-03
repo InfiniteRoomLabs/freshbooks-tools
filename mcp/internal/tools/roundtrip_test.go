@@ -545,8 +545,8 @@ func TestRoundTrip(t *testing.T) {
 	clientSession := newTestSession(t, upstream, testScope, nil)
 	ctx := context.Background()
 
-	if len(All) != 169 {
-		t.Fatalf("registry has %d tools, want 169", len(All))
+	if len(All) != wantRegistrySize {
+		t.Fatalf("registry has %d tools, want %d", len(All), wantRegistrySize)
 	}
 
 	for _, spec := range All {

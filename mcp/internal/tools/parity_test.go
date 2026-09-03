@@ -18,6 +18,11 @@ import (
 // (see docs/phases/3/plan.md, "The definitive tool surface").
 const toolsMDPath = "../../../docs/phases/3/tools.md"
 
+// wantRegistrySize is the frozen tool surface tools.md documents, and the
+// one number to bump when a lib method is added: every other size
+// assertion in this module derives from it or from len(All).
+const wantRegistrySize = 169
+
 type mdRow struct {
 	name    string
 	service string
@@ -63,8 +68,8 @@ func parseToolsMD(t *testing.T) []mdRow {
 	if err := scanner.Err(); err != nil {
 		t.Fatalf("reading %s: %v", toolsMDPath, err)
 	}
-	if len(rows) != 169 {
-		t.Fatalf("parsed %d rows from %s, want 169", len(rows), toolsMDPath)
+	if len(rows) != wantRegistrySize {
+		t.Fatalf("parsed %d rows from %s, want %d", len(rows), toolsMDPath, wantRegistrySize)
 	}
 	return rows
 }

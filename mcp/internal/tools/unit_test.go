@@ -140,8 +140,11 @@ func TestVoid(t *testing.T) {
 
 func TestManifest(t *testing.T) {
 	m := Manifest()
-	if len(m) != 169 {
-		t.Fatalf("len(Manifest()) = %d, want 169", len(m))
+	// The invariant here is "one manifest entry per registry Spec", not a
+	// literal: parity_test.go's wantRegistrySize is where the frozen
+	// surface size lives.
+	if len(m) != len(All) {
+		t.Fatalf("len(Manifest()) = %d, want one entry per registry Spec (%d)", len(m), len(All))
 	}
 	if !sort.SliceIsSorted(m, func(i, j int) bool { return m[i].Name < m[j].Name }) {
 		t.Fatal("Manifest() is not sorted by name")

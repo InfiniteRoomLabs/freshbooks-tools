@@ -19,6 +19,12 @@ import (
 // the implementer report for every row where it does).
 const commandsMDPath = "../../../docs/phases/4/commands.md"
 
+// wantRegistrySize is the frozen command surface commands.md
+// documents, and the one number to bump when a lib method is added:
+// every other size assertion in this module derives from it or from
+// len(All).
+const wantRegistrySize = 169
+
 type mdRow struct {
 	command string // "freshbooks <group> <verb>"
 	service string
@@ -62,8 +68,8 @@ func parseCommandsMD(t *testing.T) []mdRow {
 	if err := scanner.Err(); err != nil {
 		t.Fatalf("reading %s: %v", commandsMDPath, err)
 	}
-	if len(rows) != 169 {
-		t.Fatalf("parsed %d rows from %s, want 169", len(rows), commandsMDPath)
+	if len(rows) != wantRegistrySize {
+		t.Fatalf("parsed %d rows from %s, want %d", len(rows), commandsMDPath, wantRegistrySize)
 	}
 	return rows
 }

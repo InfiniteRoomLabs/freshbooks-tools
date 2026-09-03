@@ -655,8 +655,8 @@ func assertProbesInQuery(t *testing.T, c Command, rawQuery string) {
 // scope id lands in the path, page/per_page/search/include (when
 // registered) land in the query as exact key=value pairs, and exit 0.
 func TestRoundTrip(t *testing.T) {
-	if len(All) != 169 {
-		t.Fatalf("registry has %d commands, want 169", len(All))
+	if len(All) != wantRegistrySize {
+		t.Fatalf("registry has %d commands, want %d", len(All), wantRegistrySize)
 	}
 
 	setupCredentials(t)
