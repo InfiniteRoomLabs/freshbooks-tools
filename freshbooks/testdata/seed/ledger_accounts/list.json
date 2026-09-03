@@ -1,0 +1,89 @@
+{
+  "data": [
+    {
+      "uuid": "00000000-0000-4000-9000-000000000001",
+      "name": "Cash",
+      "number": "1000",
+      "description": "",
+      "type": "asset",
+      "sub_type": "Cash & Bank",
+      "system_account_name": "Cash",
+      "parent_account": null,
+      "sub_accounts": [
+        "00000000-0000-4000-9000-000000000002"
+      ],
+      "auto_created": true,
+      "state": "active",
+      "updated_at": "2026-08-22T04:31:10.449944Z",
+      "category_id": null,
+      "jea_id": 4550415,
+      "jesa_id": null
+    },
+    {
+      "uuid": "00000000-0000-4000-9000-000000000002",
+      "name": "Petty Cash",
+      "number": "1000-1",
+      "description": "",
+      "type": "asset",
+      "sub_type": "Cash & Bank",
+      "system_account_name": "Petty Cash",
+      "parent_account": "00000000-0000-4000-9000-000000000001",
+      "sub_accounts": [],
+      "auto_created": true,
+      "state": "active",
+      "updated_at": "2026-08-28T22:02:58.303668Z",
+      "category_id": null,
+      "jea_id": null,
+      "jesa_id": 12108003
+    },
+    {
+      "uuid": "00000000-0000-4000-9000-000000000003",
+      "name": "Furniture",
+      "number": "1500-1",
+      "description": "",
+      "type": "asset",
+      "sub_type": "Property, Plant, and Equipment",
+      "parent_account": "00000000-0000-4000-9000-000000000004",
+      "sub_accounts": [],
+      "auto_created": false,
+      "state": "active",
+      "updated_at": "2026-08-22T04:31:10.482524Z",
+      "category_id": null,
+      "jea_id": null,
+      "jesa_id": 12108015
+    },
+    {
+      "uuid": "00000000-0000-4000-9000-000000000005",
+      "name": "Accounts Receivable",
+      "number": "1200",
+      "description": "",
+      "type": "asset",
+      "sub_type": "Current Asset",
+      "system_account_name": "Accounts Receivable",
+      "parent_account": null,
+      "sub_accounts": [],
+      "auto_created": false,
+      "state": "active",
+      "updated_at": "2026-08-22T21:21:32.326252Z",
+      "category_id": null,
+      "jea_id": 4550417,
+      "jesa_id": 12108005
+    },
+    {
+      "uuid": "00000000-0000-4000-9000-000000000006",
+      "name": "Customer Deposits",
+      "number": "1201",
+      "description": "",
+      "type": "asset",
+      "sub_type": "Current Asset",
+      "parent_account": null,
+      "sub_accounts": [],
+      "auto_created": false,
+      "state": "active",
+      "updated_at": "2026-08-22T04:31:10.450215Z",
+      "category_id": null,
+      "jea_id": null,
+      "jesa_id": 12108007
+    }
+  ]
+}

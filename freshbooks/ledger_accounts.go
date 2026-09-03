@@ -2,7 +2,6 @@ package freshbooks
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -184,18 +183,46 @@ func (s *LedgerAccountsService) Update(ctx context.Context, biz BusinessUUID, ac
 	return &resp.Data, nil
 }
 
-// Types returns the account-type taxonomy (e.g. "asset", "liability")
-// ledger accounts choose their Type from, unparsed. The endpoint takes no
-// scope ID and carries no example response in the Postman collection and no
-// public FreshBooks docs page, so this batch's zero-evidence policy
-// applies: raw is the "data" key's payload, undecoded, for the caller to
-// unmarshal once a shape is confirmed live.
+// LedgerAccountType is one entry of the account-type taxonomy a ledger
+// account's Type is drawn from. The endpoint answers objects, not bare
+// strings, and Name is the only key each carries (CONFIRMED live,
+// 2026-09-03; Phase 2 had no evidence for the shape at all).
+type LedgerAccountType struct {
+	// Name is the type, e.g. "asset", "liability", "equity", "income",
+	// "expense". It matches LedgerAccount.Type.
+	Name string `json:"name"`
+}
+
+// LedgerAccountSubType is one entry of the sub-type taxonomy a ledger
+// account's SubType is drawn from (CONFIRMED live, 2026-09-03).
+type LedgerAccountSubType struct {
+	// ID identifies the sub-type. It is a bare JSON number on the wire,
+	// not the quoted string the Phase 2 fixture guessed.
+	ID int64 `json:"id"`
+	// Type is the parent account type, matching a LedgerAccountType.Name.
+	Type string `json:"type"`
+	// Name is the sub-type's display name, e.g. "Cash & Bank". It matches
+	// LedgerAccount.SubType.
+	Name string `json:"name"`
+	// BaseNumber is the chart-of-accounts number this sub-type's accounts
+	// are numbered from, e.g. "1000".
+	BaseNumber string `json:"base_number"`
+}
+
+// Types returns the account-type taxonomy ledger accounts choose their Type
+// from. The endpoint takes no scope ID.
+//
+// It carries no example response in the Postman collection and no public
+// FreshBooks docs page, so Phase 2 returned the payload undecoded. Phase 7
+// observed it live: `{"data": [{"name": "asset"}, ...]}` -- five entries,
+// each a one-key object, so the Phase 2 fixture's bare string array was
+// wrong in both directions (objects, not strings; "income", not "revenue").
 //
 // inventory: Accounting/Accounts/List Account types
-func (s *LedgerAccountsService) Types(ctx context.Context) (raw json.RawMessage, err error) {
+func (s *LedgerAccountsService) Types(ctx context.Context) ([]LedgerAccountType, error) {
 	const path = "/accounting/ledger_accounts/types"
 	var resp struct {
-		Data json.RawMessage `json:"data"`
+		Data []LedgerAccountType `json:"data"`
 	}
 	if err := s.client.do(ctx, http.MethodGet, path, FamilyBusiness, nil, &resp); err != nil {
 		return nil, err
@@ -204,14 +231,14 @@ func (s *LedgerAccountsService) Types(ctx context.Context) (raw json.RawMessage,
 }
 
 // SubTypes returns the sub-type taxonomy ledger accounts choose their
-// SubType from, unparsed. See Types for why: no scope ID, no evidence for
-// the payload shape.
+// SubType from. Like Types it takes no scope ID, and its shape is CONFIRMED
+// live (2026-09-03) rather than inferred.
 //
 // inventory: Accounting/Accounts/List Sub types
-func (s *LedgerAccountsService) SubTypes(ctx context.Context) (raw json.RawMessage, err error) {
+func (s *LedgerAccountsService) SubTypes(ctx context.Context) ([]LedgerAccountSubType, error) {
 	const path = "/accounting/ledger_accounts/sub_types"
 	var resp struct {
-		Data json.RawMessage `json:"data"`
+		Data []LedgerAccountSubType `json:"data"`
 	}
 	if err := s.client.do(ctx, http.MethodGet, path, FamilyBusiness, nil, &resp); err != nil {
 		return nil, err
@@ -219,20 +246,21 @@ func (s *LedgerAccountsService) SubTypes(ctx context.Context) (raw json.RawMessa
 	return resp.Data, nil
 }
 
-// SubType returns one sub-type by ID, unparsed. See Types for why: no
-// evidence for the payload shape.
+// SubType returns one sub-type by ID. The single-resource response is the
+// same object the list returns, under the same "data" key (CONFIRMED live,
+// 2026-09-03).
 //
 // inventory: Accounting/Accounts/Single Sub type
-func (s *LedgerAccountsService) SubType(ctx context.Context, id string) (raw json.RawMessage, err error) {
+func (s *LedgerAccountsService) SubType(ctx context.Context, id string) (*LedgerAccountSubType, error) {
 	if err := pathSegment(id); err != nil {
 		return nil, err
 	}
 	path := "/accounting/ledger_accounts/sub_types/" + id
 	var resp struct {
-		Data json.RawMessage `json:"data"`
+		Data LedgerAccountSubType `json:"data"`
 	}
 	if err := s.client.do(ctx, http.MethodGet, path, FamilyBusiness, nil, &resp); err != nil {
 		return nil, err
 	}
-	return resp.Data, nil
+	return &resp.Data, nil
 }

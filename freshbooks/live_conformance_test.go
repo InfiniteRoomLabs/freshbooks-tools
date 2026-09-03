@@ -11,6 +11,8 @@ package freshbooks_test
 
 import (
 	"context"
+	"slices"
+	"strconv"
 	"testing"
 	"time"
 
@@ -110,4 +112,78 @@ func TestLiveGateways(t *testing.T) {
 	if populated == 0 {
 		t.Error("every gateway field decoded nil -- the connection shape is not modelled")
 	}
+}
+
+// TestLiveLedgerAccounts is fact F: the ledger family answers flat
+// {"data": ...} (Phase 2 reclassified it off the accounting envelope on
+// Postman examples alone), and the two taxonomy endpoints -- which have no
+// Postman example and no public docs page -- had no evidence for their
+// payload shape at all.
+func TestLiveLedgerAccounts(t *testing.T) {
+	c := liveClient(t)
+	ctx, cancel := liveCtx(t)
+	defer cancel()
+	m := liveScope(t, c, ctx)
+
+	t.Run("list answers flat data", func(t *testing.T) {
+		accounts, err := c.LedgerAccounts.List(ctx, m.BusinessUUID)
+		if err != nil {
+			t.Fatalf("LedgerAccounts.List: %v", err)
+		}
+		if len(accounts) == 0 {
+			t.Fatal("the chart of accounts is empty; every FreshBooks business has auto-created accounts")
+		}
+		for i, a := range accounts {
+			if a.UUID == "" || a.Type == "" {
+				t.Fatalf("account %d decoded without a uuid or type", i)
+			}
+			if a.UpdatedAt.IsZero() {
+				t.Fatalf("account %d: updated_at did not parse", i)
+			}
+		}
+		t.Logf("decoded %d ledger account(s)", len(accounts))
+	})
+
+	t.Run("types are one-key objects", func(t *testing.T) {
+		types, err := c.LedgerAccounts.Types(ctx)
+		if err != nil {
+			t.Fatalf("LedgerAccounts.Types: %v", err)
+		}
+		var names []string
+		for _, ty := range types {
+			if ty.Name == "" {
+				t.Fatal("a type decoded with an empty name -- the entries are {\"name\": \"...\"} objects")
+			}
+			names = append(names, ty.Name)
+		}
+		for _, want := range []string{"asset", "equity", "expense", "income", "liability"} {
+			if !slices.Contains(names, want) {
+				t.Errorf("type %q missing from %v", want, names)
+			}
+		}
+	})
+
+	t.Run("sub-types carry a numeric id and a base number", func(t *testing.T) {
+		subTypes, err := c.LedgerAccounts.SubTypes(ctx)
+		if err != nil {
+			t.Fatalf("LedgerAccounts.SubTypes: %v", err)
+		}
+		if len(subTypes) == 0 {
+			t.Fatal("the sub-type taxonomy is empty")
+		}
+		for i, st := range subTypes {
+			if st.ID == 0 || st.Type == "" || st.Name == "" || st.BaseNumber == "" {
+				t.Fatalf("sub-type %d decoded incomplete: %+v", i, st)
+			}
+		}
+
+		first := subTypes[0]
+		one, err := c.LedgerAccounts.SubType(ctx, strconv.FormatInt(first.ID, 10))
+		if err != nil {
+			t.Fatalf("LedgerAccounts.SubType: %v", err)
+		}
+		if *one != first {
+			t.Errorf("the single sub-type differs from its list entry: %+v vs %+v", one, first)
+		}
+	})
 }

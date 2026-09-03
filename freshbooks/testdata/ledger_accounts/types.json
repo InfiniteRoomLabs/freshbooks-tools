@@ -1,3 +1,9 @@
 {
-  "data": ["asset", "liability", "equity", "revenue", "expense"]
+  "data": [
+    {"name": "asset"},
+    {"name": "equity"},
+    {"name": "expense"},
+    {"name": "income"},
+    {"name": "liability"}
+  ]
 }

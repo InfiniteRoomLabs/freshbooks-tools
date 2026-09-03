@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"slices"
 	"testing"
 )
 
@@ -139,7 +140,7 @@ func TestLedgerAccountsUpdate(t *testing.T) {
 func TestLedgerAccountsTaxonomy(t *testing.T) {
 	ctx := context.Background()
 
-	t.Run("[happy] Types has no scope ID in its path and returns the payload unparsed", func(t *testing.T) {
+	t.Run("[happy] Types has no scope ID in its path and decodes the taxonomy objects", func(t *testing.T) {
 		var gotPath string
 		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			gotPath = r.URL.Path
@@ -152,31 +153,38 @@ func TestLedgerAccountsTaxonomy(t *testing.T) {
 		if gotPath != "/accounting/ledger_accounts/types" {
 			t.Fatalf("path = %q", gotPath)
 		}
-		var types []string
-		if err := json.Unmarshal(got, &types); err != nil {
-			t.Fatal(err)
+		// Phase 7 (live): the entries are one-key objects, not the bare
+		// strings the Phase 2 fixture guessed, and the income type is
+		// spelled "income", not "revenue".
+		if len(got) != 5 || got[0].Name != "asset" {
+			t.Fatalf("got = %+v", got)
 		}
-		if len(types) != 5 || types[0] != "asset" {
-			t.Fatalf("got = %v", types)
+		var names []string
+		for _, ty := range got {
+			names = append(names, ty.Name)
+		}
+		if !slices.Contains(names, "income") {
+			t.Fatalf("names = %v, want the live taxonomy including income", names)
 		}
 	})
 
-	t.Run("[happy] SubTypes returns the payload unparsed", func(t *testing.T) {
+	t.Run("[happy] SubTypes decodes the id, type, name and base number", func(t *testing.T) {
 		c, _ := newTestClient(t, serveFixture(t, http.StatusOK, "ledger_accounts", "sub_types"))
 		got, err := c.LedgerAccounts.SubTypes(ctx)
 		if err != nil {
 			t.Fatal(err)
 		}
-		var subTypes []map[string]string
-		if err := json.Unmarshal(got, &subTypes); err != nil {
-			t.Fatal(err)
+		if len(got) != 2 {
+			t.Fatalf("got %d sub-types", len(got))
 		}
-		if len(subTypes) != 2 || subTypes[0]["name"] != "Cash & Bank" || subTypes[0]["type"] != "asset" {
-			t.Fatalf("got = %+v", subTypes)
+		// id is a bare JSON number on the wire (Phase 7, live), not the
+		// quoted string the Phase 2 fixture carried.
+		if got[0].ID != 1 || got[0].Type != "asset" || got[0].Name != "Cash & Bank" || got[0].BaseNumber != "1000" {
+			t.Fatalf("got[0] = %+v", got[0])
 		}
 	})
 
-	t.Run("[happy] SubType by id returns the payload unparsed", func(t *testing.T) {
+	t.Run("[happy] SubType by id decodes the same object the list returns", func(t *testing.T) {
 		var gotPath string
 		c, _ := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			gotPath = r.URL.Path
@@ -189,12 +197,8 @@ func TestLedgerAccountsTaxonomy(t *testing.T) {
 		if gotPath != "/accounting/ledger_accounts/sub_types/1" {
 			t.Fatalf("path = %q", gotPath)
 		}
-		var subType map[string]string
-		if err := json.Unmarshal(got, &subType); err != nil {
-			t.Fatal(err)
-		}
-		if subType["id"] != "1" {
-			t.Fatalf("got = %+v", subType)
+		if got.ID != 1 || got.Name != "Cash & Bank" || got.BaseNumber != "1000" {
+			t.Fatalf("got = %+v", got)
 		}
 	})
 
