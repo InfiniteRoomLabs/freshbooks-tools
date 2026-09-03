@@ -2,6 +2,7 @@ package freshbooks
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"iter"
 	"net/http"
@@ -87,6 +88,61 @@ type Expense struct {
 	Updated DateTime `json:"updated,omitempty"`
 	// VisState is the expense's visibility state.
 	VisState VisState `json:"vis_state"`
+
+	// The fourteen fields below were on the wire but carried no struct tag
+	// until Phase 8 convergence (2026-09-03, docs/progress.md backlog item
+	// 14, live capture freshbooks/testdata/seed/expenses/list.json).
+	// Following this struct's existing convention: a pointer where the
+	// capture shows null (no evidence of the non-null shape -- INFERRED),
+	// a value type with omitempty where the capture shows a present
+	// zero/empty value.
+
+	// AccountingSystemID mirrors the AccountID the expense was fetched
+	// under (e.g. the account slug); present on every captured expense.
+	AccountingSystemID string `json:"accounting_systemid,omitempty"`
+	// AccountName is free text, empty on every captured expense.
+	AccountName string `json:"account_name,omitempty"`
+	// LegacyAccountID is a second, distinct account identifier from
+	// AccountingSystemID -- always null on the capture, so its non-null
+	// shape is unconfirmed. INFERRED as *string.
+	LegacyAccountID *string `json:"accountid,omitempty"`
+	// BackgroundJobID links the expense to an async job, when one is
+	// running against it. Always null on the capture; typed *int64 to
+	// match this struct's other *_id fields (TransactionID, ProfileID).
+	// INFERRED.
+	BackgroundJobID *int64 `json:"background_jobid,omitempty"`
+	// BankName is free text, empty on every captured expense.
+	BankName string `json:"bank_name,omitempty"`
+	// BillMatches lists bank-transaction matches FreshBooks proposed for
+	// this expense; always empty on the capture, so the element shape is
+	// unconfirmed. INFERRED as one json.RawMessage per entry.
+	BillMatches []json.RawMessage `json:"bill_matches,omitempty"`
+	// Billable reports whether this expense can be billed through to a
+	// client -- of the fourteen, the one a caller was most likely to have
+	// missed before Phase 8.
+	Billable bool `json:"billable,omitempty"`
+	// ConverseProjectID and ModernProjectID are two more project-linkage
+	// ids beside ProjectID, both always null on the capture. Typed *int64
+	// to match ProjectID. INFERRED.
+	ConverseProjectID *int64 `json:"converse_projectid,omitempty"`
+	ModernProjectID   *int64 `json:"modern_projectid,omitempty"`
+	// ExtAccountID is an external-system account identifier, always null
+	// on the capture. INFERRED as *string.
+	ExtAccountID *string `json:"ext_accountid,omitempty"`
+	// ExtInvoiceID and ExtSystemID are external-system linkage ids, both 0
+	// (present, not null) on every captured expense.
+	ExtInvoiceID int64 `json:"ext_invoiceid,omitempty"`
+	ExtSystemID  int64 `json:"ext_systemid,omitempty"`
+	// PotentialBillPayment reports whether FreshBooks flagged this expense
+	// as a possible bill payment rather than a plain expense.
+	PotentialBillPayment bool `json:"potential_bill_payment,omitempty"`
+	// Version is an account-local revision stamp, distinct from Updated.
+	// Its wire format is a space-separated timestamp with fractional
+	// seconds ("2026-08-28 18:02:59.000000") that DateTime does not model
+	// (spec 5.1's STATE AS OF 2026-09-03 (Phase 7, live) callout already
+	// recorded this for the sibling Invoice.Version field), so this stays
+	// a plain string.
+	Version string `json:"version,omitempty"`
 }
 
 type expenseEnvelope struct {

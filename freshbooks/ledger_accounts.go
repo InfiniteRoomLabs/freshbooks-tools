@@ -39,6 +39,20 @@ type LedgerAccount struct {
 	State string `json:"state"`
 	// UpdatedAt is when the account was last changed.
 	UpdatedAt time.Time `json:"updated_at"`
+
+	// CategoryID, JEAID, and JESAID were on the wire but carried no struct
+	// tag until Phase 8 convergence (2026-09-03, docs/progress.md backlog
+	// item 14, live capture
+	// freshbooks/testdata/seed/ledger_accounts/list.json). JEAID and
+	// JESAID are journal-entry-account and journal-entry-sub-account
+	// linkage ids: every account in the capture carries at most one of the
+	// two non-null, confirming int64. CategoryID is null on every account
+	// in the capture, so its non-null shape is unconfirmed; typed *int64
+	// to match this codebase's other *_id fields (there is no non-null
+	// evidence either way -- INFERRED).
+	CategoryID *int64 `json:"category_id,omitempty"`
+	JEAID      *int64 `json:"jea_id,omitempty"`
+	JESAID     *int64 `json:"jesa_id,omitempty"`
 }
 
 // LedgerAccountCreateRequest is the payload for LedgerAccountsService.Create.

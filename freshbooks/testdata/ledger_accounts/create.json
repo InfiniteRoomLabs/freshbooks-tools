@@ -10,6 +10,9 @@
     "sub_accounts": [],
     "auto_created": false,
     "state": "active",
-    "updated_at": "2022-09-27T10:02:11.077973Z"
+    "updated_at": "2022-09-27T10:02:11.077973Z",
+    "category_id": null,
+    "jea_id": null,
+    "jesa_id": null
   }
 }

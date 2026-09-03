@@ -24,6 +24,33 @@ func TestExpensesList(t *testing.T) {
 		}
 	})
 
+	t.Run("[happy] decodes the Phase 8 convergence fields", func(t *testing.T) {
+		c, _ := newTestClient(t, serveFixture(t, http.StatusOK, "accounting", "expenses_list"))
+		page, err := c.Expenses.List(ctx, acct, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		exp := page.Items[0]
+		if !exp.Billable {
+			t.Fatal("Billable = false, want true")
+		}
+		if exp.AccountingSystemID != "ACM123" {
+			t.Fatalf("AccountingSystemID = %q", exp.AccountingSystemID)
+		}
+		if exp.LegacyAccountID != nil {
+			t.Fatalf("LegacyAccountID = %v, want nil (captured null)", exp.LegacyAccountID)
+		}
+		if exp.BackgroundJobID != nil || exp.ConverseProjectID != nil || exp.ModernProjectID != nil || exp.ExtAccountID != nil {
+			t.Fatalf("a captured-null field decoded non-nil: %+v", exp)
+		}
+		if exp.BillMatches == nil || len(exp.BillMatches) != 0 {
+			t.Fatalf("BillMatches = %v, want a non-nil empty slice", exp.BillMatches)
+		}
+		if exp.Version != "2026-08-22 04:32:55.000000" {
+			t.Fatalf("Version = %q", exp.Version)
+		}
+	})
+
 	t.Run("[sad] a 429 is ErrRateLimited", func(t *testing.T) {
 		c, _ := newTestClient(t, serveFixture(t, http.StatusTooManyRequests, "accounting", "error_429"))
 		if _, err := c.Expenses.List(ctx, acct, nil); !errors.Is(err, ErrRateLimited) {
@@ -88,6 +115,15 @@ func TestExpensesGet(t *testing.T) {
 		}
 		if exp.ProfileID != nil {
 			t.Fatalf("profileid = %v, want nil", exp.ProfileID)
+		}
+		if exp.Billable {
+			t.Fatal("Billable = true, want false (this fixture's captured value)")
+		}
+		if exp.ExtInvoiceID != 0 || exp.ExtSystemID != 0 {
+			t.Fatalf("ExtInvoiceID/ExtSystemID = %d/%d, want 0/0", exp.ExtInvoiceID, exp.ExtSystemID)
+		}
+		if exp.PotentialBillPayment {
+			t.Fatal("PotentialBillPayment = true, want false")
 		}
 	})
 

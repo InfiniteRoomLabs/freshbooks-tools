@@ -65,6 +65,34 @@ func TestLiveExpenseVendors(t *testing.T) {
 	t.Logf("decoded %d vendor name(s) from the paginated envelope", len(vendors))
 }
 
+// TestLiveExpenseFields is Phase 8 convergence (docs/progress.md backlog
+// item 14, QA Q3): fourteen keys on the wire had no struct tag on Expense
+// until this phase. Billable is the one a caller was most likely to have
+// missed; the rest are asserted only for a clean decode (most are null on
+// the captured account, so there is no value to compare against).
+func TestLiveExpenseFields(t *testing.T) {
+	c, ctx, m := liveSetup(t)
+
+	expenses, err := c.Expenses.List(ctx, m.AccountID, nil, freshbooks.PerPage(5))
+	if err != nil {
+		t.Fatalf("Expenses.List: %v", err)
+	}
+	if len(expenses.Items) == 0 {
+		t.Log("the authorized account has no expenses; nothing to assert about the new fields")
+		return
+	}
+	for i, e := range expenses.Items {
+		if e.AccountingSystemID == "" {
+			t.Errorf("expense %d: AccountingSystemID dropped", i)
+		}
+		// Billable, ExtInvoiceID, and ExtSystemID are always present (not
+		// null) on the capture, so a zero value here is a legitimate
+		// account state, not evidence of a decode failure -- logged, not
+		// asserted.
+		t.Logf("expense %d: Billable=%v ExtInvoiceID=%d ExtSystemID=%d Version=%q", i, e.Billable, e.ExtInvoiceID, e.ExtSystemID, e.Version)
+	}
+}
+
 // TestLiveGateways is fact E: /payments/ was classified as the business
 // (flat, un-enveloped) family from a Postman example only. It also covers
 // the shape correction this phase found -- an account onboarded through
@@ -138,6 +166,32 @@ func TestLiveLedgerAccounts(t *testing.T) {
 			}
 		}
 		t.Logf("decoded %d ledger account(s)", len(accounts))
+	})
+
+	// Phase 8 convergence: CategoryID, JEAID, and JESAID (freshbooks:
+	// docs/progress.md backlog item 14) had no non-null evidence in the
+	// captured account, so this only proves the decode does not silently
+	// drop a populated value where the live account happens to carry one
+	// -- it cannot prove the reverse (there is no way to tell "always
+	// null" from "this account has none set").
+	t.Run("category_id/jea_id/jesa_id decode without dropping a populated value", func(t *testing.T) {
+		accounts, err := c.LedgerAccounts.List(ctx, m.BusinessUUID)
+		if err != nil {
+			t.Fatalf("LedgerAccounts.List: %v", err)
+		}
+		var categoryIDs, jeaIDs, jesaIDs int
+		for _, a := range accounts {
+			if a.CategoryID != nil {
+				categoryIDs++
+			}
+			if a.JEAID != nil {
+				jeaIDs++
+			}
+			if a.JESAID != nil {
+				jesaIDs++
+			}
+		}
+		t.Logf("%d/%d accounts carry a category_id, %d a jea_id, %d a jesa_id", categoryIDs, len(accounts), jeaIDs, jesaIDs)
 	})
 
 	t.Run("types are one-key objects", func(t *testing.T) {

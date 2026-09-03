@@ -64,6 +64,28 @@ func TestLedgerAccountsList(t *testing.T) {
 			t.Fatalf("got = %+v", got)
 		}
 	})
+
+	t.Run("[happy] decodes the Phase 8 convergence fields", func(t *testing.T) {
+		got, err := c.LedgerAccounts.List(ctx, testBusinessUUID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got[0].CategoryID != nil {
+			t.Fatalf("CategoryID = %v, want nil (captured null)", got[0].CategoryID)
+		}
+		if got[0].JEAID == nil || *got[0].JEAID != 70020 {
+			t.Fatalf("JEAID = %v, want 70020", got[0].JEAID)
+		}
+		if got[0].JESAID != nil {
+			t.Fatalf("JESAID = %v, want nil", got[0].JESAID)
+		}
+		if got[1].JEAID != nil {
+			t.Fatalf("JEAID = %v, want nil", got[1].JEAID)
+		}
+		if got[1].JESAID == nil || *got[1].JESAID != 70021 {
+			t.Fatalf("JESAID = %v, want 70021", got[1].JESAID)
+		}
+	})
 }
 
 func TestLedgerAccountsGet(t *testing.T) {
@@ -126,6 +148,9 @@ func TestLedgerAccountsUpdate(t *testing.T) {
 		}
 		if got.Number != "1001" {
 			t.Fatalf("got = %+v", got)
+		}
+		if got.JEAID == nil || *got.JEAID != 70023 || got.JESAID == nil || *got.JESAID != 70024 {
+			t.Fatalf("JEAID/JESAID = %v/%v", got.JEAID, got.JESAID)
 		}
 	})
 
