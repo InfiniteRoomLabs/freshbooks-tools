@@ -326,7 +326,10 @@ changelog_add_bullet() {
         inserted = 0
         for (i = start; i <= end; i++) {
           print body[i]
-          if (!inserted && body[i] == h) { print b; inserted = 1 }
+          if (!inserted && body[i] == h) {
+            print b; inserted = 1
+            if (i + 1 <= end && body[i + 1] == "") i++
+          }
         }
       } else {
         print h
@@ -524,7 +527,10 @@ cmd_preflight() {
     step_fail "preflight-ci-green" "the newest CI run to be for HEAD $sha" "newest run is for $ci_sha"
   fi
 
-  if read_cmd mise which go >/dev/null; then
+  # A toolchain supplied explicitly (RELEASE_GO_BIN, as the self-test does
+  # for its scratch repos, which carry no mise.toml) satisfies the check;
+  # otherwise resolve in the repo under release, never in the caller's cwd.
+  if [ -n "${RELEASE_GO_BIN:-}" ] || (cd "$repo_root" && read_cmd mise which go >/dev/null); then
     step_ok "preflight-mise-install"
   else
     step_fail "preflight-mise-install" "mise.toml toolchain resolvable" "mise which go failed -- run mise install"
@@ -908,7 +914,7 @@ cut_lib() {
   # that name, or unbound). changelog must be its own statement.
   local module="$1" version="$2" tag="$3" today
   local changelog="$repo_root/$module/CHANGELOG.md"
-  today=$(date -u +%F)
+  today=$(date +%F)
 
   if changelog_has_section "$changelog" "$version"; then
     step_skip "cut-changelog" "$changelog already has ## [$version]"
@@ -1000,7 +1006,7 @@ announce_binary_version() {
 do_bump() {
   local lib_version="$1" binary_version="$2" module today
   [ "$DRY_RUN" = true ] || ensure_go_bin
-  today=$(date -u +%F)
+  today=$(date +%F)
 
   for module in mcp cli; do
     local changelog="$repo_root/$module/CHANGELOG.md" gopath="$repo_root/$module"
@@ -1101,7 +1107,7 @@ cmd_all() {
   # correct on every run, resumed or not. R10: say so in the OUTPUT, not
   # only in this comment -- every precedent ship commit also retargeted
   # GOAL.md, and the operator had no signal that it was still owed.
-  step_note "all-ship stages README.md only -- write the docs/progress.md ledger row and retarget GOAL.md by hand, then amend or follow up"
+  step_note "all-ship stages README.md only -- write the docs/progress.md ledger row and retarget GOAL.md by hand, then amend or follow up -- and reword the subject to 'docs: ship vX.Y.Z and retarget GOAL.md to <next>' when you amend"
 
   commit_and_push "all-ship" "docs: ship v$lib_version" README.md
   watch_head_ci "all-ship-ci-watch" "ship"

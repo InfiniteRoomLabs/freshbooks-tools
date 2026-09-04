@@ -39,3 +39,15 @@ Checkpoints: F1-F5 (blockers in the script), F6-F8 (changelog helpers, drift che
 ## Lane-vs-lane
 
 R2/A7, R12/A9/S5, R13/A4, R15/S6, S11/A13 are the same findings from different lanes. R11's patch default was questioned by the lead and answered by code review: keep the default, add the note (F10). Security's A1 is the one finding no other lane saw, and it is the most important: `cut mcp` could publish a tag off a red `main`.
+
+## QA round (2026-09-03): PASS, seven advisories
+
+- **Q1** (toolchain probe ran in the caller's cwd, so the self-test was not hermetic from outside the repo): fixed by the lead, `(cd "$repo_root" && mise which go)`.
+- **Q2** (UTC dates vs the local-date precedent): `date +%F`, matching the five hand-cut sections.
+- **Q3** (ship-commit subject diverges from the precedent once amended): the `release: NOTE` now says to reword the subject when amending.
+- **Q4** (a new bullet landed before the section's own blank, splitting the list): the awk skips the blank after inserting under an existing heading; hand-verified three insertions contiguous.
+- **Q5** (`--timeout` undocumented): one sentence in `docs/building.md`.
+- **Q6** (SIGPIPE class at seven small sites): informational, inputs are far below the pipe buffer; recorded.
+- **Q7** (`check.sh` temp leak on a failing `release.sh docs`): cleaned on the failure path.
+
+All landed by the lead in the QA-report commit; the self-test, `shellcheck`, and `usage lint` were re-run.

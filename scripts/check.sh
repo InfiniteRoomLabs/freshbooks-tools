@@ -138,7 +138,7 @@ run_readme_drift_check() {
   echo "== readme-drift-check =="
   local rendered drift status=0
   rendered=$(mktemp)
-  RELEASE_README_OUT="$rendered" "$repo_root/scripts/release.sh" docs
+  RELEASE_README_OUT="$rendered" "$repo_root/scripts/release.sh" docs || { rm -f "$rendered"; return 1; }
   drift=$(diff -u "$repo_root/README.md" "$rendered") || status=$?
   rm -f "$rendered"
   if [ "$status" -ne 0 ]; then
