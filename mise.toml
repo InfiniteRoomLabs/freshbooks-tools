@@ -54,8 +54,8 @@ description = "Regenerate site/docs/ from README.md and the docs/*.md guides for
 run = "scripts/site-sync.sh"
 
 [tasks.site]
-description = "Run the Docusaurus dev server (site/docs/ synced first)"
-run = "scripts/site-sync.sh && mise exec -- pnpm --dir site start"
+description = "Run the Docusaurus dev server (site/docs/ synced and dependencies installed first)"
+run = "scripts/site-sync.sh && mise exec -- pnpm --dir site install --frozen-lockfile && mise exec -- pnpm --dir site start"
 
 [tasks.site-build]
 description = "Sync docs, install (frozen lockfile), and build the Docusaurus site into site/build/"

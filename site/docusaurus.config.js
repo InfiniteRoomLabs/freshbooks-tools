@@ -15,11 +15,6 @@ const config = {
 
   onBrokenLinks: 'throw',
 
-  i18n: {
-    defaultLocale: 'en',
-    locales: ['en'],
-  },
-
   // onBrokenMarkdownLinks used to be a top-level option; 3.10 deprecated
   // that spelling in favor of this nested one (still 'throw').
   markdown: {
@@ -35,7 +30,6 @@ const config = {
       ({
         docs: {
           routeBasePath: '/',
-          path: 'docs',
           sidebarPath: require.resolve('./sidebars.js'),
           // Per-page custom_edit_url front matter (set by site-sync.sh)
           // overrides this with the real docs/*.md or README.md source
@@ -47,8 +41,7 @@ const config = {
         theme: {
           customCss: require.resolve('./src/css/custom.css'),
         },
-        gtag: undefined,
-        googleAnalytics: undefined,
+        // No gtag/googleAnalytics keys: D7, no telemetry.
       }),
     ],
   ],
@@ -57,8 +50,8 @@ const config = {
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
       colorMode: {
-        defaultMode: 'light',
-        disableSwitch: false,
+        // Not the framework default (false): follow the visitor's OS
+        // preference, which is what D2's "dark mode on" rests on.
         respectPrefersColorScheme: true,
       },
       navbar: {

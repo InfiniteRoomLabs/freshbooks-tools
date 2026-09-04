@@ -3,8 +3,8 @@
 # published docs/*.md guides. site/docs/ is gitignored and never
 # hand-edited -- this script is the only thing that writes to it.
 #
-# For each source file: prepend Docusaurus front matter (title,
-# sidebar_position, slug, mdx.format: md so the guides -- which contain
+# For each source file: prepend Docusaurus front matter (title, slug,
+# mdx.format: md so the guides -- which contain
 # `{`/`<` sequences, and docs/cli.md is ~8k generated lines -- parse as
 # CommonMark instead of MDX (Docusaurus 3.10 nests this under `mdx:`, not
 # a bare top-level `format:` key -- @docusaurus/mdx-loader's
@@ -29,16 +29,20 @@ edit_base="https://github.com/InfiniteRoomLabs/freshbooks-tools/edit/main"
 rm -rf "$site_docs"
 mkdir -p "$site_docs"
 
-# name:title:position:source-path:edit-path
+# name|title|source-path. The source path is also what the page's "Edit
+# this page" link points at. `|` rather than `:` so a future title may
+# contain a colon. Sidebar order lives in site/sidebars.js and nowhere
+# else -- a `sidebar_position` front matter key is inert next to an
+# explicit sidebar, so this table deliberately does not carry one.
 pages=(
-  "index:freshbooks-tools:0:README.md:README.md"
-  "getting-started:Getting started:1:docs/getting-started.md:docs/getting-started.md"
-  "authentication:Authentication:2:docs/authentication.md:docs/authentication.md"
-  "library:Library:3:docs/library.md:docs/library.md"
-  "mcp:MCP server:4:docs/mcp.md:docs/mcp.md"
-  "cli:CLI reference:5:docs/cli.md:docs/cli.md"
-  "building:Building:6:docs/building.md:docs/building.md"
-  "agentic-transformation:Agentic transformation:7:docs/agentic-transformation.md:docs/agentic-transformation.md"
+  "index|freshbooks-tools|README.md"
+  "getting-started|Getting started|docs/getting-started.md"
+  "authentication|Authentication|docs/authentication.md"
+  "library|Library|docs/library.md"
+  "mcp|MCP server|docs/mcp.md"
+  "cli|CLI reference|docs/cli.md"
+  "building|Building|docs/building.md"
+  "agentic-transformation|Agentic transformation|docs/agentic-transformation.md"
 )
 
 # Alternation of the published slugs, derived from the table above so the
@@ -46,14 +50,14 @@ pages=(
 # excluded: it is README.md, not a docs/<name>.md anyone links to.
 slugs=""
 for page in "${pages[@]}"; do
-  IFS=':' read -r name _ <<<"$page"
+  IFS='|' read -r name _ <<<"$page"
   if [ "$name" != "index" ]; then
     slugs="${slugs:+$slugs|}$name"
   fi
 done
 
 for page in "${pages[@]}"; do
-  IFS=':' read -r name title position src edit_path <<<"$page"
+  IFS='|' read -r name title src <<<"$page"
   slug="/$name"
   if [ "$name" = "index" ]; then
     slug="/"
@@ -63,11 +67,10 @@ for page in "${pages[@]}"; do
   {
     echo "---"
     echo "title: \"$title\""
-    echo "sidebar_position: $position"
     echo "slug: \"$slug\""
     echo "mdx:"
     echo "  format: md"
-    echo "custom_edit_url: \"$edit_base/$edit_path\""
+    echo "custom_edit_url: \"$edit_base/$src\""
     echo "---"
     echo
     # Rewrite (docs/<x>.md[#frag]) markdown links to (/<x>[#frag]) slugs.
