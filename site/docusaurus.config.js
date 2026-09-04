@@ -14,11 +14,18 @@ const config = {
   trailingSlash: false,
 
   onBrokenLinks: 'throw',
-  onBrokenMarkdownLinks: 'throw',
 
   i18n: {
     defaultLocale: 'en',
     locales: ['en'],
+  },
+
+  // onBrokenMarkdownLinks used to be a top-level option; 3.10 deprecated
+  // that spelling in favor of this nested one (still 'throw').
+  markdown: {
+    hooks: {
+      onBrokenMarkdownLinks: 'throw',
+    },
   },
 
   presets: [

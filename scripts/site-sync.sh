@@ -4,12 +4,14 @@
 # hand-edited -- this script is the only thing that writes to it.
 #
 # For each source file: prepend Docusaurus front matter (title,
-# sidebar_position, slug, format: md so the guides -- which contain
+# sidebar_position, slug, mdx.format: md so the guides -- which contain
 # `{`/`<` sequences, and docs/cli.md is ~8k generated lines -- parse as
-# CommonMark instead of MDX, and custom_edit_url pointing at the real
-# source file so the site's "Edit this page" link doesn't point at a
-# gitignored generated copy), then rewrite `(docs/<name>.md)` markdown
-# links to the site's own slugs (`(/<name>)`).
+# CommonMark instead of MDX (Docusaurus 3.10 nests this under `mdx:`, not
+# a bare top-level `format:` key -- @docusaurus/mdx-loader's
+# compileToJSX reads `frontMatter.mdx.format`), and custom_edit_url
+# pointing at the real source file so the site's "Edit this page" link
+# doesn't point at a gitignored generated copy), then rewrite
+# `(docs/<name>.md)` markdown links to the site's own slugs (`(/<name>)`).
 #
 # docs/phases/, docs/progress.md, docs/superpowers/ are process/internal
 # and are never synced.
@@ -48,7 +50,8 @@ for page in "${pages[@]}"; do
     echo "title: \"$title\""
     echo "sidebar_position: $position"
     echo "slug: \"$slug\""
-    echo "format: md"
+    echo "mdx:"
+    echo "  format: md"
     echo "custom_edit_url: \"$edit_base/$edit_path\""
     echo "---"
     echo
