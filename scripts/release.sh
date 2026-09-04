@@ -67,7 +67,24 @@ trap cleanup_tmp EXIT
 # RELEASE_GO_BIN overrides it -- used only by scripts/release-selftest.sh
 # to point at a fake `go` shim instead of resolving mise in a scratch repo
 # that carries no real mise.toml of its own.
-GO_BIN="${RELEASE_GO_BIN:-$(cd "$repo_root" && mise where go)/bin/go}"
+#
+# Resolved lazily and memoised (S12): as a top-level command substitution
+# it ran `mise where go` for `preflight` and `docs` too -- including on
+# every `mise run check`, via readme-drift-check -- and a failure there
+# killed the script before any `release:` line could be printed, the one
+# place the D2 output contract could be violated silently.
+GO_BIN=""
+ensure_go_bin() {
+  [ -n "$GO_BIN" ] && return 0
+  if [ -n "${RELEASE_GO_BIN:-}" ]; then
+    GO_BIN="$RELEASE_GO_BIN"
+    return 0
+  fi
+  local where
+  where=$(cd "$repo_root" && mise where go 2>>"$LOG_FILE") ||
+    step_fail "go-toolchain" "mise where go to resolve the mise.toml pin" "mise where go failed -- run mise install"
+  GO_BIN="$where/bin/go"
+}
 
 # --- output contract helpers --------------------------------------------
 
@@ -527,7 +544,8 @@ cmd_docs() {
     cp "$readme" "$out" || step_fail "docs" "README.md to be copyable to $out" "cp failed"
   fi
   for module in freshbooks mcp cli; do
-    tag=$(git -C "$repo_root" tag --list "$module/v*" | sort -V | tail -1)
+    tag=$(git -C "$repo_root" tag --list "$module/v*" | sort -V | tail -1) ||
+      step_fail "docs" "git tag --list to succeed" "failed for $module"
     [ -z "$tag" ] && continue
     if [ "$DRY_RUN" = true ]; then
       dry_echo "rewrite README.md Status cell for $module -> $tag"
@@ -593,6 +611,7 @@ do_verify() {
 # the repo would resolve the global pin instead -- plan step 8).
 do_verify_proxy_pickup() {
   local module="$1" version="$2" path try=0 out
+  ensure_go_bin
   path=$(module_go_path "$module")
   while :; do
     try=$((try + 1))
@@ -611,8 +630,10 @@ do_verify_proxy_pickup() {
 
 do_verify_binary() {
   local module="$1" version="$2" tag="$3" name workdir archive out_version want_version
+  ensure_go_bin
   name=$(binary_name "$module")
   workdir=$(mktemp -d)
+  track_tmp "$workdir"
 
   read_cmd gh release download "$tag" \
     --pattern "${name}_${version}_linux_amd64.tar.gz" \
@@ -648,6 +669,7 @@ do_verify_binary() {
 
   local gobin_dir install_path installed_version want_installed
   gobin_dir=$(mktemp -d)
+  track_tmp "$gobin_dir"
   install_path="$(module_go_path "$module")/cmd/${name}"
   if (cd /tmp && GOBIN="$gobin_dir" GOFLAGS=-mod=mod "$GO_BIN" install "${install_path}@v${version}") >>"$LOG_FILE" 2>&1; then
     step_ok "verify-go-install"
@@ -685,6 +707,9 @@ do_verify_binary() {
   fi
   step_ok "verify-dogfood"
 
+  # Both are registered with the EXIT trap above, so the eight step_fail
+  # paths between their mktemp and here no longer leak them (R13/A4);
+  # removing them now just keeps /tmp small during a long `all` run.
   rm -rf "$workdir" "$gobin_dir"
 }
 
@@ -709,6 +734,86 @@ verify_after_cut() {
     return 0
   fi
   do_verify "$tag"
+}
+
+# --- shared release-step blocks (S1-S3) --------------------------------------
+
+# commit_and_push <step-prefix> <subject> <path>... -- emits
+# <prefix>-commit and <prefix>-push, or SKIPs both when the subject is
+# already on main (D3). Staging and committing stay separate run_cmd
+# calls: the agent-ops guards inspect the index between them.
+commit_and_push() {
+  local prefix="$1" subject="$2"
+  shift 2
+  if commit_with_subject_exists "$subject"; then
+    step_skip "$prefix-commit" "a commit \"$subject\" is already on main"
+    return 0
+  fi
+  confirm_first_push
+  run_cmd git -C "$repo_root" add "$@" ||
+    step_fail "$prefix-commit" "git add to succeed" "failed"
+  run_cmd git -C "$repo_root" commit -m "$subject" ||
+    step_fail "$prefix-commit" "git commit to succeed" "failed"
+  step_ok "$prefix-commit"
+
+  confirm_first_push
+  run_cmd git -C "$repo_root" push origin main ||
+    step_fail "$prefix-push" "git push origin main to succeed" "failed"
+  step_ok "$prefix-push"
+}
+
+# watch_head_ci <step> <what> -- watches the CI run for HEAD, or echoes the
+# plan and SKIPs under --dry-run, where the commit was never made.
+watch_head_ci() {
+  if [ "$DRY_RUN" = true ]; then
+    dry_echo "watch CI on main for the $2 commit"
+    step_skip "$1" "dry-run"
+    return 0
+  fi
+  local head_sha
+  head_sha=$(git -C "$repo_root" rev-parse HEAD)
+  watch_run "$1" "CI" "main" "$head_sha"
+}
+
+# tag_push_and_watch <module> <version> <tag> -- emits cut-tag,
+# cut-tag-push and cut-release-watch. Shared verbatim by cut_lib and
+# cut_binary, which is all cut_binary used to be.
+tag_push_and_watch() {
+  local module="$1" version="$2" tag="$3"
+
+  if git -C "$repo_root" ls-remote --tags origin "refs/tags/$tag" 2>>"$LOG_FILE" | grep -q "$tag"; then
+    step_skip "cut-tag-push" "$tag already on origin"
+  else
+    confirm_first_push
+    # R7: an aborted earlier run can leave a local tag pointing at a commit
+    # that has since been superseded. Pushing it publishes the WRONG commit
+    # under this version, permanently -- D8 forbids ever deleting a tag. So
+    # assert the existing local tag is HEAD and refuse otherwise; the
+    # operator decides what to do with it.
+    if git -C "$repo_root" rev-parse "$tag" >/dev/null 2>&1; then
+      local tag_sha head_sha
+      tag_sha=$(git -C "$repo_root" rev-parse "$tag^{commit}")
+      head_sha=$(git -C "$repo_root" rev-parse HEAD)
+      if [ "$tag_sha" != "$head_sha" ]; then
+        step_fail "cut-tag" "local tag $tag to point at HEAD $head_sha" "it points at $tag_sha"
+      fi
+      step_skip "cut-tag" "$tag already exists locally at HEAD"
+    else
+      run_cmd git -C "$repo_root" tag -a "$tag" -m "$module $version" ||
+        step_fail "cut-tag" "git tag -a $tag to succeed" "failed"
+      step_ok "cut-tag"
+    fi
+    run_cmd git -C "$repo_root" push origin "$tag" ||
+      step_fail "cut-tag-push" "git push origin $tag to succeed" "failed"
+    step_ok "cut-tag-push"
+  fi
+
+  if [ "$DRY_RUN" = true ]; then
+    dry_echo "watch the Release workflow for $tag"
+    step_skip "cut-release-watch" "dry-run"
+  else
+    watch_run "cut-release-watch" "Release" "$tag"
+  fi
 }
 
 # --- cut <module> <version> -------------------------------------------------
@@ -804,65 +909,9 @@ cut_lib() {
     step_ok "cut-changelog"
   fi
 
-  local expect_subject="release($module): v$version"
-  if commit_with_subject_exists "$expect_subject"; then
-    step_skip "cut-commit" "a commit \"$expect_subject\" is already on main"
-  else
-    confirm_first_push
-    run_cmd git -C "$repo_root" add "$module/CHANGELOG.md" CHANGELOG.md ||
-      step_fail "cut-commit" "git add to succeed" "failed"
-    run_cmd git -C "$repo_root" commit -m "$expect_subject" ||
-      step_fail "cut-commit" "git commit to succeed" "failed"
-    step_ok "cut-commit"
-
-    confirm_first_push
-    run_cmd git -C "$repo_root" push origin main ||
-      step_fail "cut-push" "git push origin main to succeed" "failed"
-    step_ok "cut-push"
-  fi
-
-  if [ "$DRY_RUN" = true ]; then
-    dry_echo "watch CI on main for the release commit"
-    step_skip "cut-ci-watch" "dry-run"
-  else
-    local sha
-    sha=$(git -C "$repo_root" rev-parse HEAD)
-    watch_run "cut-ci-watch" "CI" "main" "$sha"
-  fi
-
-  if git -C "$repo_root" ls-remote --tags origin "refs/tags/$tag" 2>>"$LOG_FILE" | grep -q "$tag"; then
-    step_skip "cut-tag-push" "$tag already on origin"
-  else
-    confirm_first_push
-    # R7: an aborted earlier run can leave a local tag pointing at a commit
-    # that has since been superseded. Pushing it publishes the WRONG commit
-    # under this version, permanently -- D8 forbids ever deleting a tag. So
-    # assert the existing local tag is HEAD and refuse otherwise; the
-    # operator decides what to do with it.
-    if git -C "$repo_root" rev-parse "$tag" >/dev/null 2>&1; then
-      local tag_sha head_sha
-      tag_sha=$(git -C "$repo_root" rev-parse "$tag^{commit}")
-      head_sha=$(git -C "$repo_root" rev-parse HEAD)
-      if [ "$tag_sha" != "$head_sha" ]; then
-        step_fail "cut-tag" "local tag $tag to point at HEAD $head_sha" "it points at $tag_sha"
-      fi
-      step_skip "cut-tag" "$tag already exists locally at HEAD"
-    else
-      run_cmd git -C "$repo_root" tag -a "$tag" -m "$module $version" ||
-        step_fail "cut-tag" "git tag -a $tag to succeed" "failed"
-      step_ok "cut-tag"
-    fi
-    run_cmd git -C "$repo_root" push origin "$tag" ||
-      step_fail "cut-tag-push" "git push origin $tag to succeed" "failed"
-    step_ok "cut-tag-push"
-  fi
-
-  if [ "$DRY_RUN" = true ]; then
-    dry_echo "watch the Release workflow for $tag"
-    step_skip "cut-release-watch" "dry-run"
-  else
-    watch_run "cut-release-watch" "Release" "$tag"
-  fi
+  commit_and_push "cut" "release($module): v$version" "$module/CHANGELOG.md" CHANGELOG.md
+  watch_head_ci "cut-ci-watch" "release"
+  tag_push_and_watch "$module" "$version" "$tag"
 }
 
 # cut_binary implements the binary release flow (plan steps 12-16, minus
@@ -870,55 +919,13 @@ cut_lib() {
 # tag push, Release watch. do_verify (called by the caller) covers steps
 # 14-17.
 cut_binary() {
-  local module="$1" version="$2" tag="$3"
-
   # A1: cut_lib gated its tag push behind the CI run for the exact pushed
   # sha; cut_binary did not, so `cut mcp <v>` could publish a permanent
   # public tag off a red main -- and D8 forbids ever deleting one. Inside
   # `all` this is a cheap no-op (do_bump's watch just went green); it
   # closes the standalone path.
-  if [ "$DRY_RUN" = true ]; then
-    dry_echo "watch CI on main for the bump commit"
-    step_skip "cut-ci-watch" "dry-run"
-  else
-    local head_sha
-    head_sha=$(git -C "$repo_root" rev-parse HEAD)
-    watch_run "cut-ci-watch" "CI" "main" "$head_sha"
-  fi
-
-  if git -C "$repo_root" ls-remote --tags origin "refs/tags/$tag" 2>>"$LOG_FILE" | grep -q "$tag"; then
-    step_skip "cut-tag-push" "$tag already on origin"
-  else
-    confirm_first_push
-    # R7: an aborted earlier run can leave a local tag pointing at a commit
-    # that has since been superseded. Pushing it publishes the WRONG commit
-    # under this version, permanently -- D8 forbids ever deleting a tag. So
-    # assert the existing local tag is HEAD and refuse otherwise; the
-    # operator decides what to do with it.
-    if git -C "$repo_root" rev-parse "$tag" >/dev/null 2>&1; then
-      local tag_sha head_sha
-      tag_sha=$(git -C "$repo_root" rev-parse "$tag^{commit}")
-      head_sha=$(git -C "$repo_root" rev-parse HEAD)
-      if [ "$tag_sha" != "$head_sha" ]; then
-        step_fail "cut-tag" "local tag $tag to point at HEAD $head_sha" "it points at $tag_sha"
-      fi
-      step_skip "cut-tag" "$tag already exists locally at HEAD"
-    else
-      run_cmd git -C "$repo_root" tag -a "$tag" -m "$module $version" ||
-        step_fail "cut-tag" "git tag -a $tag to succeed" "failed"
-      step_ok "cut-tag"
-    fi
-    run_cmd git -C "$repo_root" push origin "$tag" ||
-      step_fail "cut-tag-push" "git push origin $tag to succeed" "failed"
-    step_ok "cut-tag-push"
-  fi
-
-  if [ "$DRY_RUN" = true ]; then
-    dry_echo "watch the Release workflow for $tag"
-    step_skip "cut-release-watch" "dry-run"
-  else
-    watch_run "cut-release-watch" "Release" "$tag"
-  fi
+  watch_head_ci "cut-ci-watch" "bump"
+  tag_push_and_watch "$1" "$2" "$3"
 }
 
 # --- bump <lib-version> [--binary-version A.B.C] ----------------------------
@@ -978,6 +985,7 @@ announce_binary_version() {
 # shared commit, push, CI watch.
 do_bump() {
   local lib_version="$1" binary_version="$2" module today
+  [ "$DRY_RUN" = true ] || ensure_go_bin
   today=$(date -u +%F)
 
   for module in mcp cli; do
@@ -1034,31 +1042,10 @@ do_bump() {
     step_ok "bump-check-$module"
   done
 
-  local expect_subject="release(mcp,cli): require freshbooks v$lib_version and cut $binary_version"
-  if commit_with_subject_exists "$expect_subject"; then
-    step_skip "bump-commit" "a commit \"$expect_subject\" is already on main"
-  else
-    confirm_first_push
-    run_cmd git -C "$repo_root" add mcp/go.mod mcp/go.sum mcp/CHANGELOG.md cli/go.mod cli/go.sum cli/CHANGELOG.md CHANGELOG.md ||
-      step_fail "bump-commit" "git add to succeed" "failed"
-    run_cmd git -C "$repo_root" commit -m "$expect_subject" ||
-      step_fail "bump-commit" "git commit to succeed" "failed"
-    step_ok "bump-commit"
-
-    confirm_first_push
-    run_cmd git -C "$repo_root" push origin main ||
-      step_fail "bump-push" "git push origin main to succeed" "failed"
-    step_ok "bump-push"
-  fi
-
-  if [ "$DRY_RUN" = true ]; then
-    dry_echo "watch CI on main for the bump commit"
-    step_skip "bump-ci-watch" "dry-run"
-  else
-    local sha
-    sha=$(git -C "$repo_root" rev-parse HEAD)
-    watch_run "bump-ci-watch" "CI" "main" "$sha"
-  fi
+  commit_and_push "bump" \
+    "release(mcp,cli): require freshbooks v$lib_version and cut $binary_version" \
+    mcp/go.mod mcp/go.sum mcp/CHANGELOG.md cli/go.mod cli/go.sum cli/CHANGELOG.md CHANGELOG.md
+  watch_head_ci "bump-ci-watch" "bump"
 }
 
 # --- all <lib-version> [--binary-version A.B.C] -----------------------------
@@ -1102,31 +1089,8 @@ cmd_all() {
   # GOAL.md, and the operator had no signal that it was still owed.
   step_note "all-ship stages README.md only -- write the docs/progress.md ledger row and retarget GOAL.md by hand, then amend or follow up"
 
-  local expect_subject="docs: ship v$lib_version"
-  if commit_with_subject_exists "$expect_subject"; then
-    step_skip "all-ship-commit" "a commit \"$expect_subject\" is already on main"
-  else
-    confirm_first_push
-    run_cmd git -C "$repo_root" add README.md ||
-      step_fail "all-ship-commit" "git add to succeed" "failed"
-    run_cmd git -C "$repo_root" commit -m "$expect_subject" ||
-      step_fail "all-ship-commit" "git commit to succeed" "failed"
-    step_ok "all-ship-commit"
-
-    confirm_first_push
-    run_cmd git -C "$repo_root" push origin main ||
-      step_fail "all-ship-push" "git push origin main to succeed" "failed"
-    step_ok "all-ship-push"
-  fi
-
-  if [ "$DRY_RUN" = true ]; then
-    dry_echo "watch CI on main for the ship commit"
-    step_skip "all-ship-ci-watch" "dry-run"
-  else
-    local sha
-    sha=$(git -C "$repo_root" rev-parse HEAD)
-    watch_run "all-ship-ci-watch" "CI" "main" "$sha"
-  fi
+  commit_and_push "all-ship" "docs: ship v$lib_version" README.md
+  watch_head_ci "all-ship-ci-watch" "ship"
 }
 
 # --- main dispatch -----------------------------------------------------------
