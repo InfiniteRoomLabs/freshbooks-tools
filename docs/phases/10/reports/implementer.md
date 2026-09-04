@@ -17,6 +17,8 @@ dependencies:
 
 `site/pnpm-lock.yaml` resolves 690 packages total (transitive). One allow-listed build script: `core-js@3.50.0` (transitive via `@docusaurus/core` -> `@docusaurus/plugin-content-blog`, a babel polyfill target), allow-listed in `site/pnpm-workspace.yaml`'s `allowBuilds: core-js: true`. Verified before allow-listing by reading `node_modules/core-js/postinstall.js`: it only prints a donation banner (checks `ADBLOCK`/`CI`/`DISABLE_OPENCOLLECTIVE` env vars and a `/tmp` rate-limit file, then `console.log`) -- no compilation, no native binary, no network call. No other packages needed a build-script allow-list.
 
+> **STATE AS OF 2026-09-04** -- 690 was wrong (gate finding A6). The lockfile this phase first committed held **1151** unique `name@version` entries; after the A1 re-resolve under the repo-carried policy it holds **1150** (1150 `integrity:` lines, 1150 `snapshots:` entries).
+
 `@docusaurus/theme-search-algolia` is present in the tree as an inherent, non-optional dependency of `@docusaurus/preset-classic` (bundled by the preset itself, not something we opted into) -- it stays inert since `themeConfig.algolia` is never configured, so "no search plugin" holds in effect even though the package sits unused in `node_modules`.
 
 ## First-install error and resolution
@@ -26,7 +28,11 @@ First `pnpm install` failed as expected under the machine-wide hardening: `ERR_P
 1. `package.json`'s `"pnpm": { "onlyBuiltDependencies": [...] }` field is silently ignored by pnpm 11 with a warning -- that setting moved to `pnpm-workspace.yaml` (a single-package `site/` still needs this file just to carry the setting, no `packages:` list required).
 2. Even in `pnpm-workspace.yaml`, `onlyBuiltDependencies` wasn't what unblocked it -- pnpm auto-wrote an `allowBuilds: { core-js: "set this to true or false" }` stub into that same file (a pnpm-11 feature under `strict-dep-builds`, distinct from `onlyBuiltDependencies`) that needed an explicit `true` after reading the script. Once set, install succeeded (`pnpm-lock.yaml` committed, `site/node_modules`/`site/build` gitignored).
 
+> **STATE AS OF 2026-09-04** -- that error was **not** `strict-dep-builds=true` from `~/.npmrc` firing. Blocking unapproved build scripts is pnpm 11's own default, and the coincidence is what made an inert policy look live (gate finding A1). pnpm 11 reads its settings from `pnpm-workspace.yaml`, never from `.npmrc` / `~/.config/pnpm/rc`.
+
 No `dangerously-allow-all-builds`, no `minimum-release-age` relaxation. `react`/`react-dom` pinned at 19.2.8 (published 2026-07-21) and `@docusaurus/core`/`@docusaurus/preset-classic` at 3.10.2 (published 2026-07-10) -- both clear the 7-day gate.
+
+> **STATE AS OF 2026-09-04** -- true of the four direct dependencies, but there was no 7-day gate for the other ~1147: it was never in effect (A1), and 18 transitive versions landed inside the quarantine window, 10 of them about 27 hours old. The policy now lives in the committed `site/pnpm-workspace.yaml`, the lockfile was re-resolved from scratch under it, and every one of the 1150 locked versions was independently confirmed against `registry.npmjs.org` to be older than 7 days at install time.
 
 ## Build times
 
@@ -108,6 +114,7 @@ d73e122 docs(phase-10): add the docs-site plan and work order
 
 ## Where reality disagreed with D1-D7
 
+- **D2's "dark mode on" means available and OS-following, not forced** (gate finding R8, recorded rather than changed). `site/docusaurus.config.js` keeps `respectPrefersColorScheme: true`, which is what makes a visitor whose OS prefers dark get a dark site, with the navbar toggle left enabled either way. Docusaurus's own default mode stays light for everyone else. No config change: forcing `defaultMode: 'dark'` would override the visitor's stated OS preference, which is worse behaviour than the decision's literal wording.
 - **D2's `format: md` front matter is stale spelling.** Docusaurus 3.10.2's `@docusaurus/mdx-loader` reads a doc's MDX-vs-CommonMark opt-out from front matter `mdx.format`, not a bare top-level `format` key -- `compileToJSX` calls `validateMDXFrontMatter(frontMatter.mdx)`. Without the nesting, `docs/cli.md`'s ``source <(freshbooks completion bash)`` line (inside an indented code block) was parsed as MDX-JSX and failed to compile with `Unexpected character '(' ... expected a character that can start a name`. Fixed in `scripts/site-sync.sh`: emits `mdx:\n  format: md`.
 - **D2's `onBrokenMarkdownLinks` top-level key is deprecated** as of Docusaurus 3.10 (still works, but warns and will be removed in v4). Moved to `markdown.hooks.onBrokenMarkdownLinks` in `site/docusaurus.config.js`, same `'throw'` value.
 - **Empty `site/static/` broke the build**, unrelated to any D-decision: a webpack CopyPlugin glob (`site/static/**/*`) errors when it matches zero files. Resolved by adding `site/static/.nojekyll` (real content -- GitHub Pages skips Jekyll processing of underscore-prefixed paths; also happens to be a no-op under `actions/upload-pages-artifact`, which never runs Jekyll at all, but it is the conventional file to ship regardless) and removing the leftover empty `static/img/`.

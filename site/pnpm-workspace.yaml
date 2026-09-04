@@ -1,18 +1,58 @@
-# core-js's postinstall (node_modules/core-js/postinstall.js) was read
-# before setting this to true: it only prints a donation banner (checks
-# ADBLOCK/CI/DISABLE_OPENCOLLECTIVE env vars and a /tmp rate-limit file,
-# then console.log) -- no compilation, no native binary, no network call.
+# site/ is a single package, not a multi-package workspace: this file exists
+# purely to carry pnpm's settings, because pnpm 11 reads them from here and
+# NOT from .npmrc or ~/.config/pnpm/rc. A machine-wide rc therefore does
+# nothing for this install (proven: the first lockfile resolved 18 versions
+# younger than the 7-day quarantine), and CI has no rc at all -- so the
+# supply-chain policy has to travel with the repository, in this file.
+# minimumReleaseAge is 10080 minutes (7 days); never relax it -- if a
+# dependency range cannot be satisfied inside the window, pin the previous
+# release instead. allowBuilds is the only build-script allow-list pnpm 11
+# honours (onlyBuiltDependencies is inert here): core-js is a transitive dep
+# of @docusaurus/core (via @docusaurus/plugin-content-blog, a babel polyfill
+# target) and its postinstall (node_modules/core-js/postinstall.js) was read
+# before allow-listing -- it only prints a donation banner (checks
+# ADBLOCK/CI/DISABLE_OPENCOLLECTIVE and a /tmp rate-limit file, then
+# console.log), with no compilation, no native binary and no network call.
+minimumReleaseAge: 10080
+minimumReleaseAgeStrict: true
+strictDepBuilds: true
+verifyStoreIntegrity: true
+strictStorePkgContentCheck: true
+trustPolicy: no-downgrade
+# semver@6.3.1 (2023-07-10) is the final release of semver's 6.x maintenance
+# line and carries registry signatures but no provenance attestation, while
+# four 7.5.x releases published earlier that year do -- so a publish-date
+# no-downgrade check reads the older major as a downgrade. It is the only
+# version satisfying @babel/core's `semver@^6.3.1`, so there is nothing to
+# pin to; this is an exact-version exclusion, not a relaxed policy.
+trustPolicyExclude:
+  - semver@6.3.1
+strictPeerDependencies: true
+autoInstallPeers: false
+blockExoticSubdeps: true
 allowBuilds:
   core-js: true
-# pnpm 11 moved settings like onlyBuiltDependencies out of package.json's
-# "pnpm" field and into this file (see https://pnpm.io/settings). site/ is
-# a single package, not a multi-package workspace -- no `packages:` list
-# needed, this file exists purely to carry that setting.
-#
-# core-js is a transitive dep of @docusaurus/core (via
-# @docusaurus/plugin-content-blog, a babel polyfill target). Its
-# postinstall (node_modules/core-js/postinstall.js) only prints a
-# donation banner -- no compilation, no native binary -- verified by
-# reading the script before allow-listing it.
-onlyBuiltDependencies:
-  - core-js
+
+# Version pins forced by the trust and release-age policies above.
+# fastq: 1.20.3 (2026-08-29) is inside the 7-day window, and the newest
+# mature release, 1.20.2 (2026-08-28), is the one release in that line with
+# no trust evidence at all -- 1.20.0, 1.20.1 and 1.20.3 all carry provenance
+# and a trusted publisher. That is the shape trustPolicy exists to catch, so
+# this pins back to 1.20.1 (2025-12-23, provenance + trusted publisher)
+# rather than excluding 1.20.2. @nodelib/fs.walk asks for ^1.6.0, so the pin
+# is inside every declared range. Revisit once 1.20.3 matures.
+overrides:
+  fastq: 1.20.1
+
+# strictPeerDependencies is on; this is the one scoped exception, not a
+# relaxation. @algolia/autocomplete-plugin-algolia-insights declares
+# search-insights as a hard peer (@docsearch/react declares the same peer
+# optional). Both arrive only through @docsearch/react, which arrives only
+# through the theme-search-algolia that preset-classic bundles
+# non-optionally. themeConfig.algolia is never set, so that whole subtree is
+# inert in the build -- and search-insights is Algolia click analytics,
+# which D7 ("no telemetry") forbids installing. Declare it missing on
+# purpose instead.
+peerDependencyRules:
+  ignoreMissing:
+    - search-insights
