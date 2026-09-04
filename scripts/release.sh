@@ -358,14 +358,14 @@ changelog_add_bullet() {
 
 # --- module metadata -------------------------------------------------------
 
+# module_kind <module> -- echoes lib|binary, or returns 1 SILENTLY: every
+# caller turns that into a `release: FAIL` line, and a second stderr line
+# of its own broke the one-line-per-step output contract (R15/D2).
 module_kind() {
   case "$1" in
   freshbooks) echo lib ;;
   mcp | cli) echo binary ;;
-  *)
-    echo "release: unknown module: $1" >&2
-    return 1
-    ;;
+  *) return 1 ;;
   esac
 }
 
@@ -522,9 +522,12 @@ cmd_preflight() {
     step_fail "preflight-mise-install" "mise.toml toolchain resolvable" "mise which go failed -- run mise install"
   fi
 
-  # D8: never edits branch protection or rulesets -- print the gh api call
+  # D8: never edits branch protection or rulesets -- report the gh api call
   # that would apply/inspect the tag ruleset, unconditionally, and stop.
-  dry_echo "gh api repos/InfiniteRoomLabs/freshbooks-tools/rulesets (tag ruleset for refs/tags/{freshbooks,mcp,cli}/v*, warn-only, never applied by this script)"
+  # NOTE, not a "dry-run:" echo: this line prints on every preflight, and
+  # the dry-run prefix read as if the command were pending outside
+  # --dry-run (R15).
+  step_note "gh api repos/InfiniteRoomLabs/freshbooks-tools/rulesets (tag ruleset for refs/tags/{freshbooks,mcp,cli}/v*, warn-only, never applied by this script)"
   step_ok "preflight-tag-ruleset-warn"
 }
 
@@ -867,7 +870,10 @@ accept_proposed_version() {
   proposal=$(propose_version "$module") ||
     step_fail "version-propose" "a non-empty [Unreleased] section in $module/CHANGELOG.md" "empty"
   read -r next kind current <<<"$proposal"
-  printf 'release: OK version-propose -- %s %s -> %s (%s)\n' "$module" "$current" "$next" "$kind"
+  # D2 reserves the " -- <detail>" suffix for SKIP and FAIL; the proposal
+  # detail goes on its own NOTE line so the OK shape stays uniform (R15).
+  step_ok "version-propose"
+  step_note "$module $current -> $next ($kind)"
   if [ "$YES" = true ]; then
     ACCEPTED_VERSION="$next"
     return 0
@@ -901,7 +907,7 @@ cut_lib() {
   else
     if [ "$DRY_RUN" = true ]; then
       dry_echo "changelog_cut_section $changelog $version $today"
-      dry_echo "changelog_add_bullet $repo_root/CHANGELOG.md Added \"$module cut to $version, ahead of the $tag tag.\""
+      dry_echo "changelog_add_bullet $repo_root/CHANGELOG.md Added \"\`$module\` cut to $version, ahead of the \`$tag\` tag.\""
     else
       changelog_cut_section "$changelog" "$version" "$today"
       changelog_add_bullet "$repo_root/CHANGELOG.md" "Added" "\`$module\` cut to $version, ahead of the \`$tag\` tag."
@@ -1019,7 +1025,7 @@ do_bump() {
     if [ "$DRY_RUN" = true ]; then
       dry_echo "changelog_add_bullet $changelog Changed \"Requires \`freshbooks\` v$lib_version\""
       dry_echo "changelog_cut_section $changelog $binary_version $today"
-      dry_echo "changelog_add_bullet $repo_root/CHANGELOG.md Added \"$module cut to $binary_version, ahead of the $module/v$binary_version tag.\""
+      dry_echo "changelog_add_bullet $repo_root/CHANGELOG.md Added \"\`$module\` cut to $binary_version, ahead of the \`$module/v$binary_version\` tag.\""
     else
       changelog_add_bullet "$changelog" "Changed" "Requires \`freshbooks\` v$lib_version"
       changelog_cut_section "$changelog" "$binary_version" "$today"

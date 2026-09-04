@@ -3,6 +3,7 @@ go = "1.26.6"
 golangci-lint = "2.13.2"
 goreleaser = "2.18.0"
 actionlint = "1.7.12"
+shellcheck = "0.11.0"
 usage = "6.0.0"
 "aqua:anchore/syft" = "1.51.1"
 
@@ -34,6 +35,18 @@ run = "scripts/check.sh vuln"
 description = "Lint .github/workflows/*.yml"
 run = "actionlint .github/workflows/*.yml"
 
+[tasks.shellcheck]
+description = "Lint scripts/*.sh at -S warning"
+run = "scripts/check.sh shellcheck"
+
+[tasks.readme-drift-check]
+description = "Check README.md's Status column against the newest git tags (read-only)"
+run = "scripts/check.sh readme-drift-check"
+
+[tasks.repo-wide]
+description = "The module-independent gate steps: actionlint, shellcheck, redaction-selftest, release-selftest, readme-drift-check"
+run = "scripts/check.sh repo-wide"
+
 [tasks.redaction-selftest]
 description = "Run the redaction-check.sh regression test (both modes, no network)"
 run = "scripts/redaction-selftest.sh"
@@ -55,7 +68,7 @@ description = "Regenerate docs/cli.md from the cobra command tree (cobra/doc)"
 run = "scripts/docs.sh"
 
 [tasks.check]
-description = "Full gate: fmt-check, vet, lint, test, cover, inventory-check, actionlint, redaction-selftest, release-selftest, build, readme-drift-check, then a dirty-tree banner"
+description = "Full gate: fmt-check, vet, lint, test, cover, inventory-check, build, the repo-wide steps (actionlint, shellcheck, redaction-selftest, release-selftest, readme-drift-check -- skipped when a module filter is given, since CI runs them once via the repo-wide job), then a dirty-tree banner"
 run = "scripts/check.sh all"
 
 [tasks.release]

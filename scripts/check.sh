@@ -1,15 +1,23 @@
 #!/usr/bin/env -S usage bash
-#USAGE arg "<subcommand>" help="fmt-check|vet|lint|test|cover|vuln|inventory-check|actionlint|redaction-selftest|release-selftest|readme-drift-check|build|docs|all"
+#USAGE arg "<subcommand>" help="fmt-check|vet|lint|test|cover|vuln|inventory-check|actionlint|shellcheck|redaction-selftest|release-selftest|readme-drift-check|repo-wide|build|docs|all"
 #USAGE arg "[modules]" var=#true help="Modules to check (default: freshbooks mcp cli)"
 
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+# A filter means "check this one module". The module-independent steps
+# (actionlint, shellcheck, the two selftests, readme-drift-check) then do
+# NOT run: CI invokes `mise run check -- <module>` once per module, and
+# running them in each of the three jobs paid for the same ~30s of work
+# three times (A12). CI gets them exactly once from the `repo-wide` job;
+# a bare `mise run check` locally still runs everything.
 if [ -z "${usage_modules:-}" ]; then
   modules=(freshbooks mcp cli)
+  module_filter=false
 else
   read -ra modules <<<"$usage_modules"
+  module_filter=true
 fi
 
 run_fmt_check() {
@@ -75,6 +83,16 @@ run_actionlint() {
   actionlint "$repo_root"/.github/workflows/*.yml
 }
 
+# scripts/ now carries release automation with push and tag power; two of
+# the four blocking review findings on it (a dead `sha`, a dead `readme`)
+# were things shellcheck flags for free (R15).
+run_shellcheck() {
+  echo "== shellcheck =="
+  # SC1008: the `#!/usr/bin/env -S usage bash` shebang shellcheck does not
+  # know. SC2154: $usage_* variables, set by the `usage` runtime.
+  shellcheck -S warning -e SC1008,SC2154 "$repo_root"/scripts/*.sh
+}
+
 # Repo-wide, like actionlint: the redaction check is a security control, so
 # its own regression test runs once per gate (Phase 8 security A1/A9).
 run_redaction_selftest() {
@@ -130,6 +148,17 @@ run_readme_drift_check() {
   fi
 }
 
+# The module-independent steps, in gate order. Run once per gate: from a
+# bare `scripts/check.sh all`, or from the `repo-wide` subcommand that
+# .github/workflows/ci.yml calls in its own job.
+run_repo_wide() {
+  run_actionlint
+  run_shellcheck
+  run_redaction_selftest
+  run_release_selftest
+  run_readme_drift_check
+}
+
 run_step() {
   local step="$1" module="$2"
   case "$step" in
@@ -154,6 +183,8 @@ steps=(fmt-check vet lint test cover vuln inventory-check)
 
 case "$usage_subcommand" in
 actionlint) run_actionlint ;;
+shellcheck) run_shellcheck ;;
+repo-wide) run_repo_wide ;;
 redaction-selftest) run_redaction_selftest ;;
 release-selftest) run_release_selftest ;;
 readme-drift-check) run_readme_drift_check ;;
@@ -165,11 +196,12 @@ all)
       run_step "$step" "$module"
     done
   done
-  run_actionlint
-  run_redaction_selftest
-  run_release_selftest
   run_build
-  run_readme_drift_check
+  if [ "$module_filter" = false ]; then
+    run_repo_wide
+  else
+    echo "== repo-wide steps skipped (module filter: ${modules[*]}) -- run 'mise run repo-wide' =="
+  fi
   ;;
 fmt-check | vet | lint | test | cover | vuln | inventory-check)
   for module in "${modules[@]}"; do

@@ -427,7 +427,7 @@ RELEASE_EXTRA_ENV=()
 out=$(release_run "$w" cut freshbooks auto --yes --dry-run 2>&1)
 status=$?
 set -e
-if [ "$status" -eq 0 ] && printf '%s' "$out" | grep -qF "release: OK version-propose -- freshbooks 0.0.0 -> 0.0.1 (patch)"; then
+if [ "$status" -eq 0 ] && printf '%s' "$out" | grep -qF "release: NOTE freshbooks 0.0.0 -> 0.0.1 (patch)"; then
   pass_msg "--version auto proposes patch for a Fixed-only changelog"
 else
   fail_msg "--version auto proposes patch for a Fixed-only changelog" "exit $status: $out"
@@ -447,7 +447,7 @@ RELEASE_EXTRA_ENV=()
 out=$(release_run "$w" cut freshbooks auto --yes --dry-run 2>&1)
 status=$?
 set -e
-if [ "$status" -eq 0 ] && printf '%s' "$out" | grep -qF "release: OK version-propose -- freshbooks 0.0.0 -> 0.1.0 (minor)"; then
+if [ "$status" -eq 0 ] && printf '%s' "$out" | grep -qF "release: NOTE freshbooks 0.0.0 -> 0.1.0 (minor)"; then
   pass_msg "--version auto proposes minor for an Added changelog"
 else
   fail_msg "--version auto proposes minor for an Added changelog" "exit $status: $out"
