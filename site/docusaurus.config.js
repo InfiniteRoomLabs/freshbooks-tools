@@ -90,7 +90,9 @@ const config = {
         copyright: `Copyright (c) ${new Date().getFullYear()} Infinite Room Labs. MIT licensed. Not affiliated with FreshBooks.`,
       },
       prism: {
-        additionalLanguages: ['go', 'bash', 'yaml', 'json'],
+        // The published guides use exactly these three fence languages
+        // (site-sync.sh normalises `sh` to `bash`); there is no yaml fence.
+        additionalLanguages: ['go', 'bash', 'json'],
       },
     }),
 };

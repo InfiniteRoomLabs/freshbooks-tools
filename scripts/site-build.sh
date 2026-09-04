@@ -11,7 +11,7 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 "$repo_root/scripts/site-sync.sh"
-(cd "$repo_root/site" && mise exec -- pnpm install --frozen-lockfile)
-(cd "$repo_root/site" && mise exec -- pnpm build)
+mise exec -- pnpm --dir "$repo_root/site" install --frozen-lockfile
+mise exec -- pnpm --dir "$repo_root/site" build
 
 echo "site-build: OK"

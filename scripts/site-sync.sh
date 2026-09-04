@@ -73,8 +73,13 @@ for page in "${pages[@]}"; do
     echo "custom_edit_url: \"$edit_base/$src\""
     echo "---"
     echo
-    # Rewrite (docs/<x>.md[#frag]) markdown links to (/<x>[#frag]) slugs.
-    sed -E "s%\(docs/($slugs)\.md(#[^)]*)?\)%(/\1\2)%g" "$repo_root/$src"
+    # Rewrite (docs/<x>.md[#frag]) markdown links to (/<x>[#frag]) slugs,
+    # and name shell fences `bash` rather than `sh`. Prism only knows `sh`
+    # as an alias that prism-bash registers on load, so a fence saying
+    # `bash` is highlighted by the grammar docusaurus.config.js actually
+    # asks for, instead of by a side effect of asking for it.
+    sed -E -e "s%\(docs/($slugs)\.md(#[^)]*)?\)%(/\1\2)%g" \
+      -e 's%^```sh$%```bash%' "$repo_root/$src"
   } >"$out"
 done
 
