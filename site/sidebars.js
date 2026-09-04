@@ -1,7 +1,7 @@
-// Explicit order (mirrors each doc's front matter `sidebar_position`, set
-// by scripts/site-sync.sh). `index` (the synced README.md, the site home
-// page) is deliberately not listed here -- it is a landing page, not part
-// of the guide sequence.
+// Explicit order. This table is the only place the sidebar order lives;
+// scripts/site-sync.sh writes no `sidebar_position` front matter. `index`
+// (the synced README.md, the site home page) is deliberately not listed
+// here -- it is a landing page, not part of the guide sequence.
 
 /** @type {import('@docusaurus/plugin-content-docs').SidebarsConfig} */
 const sidebars = {
