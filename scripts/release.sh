@@ -82,6 +82,12 @@ step_fail() {
   exit 1
 }
 
+# step_note carries information that is not a step outcome: the follow-up
+# work `all` deliberately leaves to the operator, the bump kind a module's
+# own changelog would have argued for, the tag-ruleset call preflight
+# reports but never makes. It never appears instead of a step line.
+step_note() { printf 'release: NOTE %s\n' "$*"; }
+
 dry_echo() { printf 'dry-run: %s\n' "$*"; }
 
 # run_cmd executes a mutating command for real (output to LOG_FILE) unless
@@ -239,6 +245,11 @@ latest_tag_version() {
   local module="$1" tag
   tag=$(git -C "$repo_root" tag --list "$module/v*" | sort -V | tail -1)
   [ -n "$tag" ] && echo "${tag#"$module"/v}"
+  # "no tags yet" is a normal answer, not an error: without this the
+  # trailing AND-list's status would be the function's, and every direct
+  # `x=$(latest_tag_version ...)` would kill the script under set -e with
+  # no `release:` line printed (the one D2 hole -- see also F15).
+  return 0
 }
 
 # changelog_cut_section <file> <version> <date> -- renames "## [Unreleased]"
@@ -548,14 +559,13 @@ do_verify() {
   version="${tag#*/v}"
   kind=$(module_kind "$module") || step_fail "verify-tag" "a tag shaped <module>/vX.Y.Z" "$tag"
 
-  json=$(read_cmd gh release view "$tag" --json isDraft,name,assets) ||
+  # gh embeds its own jq (--jq); shelling out to an external `jq` binary
+  # was an undeclared runtime dependency whose absence produced a
+  # misleading "unparsable" failure (R12/A9/S5). `name` is compared
+  # against $tag, which never contains whitespace, so read -r splits it.
+  json=$(gh_jq '"\(.isDraft) \(.name) \(.assets | length)"' -- release view "$tag" --json isDraft,name,assets) ||
     step_fail "verify-release" "a published release for $tag" "gh release view failed"
-  isdraft=$(printf '%s' "$json" | jq -r '.isDraft' 2>>"$LOG_FILE") ||
-    step_fail "verify-release" "valid JSON from gh release view" "unparsable"
-  name=$(printf '%s' "$json" | jq -r '.name' 2>>"$LOG_FILE") ||
-    step_fail "verify-release" "valid JSON from gh release view" "unparsable"
-  assets=$(printf '%s' "$json" | jq -r '.assets | length' 2>>"$LOG_FILE") ||
-    step_fail "verify-release" "valid JSON from gh release view" "unparsable"
+  read -r isdraft name assets <<<"$json"
 
   if [ "$isdraft" != "false" ]; then
     step_fail "verify-release" "isDraft=false" "isDraft=$isdraft"
@@ -824,11 +834,24 @@ cut_lib() {
     step_skip "cut-tag-push" "$tag already on origin"
   else
     confirm_first_push
-    if ! git -C "$repo_root" rev-parse "$tag" >/dev/null 2>&1; then
+    # R7: an aborted earlier run can leave a local tag pointing at a commit
+    # that has since been superseded. Pushing it publishes the WRONG commit
+    # under this version, permanently -- D8 forbids ever deleting a tag. So
+    # assert the existing local tag is HEAD and refuse otherwise; the
+    # operator decides what to do with it.
+    if git -C "$repo_root" rev-parse "$tag" >/dev/null 2>&1; then
+      local tag_sha head_sha
+      tag_sha=$(git -C "$repo_root" rev-parse "$tag^{commit}")
+      head_sha=$(git -C "$repo_root" rev-parse HEAD)
+      if [ "$tag_sha" != "$head_sha" ]; then
+        step_fail "cut-tag" "local tag $tag to point at HEAD $head_sha" "it points at $tag_sha"
+      fi
+      step_skip "cut-tag" "$tag already exists locally at HEAD"
+    else
       run_cmd git -C "$repo_root" tag -a "$tag" -m "$module $version" ||
         step_fail "cut-tag" "git tag -a $tag to succeed" "failed"
+      step_ok "cut-tag"
     fi
-    step_ok "cut-tag"
     run_cmd git -C "$repo_root" push origin "$tag" ||
       step_fail "cut-tag-push" "git push origin $tag to succeed" "failed"
     step_ok "cut-tag-push"
@@ -867,11 +890,24 @@ cut_binary() {
     step_skip "cut-tag-push" "$tag already on origin"
   else
     confirm_first_push
-    if ! git -C "$repo_root" rev-parse "$tag" >/dev/null 2>&1; then
+    # R7: an aborted earlier run can leave a local tag pointing at a commit
+    # that has since been superseded. Pushing it publishes the WRONG commit
+    # under this version, permanently -- D8 forbids ever deleting a tag. So
+    # assert the existing local tag is HEAD and refuse otherwise; the
+    # operator decides what to do with it.
+    if git -C "$repo_root" rev-parse "$tag" >/dev/null 2>&1; then
+      local tag_sha head_sha
+      tag_sha=$(git -C "$repo_root" rev-parse "$tag^{commit}")
+      head_sha=$(git -C "$repo_root" rev-parse HEAD)
+      if [ "$tag_sha" != "$head_sha" ]; then
+        step_fail "cut-tag" "local tag $tag to point at HEAD $head_sha" "it points at $tag_sha"
+      fi
+      step_skip "cut-tag" "$tag already exists locally at HEAD"
+    else
       run_cmd git -C "$repo_root" tag -a "$tag" -m "$module $version" ||
         step_fail "cut-tag" "git tag -a $tag to succeed" "failed"
+      step_ok "cut-tag"
     fi
-    step_ok "cut-tag"
     run_cmd git -C "$repo_root" push origin "$tag" ||
       step_fail "cut-tag-push" "git push origin $tag to succeed" "failed"
     step_ok "cut-tag-push"
@@ -895,6 +931,7 @@ cmd_bump() {
   require_semver "$lib_version"
   if [ -z "$binary_version" ]; then
     binary_version=$(propose_binary_version)
+    announce_binary_version "$binary_version"
   fi
   require_semver "$binary_version"
   do_bump "$lib_version" "$binary_version"
@@ -910,6 +947,27 @@ propose_binary_version() {
   [ -z "$current" ] && current=$(latest_tag_version "cli")
   [ -z "$current" ] && current="0.0.0"
   bump_version "$current" "patch"
+}
+
+# announce_binary_version <proposed> -- prints the bump-version-propose
+# step, then, for information only, what each module's own [Unreleased]
+# section would have argued for. The patch default stays (mcp and cli
+# release in lockstep, and 0.1.1 and 0.1.2 were both patches -- 0.1.2 even
+# shipped a new tool), but an additive changelog now says so out loud
+# instead of being silently under-bumped (R11).
+announce_binary_version() {
+  local proposed="$1" current module kind
+  current=$(latest_tag_version "mcp")
+  [ -z "$current" ] && current=$(latest_tag_version "cli")
+  [ -z "$current" ] && current="0.0.0"
+  step_ok "bump-version-propose"
+  step_note "mcp/cli $current -> $proposed (patch, the default)"
+  for module in mcp cli; do
+    kind=$(derive_bump_kind "$repo_root/$module/CHANGELOG.md" "$current")
+    if [ "$kind" != "patch" ] && [ "$kind" != "none" ]; then
+      step_note "$module [Unreleased] argues for $kind -- pass --binary-version A.B.C to override the patch default"
+    fi
+  done
 }
 
 # do_bump implements plan steps 9-11: go get + go mod tidy in mcp/ and
@@ -1023,6 +1081,7 @@ cmd_all() {
 
   if [ -z "$binary_version" ]; then
     binary_version=$(propose_binary_version)
+    announce_binary_version "$binary_version"
   fi
   require_semver "$binary_version"
   do_bump "$lib_version" "$binary_version"
@@ -1038,7 +1097,10 @@ cmd_all() {
   # existing entries) -- intentionally left to the operator to write and
   # commit by hand, before or after this run. This script only guarantees
   # the machine-checkable parts (changelogs, README Status column) stay
-  # correct on every run, resumed or not.
+  # correct on every run, resumed or not. R10: say so in the OUTPUT, not
+  # only in this comment -- every precedent ship commit also retargeted
+  # GOAL.md, and the operator had no signal that it was still owed.
+  step_note "all-ship stages README.md only -- write the docs/progress.md ledger row and retarget GOAL.md by hand, then amend or follow up"
 
   local expect_subject="docs: ship v$lib_version"
   if commit_with_subject_exists "$expect_subject"; then
