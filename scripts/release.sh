@@ -508,13 +508,21 @@ cmd_preflight() {
     step_fail "preflight-ci-green" "a completed CI run for HEAD $sha" "no CI run on main"
   fi
   read -r ci_sha ci_status ci_conclusion <<<"$ci_json"
-  if [ "$ci_sha" != "$sha" ]; then
+  if [ "$ci_status" != "completed" ] || [ "$ci_conclusion" != "success" ]; then
+    step_fail "preflight-ci-green" "status=completed conclusion=success" "status=$ci_status conclusion=$ci_conclusion"
+  fi
+  if [ "$ci_sha" = "$sha" ]; then
+    step_ok "preflight-ci-green"
+  elif [ "$DRY_RUN" = true ] && [ "$branch" != "main" ]; then
+    # Same exemption preflight-branch takes above: off main under
+    # --dry-run, HEAD is by definition not what CI built on main, so the
+    # pin cannot hold and failing on it would make `all --dry-run`
+    # unusable as a preview from a feature branch. main's newest run was
+    # still required to be green.
+    step_skip "preflight-ci-green" "HEAD is $branch, not main -- main's newest run ($ci_sha) is green"
+  else
     step_fail "preflight-ci-green" "the newest CI run to be for HEAD $sha" "newest run is for $ci_sha"
   fi
-  if [ "$ci_status" != "completed" ] || [ "$ci_conclusion" != "success" ]; then
-    step_fail "preflight-ci-green" "status=completed conclusion=success for $sha" "status=$ci_status conclusion=$ci_conclusion"
-  fi
-  step_ok "preflight-ci-green"
 
   if read_cmd mise which go >/dev/null; then
     step_ok "preflight-mise-install"

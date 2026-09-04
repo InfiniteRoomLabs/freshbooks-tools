@@ -601,6 +601,20 @@ else
   fail_msg "preflight FAILs ci-green when HEAD's CI run has not completed" "exit $status: $out"
 fi
 
+case_n=$((case_n + 1))
+w=$(new_scratch_repo "preflight-ci-dryrun-branch")
+git -C "$w" checkout -q -b not-main
+set +e
+RELEASE_EXTRA_ENV=(FAKE_GH_CI_STALE_COUNT=1)
+out=$(release_run "$w" preflight --dry-run 2>&1)
+status=$?
+set -e
+if [ "$status" -eq 0 ] && printf '%s' "$out" | grep -qF "release: SKIP preflight-ci-green"; then
+  pass_msg "preflight SKIPs the ci-green HEAD pin off main under --dry-run, keeping the plan previewable"
+else
+  fail_msg "preflight SKIPs the ci-green HEAD pin off main under --dry-run, keeping the plan previewable" "exit $status: $out"
+fi
+
 # --- probe: a red CI FAILs cut before any tag is pushed (lib and binary) ---
 
 for probe_module in freshbooks mcp; do
