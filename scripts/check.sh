@@ -109,19 +109,23 @@ run_docs() {
 }
 
 # README.md's Status column (D5) is regenerated from git tags by
-# `scripts/release.sh docs`, which is a pure, deterministic, local-only
-# rewrite (no network write) -- so it is safe to run for real here, the
-# same way docs_drift_test.go runs the cobra doc generator for real to
-# check docs/cli.md. A rewrite that changes anything means the tags moved
-# without the README being updated to match.
+# `scripts/release.sh docs`, a pure, deterministic, local-only rewrite (no
+# network write). It renders into a temp file via RELEASE_README_OUT and
+# diffs, the same way docs_drift_test.go generates into a temp dir: a
+# verification step must never mutate a tracked file. Rewriting README.md
+# in place and reading `git diff` silently reverted an operator's
+# uncommitted Status edit (and reported OK), and left a modified README
+# behind whenever the check genuinely failed (A2/R8).
 run_readme_drift_check() {
   echo "== readme-drift-check =="
-  "$repo_root/scripts/release.sh" docs
-  local diff
-  diff=$(cd "$repo_root" && git diff -- README.md)
-  if [ -n "$diff" ]; then
+  local rendered drift status=0
+  rendered=$(mktemp)
+  RELEASE_README_OUT="$rendered" "$repo_root/scripts/release.sh" docs
+  drift=$(diff -u "$repo_root/README.md" "$rendered") || status=$?
+  rm -f "$rendered"
+  if [ "$status" -ne 0 ]; then
     echo "readme-drift-check: README.md Status column is stale -- run 'mise run release -- docs'" >&2
-    echo "$diff" >&2
+    echo "$drift" >&2
     return 1
   fi
 }

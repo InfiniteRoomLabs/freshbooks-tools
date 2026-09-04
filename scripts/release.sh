@@ -52,8 +52,14 @@ fi
 # ~/.local/bin.
 RELEASE_LOCAL_BIN="${RELEASE_LOCAL_BIN:-$HOME/.local/bin}"
 
+# One EXIT trap owns every temp path this script creates (R13/A4): the
+# verify workdirs and the changelog/README scratch files used to leak on
+# every step_fail path between their mktemp and the success-path rm.
 LOG_FILE="$(mktemp -t release-cmd.XXXXXX.log)"
-trap 'rm -f "$LOG_FILE"' EXIT
+declare -a TMP_PATHS=("$LOG_FILE")
+track_tmp() { TMP_PATHS+=("$1"); }
+cleanup_tmp() { rm -rf "${TMP_PATHS[@]}"; }
+trap cleanup_tmp EXIT
 
 # GO_BIN resolves the mise.toml-pinned go toolchain by absolute path, so it
 # is correct even for commands run outside the repo (e.g. the proxy-pickup
@@ -237,62 +243,88 @@ latest_tag_version() {
 
 # changelog_cut_section <file> <version> <date> -- renames "## [Unreleased]"
 # to "## [<version>] - <date>" in place, keeping its body, and inserts a
-# fresh empty "## [Unreleased]" above it.
+# fresh empty "## [Unreleased]" above it. The cut section reads
+#   ## [X.Y.Z] - <date>
+#   <blank>
+#   ### Added
+# like every hand-written section in all four changelogs (R5: the old
+# skip_blank ate the separator and left the heading glued to the body).
 changelog_cut_section() {
   local file="$1" version="$2" date="$3" tmp
   tmp=$(mktemp)
+  track_tmp "$tmp"
   awk -v ver="$version" -v date="$date" '
-    BEGIN { done = 0; skip_blank = 0 }
-    skip_blank == 1 {
-      skip_blank = 0
-      if ($0 == "") next
-    }
     /^## \[Unreleased\]/ && !done {
       print
       print ""
       print "## [" ver "] - " date
+      print ""
       done = 1
-      skip_blank = 1
+      eat_blank = 1
       next
     }
+    eat_blank { eat_blank = 0; if ($0 == "") next }
     { print }
-  ' "$file" >"$tmp"
+  ' "$file" >"$tmp" || step_fail "changelog-cut" "the changelog rewrite to succeed" "awk failed on $file"
   mv "$tmp" "$file"
 }
 
 # changelog_add_bullet <file> <heading> <text> -- adds "- <text>" under
 # "### <heading>" inside the "## [Unreleased]" section, creating the
 # heading if it is not already present.
+#
+# One awk pass, and it re-emits the section as exactly "## [Unreleased]",
+# ONE blank line, then the body, however many times it is called. The old
+# three-pass form (head awk + section + tail awk) re-added the section's
+# own leading blank on top of a hard-coded one, so the root changelog --
+# whose [Unreleased] is never cut -- gained a blank line on every release
+# and had four after one and seven after two (R3).
 changelog_add_bullet() {
-  local file="$1" heading="$2" text="$3" before section after tmp
+  local file="$1" heading="$2" text="$3" tmp
   tmp=$(mktemp)
-  before=$(awk '/^## \[Unreleased\]/{print; exit} {print}' "$file")
-  section=$(changelog_unreleased_section "$file")
-  after=$(awk '
-    started { print; next }
-    /^## \[Unreleased\]/ { seen = 1; next }
-    seen && /^## \[/ { started = 1; print }
-  ' "$file")
-
-  if printf '%s\n' "$section" | grep -qxF "### $heading"; then
-    section=$(printf '%s\n' "$section" | awk -v h="### $heading" -v b="- $text" '
-      { print }
-      $0 == h && !done { print b; done = 1 }
-    ')
-  else
-    section=$(printf '%s\n' "$section" | sed '/./,$!d') # drop leading blanks
-    if [ -z "$(printf '%s' "$section" | tr -d '[:space:]')" ]; then
-      section=$(printf '### %s\n- %s' "$heading" "$text")
-    else
-      section=$(printf '### %s\n- %s\n\n%s' "$heading" "$text" "$section")
-    fi
-  fi
-
-  {
-    printf '%s\n\n' "$before"
-    printf '%s\n\n' "$section"
-    printf '%s\n' "$after"
-  } >"$tmp"
+  track_tmp "$tmp"
+  awk -v h="### $heading" -v b="- $text" '
+    function emit_section(   i, start, end, found, inserted) {
+      start = 0
+      end = nbody - 1
+      while (start <= end && body[start] == "") start++
+      while (end >= start && body[end] == "") end--
+      found = 0
+      for (i = start; i <= end; i++) {
+        if (body[i] == h) { found = 1; break }
+      }
+      print ""
+      if (found) {
+        inserted = 0
+        for (i = start; i <= end; i++) {
+          print body[i]
+          if (!inserted && body[i] == h) { print b; inserted = 1 }
+        }
+      } else {
+        print h
+        print b
+        if (end >= start) {
+          print ""
+          for (i = start; i <= end; i++) print body[i]
+        }
+      }
+    }
+    state == 0 {
+      print
+      if ($0 ~ /^## \[Unreleased\]/) state = 1
+      next
+    }
+    state == 1 && /^## \[/ {
+      emit_section()
+      print ""
+      print
+      state = 2
+      next
+    }
+    state == 1 { body[nbody++] = $0; next }
+    { print }
+    END { if (state == 1) emit_section() }
+  ' "$file" >"$tmp" || step_fail "changelog-bullet" "the changelog rewrite to succeed" "awk failed on $file"
   mv "$tmp" "$file"
 }
 
@@ -470,9 +502,19 @@ cmd_preflight() {
 
 # --- docs (D5) --------------------------------------------------------------
 
+# RELEASE_README_OUT redirects the rendered README somewhere other than
+# README.md. scripts/check.sh's readme-drift-check uses it so a
+# verification step never mutates a tracked file (A2/R8): it renders to a
+# temp copy and diffs, instead of rewriting the tree and reading git diff
+# -- which silently reverted an operator's uncommitted Status edit and
+# left a modified README behind whenever the check failed.
 cmd_docs() {
-  local module tag readme=".README.md" tmp
+  local module tag tmp readme out
   readme="$repo_root/README.md"
+  out="${RELEASE_README_OUT:-$readme}"
+  if [ "$out" != "$readme" ] && [ "$DRY_RUN" != true ]; then
+    cp "$readme" "$out" || step_fail "docs" "README.md to be copyable to $out" "cp failed"
+  fi
   for module in freshbooks mcp cli; do
     tag=$(git -C "$repo_root" tag --list "$module/v*" | sort -V | tail -1)
     [ -z "$tag" ] && continue
@@ -481,6 +523,7 @@ cmd_docs() {
       continue
     fi
     tmp=$(mktemp)
+    track_tmp "$tmp"
     # Matches the module's Status row: "| <Name> | `<module>/` | <import> | `<old-tag>` |"
     # and rewrites only the last cell (the Status column).
     awk -v mod="\`${module}/\`" -v tag="$tag" '
@@ -491,8 +534,8 @@ cmd_docs() {
         }
         print line
       }
-    ' "$readme" >"$tmp"
-    mv "$tmp" "$readme"
+    ' "$out" >"$tmp" || step_fail "docs" "the README Status rewrite to succeed" "awk failed for $module"
+    mv "$tmp" "$out"
   done
   step_ok "docs"
 }
