@@ -8,10 +8,21 @@ on:
       - README.md
       - site/**
       - scripts/site-sync.sh
+      - scripts/site-build.sh
+      - scripts/check.sh
+      - mise.toml
+      - .github/workflows/pages.yml
   workflow_dispatch:
 
 permissions:
   contents: read
+
+# Pages allows one active deployment at a time, so overlapping runs make the
+# loser fail. Queue instead of cancelling: cancel-in-progress would kill a
+# publish mid-flight.
+concurrency:
+  group: pages
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -23,6 +34,16 @@ jobs:
         with:
           install: true
           cache: true
+      # mise-action's cache covers mise's own tool installs, not the pnpm
+      # content-addressed store, so without this the site build re-downloads
+      # every tarball in site/pnpm-lock.yaml on each run.
+      - id: pnpm-store
+        run: echo "path=$(mise exec -- pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-${{ hashFiles('site/pnpm-lock.yaml') }}
+          restore-keys: pnpm-
       - run: mise run site-build
       - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0

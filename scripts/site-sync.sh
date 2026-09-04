@@ -11,7 +11,11 @@
 # compileToJSX reads `frontMatter.mdx.format`), and custom_edit_url
 # pointing at the real source file so the site's "Edit this page" link
 # doesn't point at a gitignored generated copy), then rewrite
-# `(docs/<name>.md)` markdown links to the site's own slugs (`(/<name>)`).
+# `(docs/<name>.md)` markdown links to the site's own slugs (`(/<name>)`),
+# anchors included (`(docs/cli.md#frag)` -> `(/cli#frag)`). Only the pages
+# published below are rewritten: a link to an unpublished `docs/*.md` is
+# left alone so onBrokenMarkdownLinks: 'throw' names the real source path
+# rather than an invented slug.
 #
 # docs/phases/, docs/progress.md, docs/superpowers/ are process/internal
 # and are never synced.
@@ -37,6 +41,17 @@ pages=(
   "agentic-transformation:Agentic transformation:7:docs/agentic-transformation.md:docs/agentic-transformation.md"
 )
 
+# Alternation of the published slugs, derived from the table above so the
+# link rewrite can never name a page the site does not build. `index` is
+# excluded: it is README.md, not a docs/<name>.md anyone links to.
+slugs=""
+for page in "${pages[@]}"; do
+  IFS=':' read -r name _ <<<"$page"
+  if [ "$name" != "index" ]; then
+    slugs="${slugs:+$slugs|}$name"
+  fi
+done
+
 for page in "${pages[@]}"; do
   IFS=':' read -r name title position src edit_path <<<"$page"
   slug="/$name"
@@ -55,8 +70,8 @@ for page in "${pages[@]}"; do
     echo "custom_edit_url: \"$edit_base/$edit_path\""
     echo "---"
     echo
-    # Rewrite (docs/<x>.md) markdown links to (/<x>) site slugs.
-    sed -E 's#\(docs/([A-Za-z0-9_-]+)\.md\)#(/\1)#g' "$repo_root/$src"
+    # Rewrite (docs/<x>.md[#frag]) markdown links to (/<x>[#frag]) slugs.
+    sed -E "s%\(docs/($slugs)\.md(#[^)]*)?\)%(/\1\2)%g" "$repo_root/$src"
   } >"$out"
 done
 

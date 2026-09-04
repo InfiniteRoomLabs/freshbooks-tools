@@ -46,10 +46,11 @@ jobs:
       - run: mise run check -- cli
 
   # The module-independent gate steps (actionlint, shellcheck, the redaction
-  # and release selftests, readme-drift-check). `mise run check -- <module>`
-  # skips them, so the three module jobs no longer pay for the same work
-  # three times; this job pays for it once. fetch-depth: 0 because
-  # readme-drift-check reads the release tags.
+  # and release selftests, readme-drift-check, site-build).
+  # `mise run check -- <module>` skips them, so the three module jobs no
+  # longer pay for the same work three times; this job pays for it once.
+  # fetch-depth: 0 because readme-drift-check reads the release tags;
+  # site-build is why this job needs node/pnpm and the pnpm store cache.
   repo-wide:
     name: repo-wide
     runs-on: ubuntu-latest
@@ -61,4 +62,14 @@ jobs:
         with:
           install: true
           cache: true
+      # mise-action's cache covers mise's own tool installs, not the pnpm
+      # content-addressed store, so without this the site build re-downloads
+      # every tarball in site/pnpm-lock.yaml on each run.
+      - id: pnpm-store
+        run: echo "path=$(mise exec -- pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-${{ hashFiles('site/pnpm-lock.yaml') }}
+          restore-keys: pnpm-
       - run: mise run repo-wide
