@@ -6,6 +6,8 @@ actionlint = "1.7.12"
 shellcheck = "0.11.0"
 usage = "6.0.0"
 "aqua:anchore/syft" = "1.51.1"
+node = "24.14.0"
+pnpm = "11.15.1"
 
 [tasks.fmt-check]
 description = "Check gofmt formatting for one or more modules (default: all)"
@@ -44,8 +46,20 @@ description = "Check README.md's Status column against the newest git tags (read
 run = "scripts/check.sh readme-drift-check"
 
 [tasks.repo-wide]
-description = "The module-independent gate steps: actionlint, shellcheck, redaction-selftest, release-selftest, readme-drift-check"
+description = "The module-independent gate steps: actionlint, shellcheck, redaction-selftest, release-selftest, readme-drift-check, site-build"
 run = "scripts/check.sh repo-wide"
+
+[tasks.site-sync]
+description = "Regenerate site/docs/ from README.md and the docs/*.md guides for the Docusaurus site"
+run = "scripts/site-sync.sh"
+
+[tasks.site]
+description = "Run the Docusaurus dev server (site/docs/ synced first)"
+run = "scripts/site-sync.sh && mise exec -- pnpm --dir site start"
+
+[tasks.site-build]
+description = "Sync docs, install (frozen lockfile), and build the Docusaurus site into site/build/"
+run = "scripts/site-build.sh"
 
 [tasks.redaction-selftest]
 description = "Run the redaction-check.sh regression test (both modes, no network)"
@@ -68,7 +82,7 @@ description = "Regenerate docs/cli.md from the cobra command tree (cobra/doc)"
 run = "scripts/docs.sh"
 
 [tasks.check]
-description = "Full gate: fmt-check, vet, lint, test, cover, inventory-check, build, the repo-wide steps (actionlint, shellcheck, redaction-selftest, release-selftest, readme-drift-check -- skipped when a module filter is given, since CI runs them once via the repo-wide job), then a dirty-tree banner"
+description = "Full gate: fmt-check, vet, lint, test, cover, inventory-check, build, the repo-wide steps (actionlint, shellcheck, redaction-selftest, release-selftest, readme-drift-check, site-build -- skipped when a module filter is given, since CI runs them once via the repo-wide job), then a dirty-tree banner"
 run = "scripts/check.sh all"
 
 [tasks.release]
