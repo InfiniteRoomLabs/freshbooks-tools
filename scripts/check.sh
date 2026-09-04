@@ -1,5 +1,5 @@
 #!/usr/bin/env -S usage bash
-#USAGE arg "<subcommand>" help="fmt-check|vet|lint|test|cover|vuln|inventory-check|actionlint|shellcheck|redaction-selftest|release-selftest|readme-drift-check|repo-wide|build|docs|all"
+#USAGE arg "<subcommand>" help="fmt-check|vet|lint|test|cover|vuln|inventory-check|actionlint|shellcheck|redaction-selftest|release-selftest|readme-drift-check|site-build|repo-wide|build|docs|all"
 #USAGE arg "[modules]" var=#true help="Modules to check (default: freshbooks mcp cli)"
 
 set -euo pipefail
@@ -126,6 +126,15 @@ run_docs() {
   "$repo_root/scripts/docs.sh"
 }
 
+# D4: the Docusaurus docs site build joins the repo-wide gate because a
+# warm build measured well under the 60s budget (~5s locally); it catches
+# a broken guide cross-link (onBrokenLinks / onBrokenMarkdownLinks:
+# 'throw') before it ever reaches the GitHub Pages deploy workflow.
+run_site_build() {
+  echo "== site-build =="
+  "$repo_root/scripts/site-build.sh"
+}
+
 # README.md's Status column (D5) is regenerated from git tags by
 # `scripts/release.sh docs`, a pure, deterministic, local-only rewrite (no
 # network write). It renders into a temp file via RELEASE_README_OUT and
@@ -157,6 +166,7 @@ run_repo_wide() {
   run_redaction_selftest
   run_release_selftest
   run_readme_drift_check
+  run_site_build
 }
 
 run_step() {
@@ -190,6 +200,7 @@ release-selftest) run_release_selftest ;;
 readme-drift-check) run_readme_drift_check ;;
 build) run_build ;;
 docs) run_docs ;;
+site-build) run_site_build ;;
 all)
   for module in "${modules[@]}"; do
     for step in "${steps[@]}"; do

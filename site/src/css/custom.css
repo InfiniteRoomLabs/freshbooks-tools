@@ -1,0 +1,27 @@
+/**
+ * System font stack only -- no external font/CDN loads (D7: no
+ * telemetry, no third-party scripts/fonts in this site).
+ */
+:root {
+  --ifm-font-family-base: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+  --ifm-font-family-monospace: ui-monospace, SFMono-Regular, Menlo, Monaco,
+    Consolas, 'Liberation Mono', 'Courier New', monospace;
+  --ifm-color-primary: #2e6e5c;
+  --ifm-color-primary-dark: #29634f;
+  --ifm-color-primary-darker: #275e4b;
+  --ifm-color-primary-darkest: #204d3e;
+  --ifm-color-primary-light: #33796a;
+  --ifm-color-primary-lighter: #357e6c;
+  --ifm-color-primary-lightest: #3d9282;
+}
+
+[data-theme='dark'] {
+  --ifm-color-primary: #4fb59a;
+  --ifm-color-primary-dark: #37a889;
+  --ifm-color-primary-darker: #339f81;
+  --ifm-color-primary-darkest: #2a836b;
+  --ifm-color-primary-light: #67c1a9;
+  --ifm-color-primary-lighter: #74c6b1;
+  --ifm-color-primary-lightest: #99d6c6;
+}

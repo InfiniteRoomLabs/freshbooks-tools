@@ -48,6 +48,7 @@ go get github.com/InfiniteRoomLabs/freshbooks-tools/freshbooks
 
 ## Docs
 
+- Rendered as a site: <https://infiniteroomlabs.github.io/freshbooks-tools/>
 - [Getting started](docs/getting-started.md) -- create a FreshBooks app, first call from each component
 - [Authentication](docs/authentication.md) -- OAuth2 flow, token lifetimes, rotation
 - [Library](docs/library.md) -- client, options, errors, pagination
