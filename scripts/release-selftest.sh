@@ -72,6 +72,16 @@ while [ "$i" -lt "${#args[@]}" ]; do
   i=$((i + 1))
 done
 
+conclusion_for_workflow() {
+  # conclusion_for_workflow <workflow> -- the Release and CI runs are
+  # driven by separate knobs; both arms of the case need the same answer.
+  if [ "$1" = "Release" ]; then
+    printf '%s' "${FAKE_GH_RELEASE_CONCLUSION:-success}"
+  else
+    printf '%s' "${FAKE_GH_CI_CONCLUSION:-success}"
+  fi
+}
+
 emit_json() {
   # emit_json <json> -- prints raw JSON, or filters it through the
   # requested --jq expression with the real jq (present system-wide; gh
@@ -91,22 +101,30 @@ case "$sub1 $sub2" in
 "run list")
   workflow=$(cat "$FAKE_GH_STATE/last-workflow" 2>/dev/null || echo CI)
   sha=$(git -C "$FAKE_GH_REPO_DIR" rev-parse "$branch" 2>/dev/null || echo "0000000000000000000000000000000000000000")
+  conclusion=$(conclusion_for_workflow "$workflow")
+  # Discovery-race simulation (R2/A7). GitHub does not register a workflow
+  # run the instant a push lands, so for the first N lookups answer the
+  # way it really does: with the PREVIOUS commit's run for CI, and with an
+  # empty list for a freshly pushed tag's Release run.
+  n=$(cat "$FAKE_GH_STATE/run-list-$workflow" 2>/dev/null || echo 0)
+  n=$((n + 1))
+  printf '%s' "$n" >"$FAKE_GH_STATE/run-list-$workflow"
   if [ "$workflow" = "Release" ]; then
-    conclusion="${FAKE_GH_RELEASE_CONCLUSION:-success}"
-  else
-    conclusion="${FAKE_GH_CI_CONCLUSION:-success}"
+    if [ "$n" -le "${FAKE_GH_RELEASE_EMPTY_COUNT:-0}" ]; then
+      emit_json '[]'
+      exit 0
+    fi
+  elif [ "$n" -le "${FAKE_GH_CI_STALE_COUNT:-0}" ]; then
+    sha="1111111111111111111111111111111111111111"
   fi
-  json=$(printf '[{"databaseId":1001,"headSha":"%s","conclusion":"%s","status":"completed"}]' "$sha" "$conclusion")
+  json=$(printf '[{"databaseId":1001,"headSha":"%s","conclusion":"%s","status":"%s"}]' \
+    "$sha" "$conclusion" "${FAKE_GH_CI_LIST_STATUS:-completed}")
   emit_json "$json"
   exit 0
   ;;
 "run view")
   workflow=$(cat "$FAKE_GH_STATE/last-workflow" 2>/dev/null || echo CI)
-  if [ "$workflow" = "Release" ]; then
-    conclusion="${FAKE_GH_RELEASE_CONCLUSION:-success}"
-  else
-    conclusion="${FAKE_GH_CI_CONCLUSION:-success}"
-  fi
+  conclusion=$(conclusion_for_workflow "$workflow")
   json=$(printf '{"status":"completed","conclusion":"%s"}' "$conclusion")
   emit_json "$json"
   exit 0
@@ -119,15 +137,14 @@ case "$sub1 $sub2" in
   else
     assets=13
   fi
-  assets_json="["
-  n=0
-  while [ "$n" -lt "$assets" ]; do
-    [ "$n" -gt 0 ] && assets_json+=","
-    assets_json+="{\"name\":\"asset$n\"}"
-    n=$((n + 1))
-  done
-  assets_json+="]"
-  json=$(printf '{"isDraft":false,"name":"%s","assets":%s}' "$tag" "$assets_json")
+  # FAKE_GH_RELEASE_DRAFT / FAKE_GH_RELEASE_NAME / FAKE_GH_ASSET_COUNT let
+  # a probe break exactly one of do_verify's three release assertions, so
+  # deleting any of them from release.sh turns the suite red (R6).
+  json=$(jq -cn \
+    --argjson draft "${FAKE_GH_RELEASE_DRAFT:-false}" \
+    --arg name "${FAKE_GH_RELEASE_NAME:-$tag}" \
+    --argjson n "${FAKE_GH_ASSET_COUNT:-$assets}" \
+    '{isDraft: $draft, name: $name, assets: [range($n) | {name: "asset\(.)"}]}')
   emit_json "$json"
   exit 0
   ;;
@@ -291,7 +308,8 @@ new_scratch_repo() {
   printf '#!/usr/bin/env bash\nexit 0\n' >"$work/scripts/check.sh"
   chmod +x "$work/scripts/check.sh"
 
-  git -C "$work" init -q -b main >/dev/null 2>&1 || true # init -b main above already did this; harmless if already a repo
+  # The work tree; the `git init --bare` above is $origin, the remote.
+  git -C "$work" init -q -b main >/dev/null
   git -C "$work" config user.email "selftest@example.com"
   git -C "$work" config user.name "release selftest"
   git -C "$work" config commit.gpgsign false
@@ -301,6 +319,31 @@ new_scratch_repo() {
   git -C "$work" push -q -u origin main
 
   echo "$work"
+}
+
+# seed_added_changelog <work> -- the "### Added / - v1" [Unreleased] body
+# most probes need, committed and pushed (S9: this preamble was repeated
+# verbatim in three probes).
+seed_added_changelog() {
+  {
+    changelog_module
+    echo
+    echo "### Added"
+    echo "- v1"
+  } >"$1/freshbooks/CHANGELOG.md"
+  commit_scratch "$1" "seed unreleased notes"
+}
+
+# deepen_history <work> <n> -- adds <n> empty commits with long subjects.
+# Long on purpose: the R1 regression only reproduces once `git log`'s
+# output exceeds a pipe buffer, which short subjects never do.
+deepen_history() {
+  local work="$1" n="$2" i pad
+  pad=$(printf 'x%.0s' {1..400})
+  for ((i = 0; i < n; i++)); do
+    git -C "$work" commit -q --allow-empty -m "filler $i $pad"
+  done
+  git -C "$work" push -q origin main
 }
 
 # commit_scratch <work> <subject> -- commits and pushes whatever a probe
@@ -414,15 +457,7 @@ fi
 
 case_n=$((case_n + 1))
 w=$(new_scratch_repo "dry-run-plan")
-{
-  changelog_module
-  echo
-  echo "### Added"
-  echo "- v1"
-} >"$w/freshbooks/CHANGELOG.md"
-git -C "$w" add -A
-git -C "$w" commit -q -m "seed unreleased notes"
-git -C "$w" push -q origin main
+seed_added_changelog "$w"
 before_refs=$(git -C "$w" ls-remote origin 2>&1)
 set +e
 RELEASE_EXTRA_ENV=()
@@ -447,9 +482,15 @@ w=$(new_scratch_repo "happy-path")
   echo "### Added"
   echo "- v1"
 } >"$w/freshbooks/CHANGELOG.md"
-git -C "$w" add -A
-git -C "$w" commit -q -m "seed unreleased notes"
-git -C "$w" push -q origin main
+commit_scratch "$w" "seed unreleased notes"
+# R1/R6: the resume assertions below are only meaningful on a history deep
+# enough to fill a pipe buffer. commit_with_subject_exists used to pipe
+# `git log` into `grep -q`; with pipefail the early grep exit killed git
+# with SIGPIPE and the function answered "not found" for everything but
+# the repo's oldest commit -- invisible in a three-commit scratch repo,
+# fatal on any real one. Deep-fill with padded subjects so the old code
+# fails here.
+deepen_history "$w" 250
 
 set +e
 RELEASE_EXTRA_ENV=()
@@ -485,15 +526,7 @@ fi
 
 case_n=$((case_n + 1))
 w=$(new_scratch_repo "release-fails")
-{
-  changelog_module
-  echo
-  echo "### Added"
-  echo "- v1"
-} >"$w/freshbooks/CHANGELOG.md"
-git -C "$w" add -A
-git -C "$w" commit -q -m "seed unreleased notes"
-git -C "$w" push -q origin main
+seed_added_changelog "$w"
 
 set +e
 RELEASE_EXTRA_ENV=(FAKE_GH_RELEASE_CONCLUSION=failure)
@@ -537,6 +570,198 @@ else
   fail_msg "verify FAILs when the checksum file is altered" "exit $status: $out"
 fi
 
+# --- probe: preflight-ci-green is pinned to HEAD, not just to "last green" --
+
+case_n=$((case_n + 1))
+w=$(new_scratch_repo "preflight-ci-sha")
+set +e
+RELEASE_EXTRA_ENV=(FAKE_GH_CI_STALE_COUNT=1)
+out=$(release_run "$w" preflight 2>&1)
+status=$?
+set -e
+head_sha=$(git -C "$w" rev-parse HEAD)
+if [ "$status" -eq 1 ] &&
+  printf '%s' "$out" | grep -qF "release: FAIL preflight-ci-green" &&
+  printf '%s' "$out" | grep -qF "$head_sha"; then
+  pass_msg "preflight FAILs ci-green when the newest CI run is for a different sha than HEAD"
+else
+  fail_msg "preflight FAILs ci-green when the newest CI run is for a different sha than HEAD" "exit $status: $out"
+fi
+
+case_n=$((case_n + 1))
+w=$(new_scratch_repo "preflight-ci-status")
+set +e
+RELEASE_EXTRA_ENV=(FAKE_GH_CI_LIST_STATUS=in_progress)
+out=$(release_run "$w" preflight 2>&1)
+status=$?
+set -e
+if [ "$status" -eq 1 ] && printf '%s' "$out" | grep -qF "release: FAIL preflight-ci-green"; then
+  pass_msg "preflight FAILs ci-green when HEAD's CI run has not completed"
+else
+  fail_msg "preflight FAILs ci-green when HEAD's CI run has not completed" "exit $status: $out"
+fi
+
+# --- probe: a red CI FAILs cut before any tag is pushed (lib and binary) ---
+
+for probe_module in freshbooks mcp; do
+  case_n=$((case_n + 1))
+  w=$(new_scratch_repo "red-ci-$probe_module")
+  seed_added_changelog "$w"
+  set +e
+  RELEASE_EXTRA_ENV=(FAKE_GH_CI_CONCLUSION=failure)
+  out=$(release_run "$w" cut "$probe_module" 0.9.0 --yes 2>&1)
+  status=$?
+  set -e
+  origin_tags=$(git -C "$w" ls-remote --tags origin 2>&1)
+  local_tags=$(git -C "$w" tag --list 2>&1)
+  if [ "$status" -ne 0 ] &&
+    printf '%s' "$out" | grep -qF "release: FAIL cut-ci-watch" &&
+    [ -z "$origin_tags" ] && [ -z "$local_tags" ]; then
+    pass_msg "cut $probe_module on a red CI FAILs cut-ci-watch with zero tags local or remote"
+  else
+    fail_msg "cut $probe_module on a red CI FAILs cut-ci-watch with zero tags local or remote" \
+      "exit $status, origin tags=[$origin_tags], local tags=[$local_tags]: $out"
+  fi
+done
+
+# --- probe: watch_run waits out GitHub's run-registration delay -----------
+
+case_n=$((case_n + 1))
+w=$(new_scratch_repo "watch-discovery")
+seed_added_changelog "$w"
+set +e
+RELEASE_EXTRA_ENV=(FAKE_GH_CI_STALE_COUNT=2 FAKE_GH_RELEASE_EMPTY_COUNT=2 RELEASE_DISCOVERY_INTERVAL=1)
+out=$(release_run "$w" cut freshbooks 0.9.0 --yes 2>&1)
+status=$?
+set -e
+ci_lookups=$(grep -c -- "run list --workflow CI" "$(dirname "$w")/state/fake-gh.log" || true)
+if [ "$status" -eq 0 ] &&
+  printf '%s' "$out" | grep -qF "release: OK cut-ci-watch" &&
+  printf '%s' "$out" | grep -qF "release: OK cut-release-watch" &&
+  [ "$ci_lookups" -ge 3 ]; then
+  pass_msg "watch_run retries discovery through a stale CI headSha and an empty Release list"
+else
+  fail_msg "watch_run retries discovery through a stale CI headSha and an empty Release list" \
+    "exit $status, CI run-list calls=$ci_lookups: $out"
+fi
+
+# --- probe: verify-release's three assertions each actually fire ----------
+
+w=$(new_scratch_repo "verify-release-assertions")
+for probe in "FAKE_GH_RELEASE_DRAFT=true|a draft release" \
+  "FAKE_GH_RELEASE_NAME=mcp/v9.9.9|a release named for the wrong tag" \
+  "FAKE_GH_ASSET_COUNT=12|a release with 12 of the expected 13 assets"; do
+  case_n=$((case_n + 1))
+  probe_env="${probe%%|*}"
+  probe_what="${probe#*|}"
+  set +e
+  RELEASE_EXTRA_ENV=("$probe_env")
+  out=$(release_run "$w" verify mcp/v0.1.0 2>&1)
+  status=$?
+  set -e
+  if [ "$status" -eq 1 ] && printf '%s' "$out" | grep -qF "release: FAIL verify-release"; then
+    pass_msg "verify FAILs verify-release on $probe_what"
+  else
+    fail_msg "verify FAILs verify-release on $probe_what" "exit $status: $out"
+  fi
+done
+
+# --- probe: docs writes the three Status cells and is idempotent ----------
+
+case_n=$((case_n + 1))
+w=$(new_scratch_repo "docs-cells")
+git -C "$w" tag -a freshbooks/v0.9.0 -m x
+git -C "$w" tag -a mcp/v0.2.0 -m x
+git -C "$w" tag -a cli/v0.2.0 -m x
+set +e
+RELEASE_EXTRA_ENV=()
+out=$(release_run "$w" docs 2>&1)
+status=$?
+set -e
+first_pass=$(cat "$w/README.md")
+set +e
+RELEASE_EXTRA_ENV=()
+out2=$(release_run "$w" docs 2>&1)
+status2=$?
+set -e
+second_pass=$(cat "$w/README.md")
+if [ "$status" -eq 0 ] && [ "$status2" -eq 0 ] &&
+  printf '%s' "$first_pass" | grep -qF '| Library | `freshbooks/` | `github.com/InfiniteRoomLabs/freshbooks-tools/freshbooks` | `freshbooks/v0.9.0` |' &&
+  printf '%s' "$first_pass" | grep -qF '| MCP server | `mcp/` | `freshbooks-mcp` | `mcp/v0.2.0` |' &&
+  printf '%s' "$first_pass" | grep -qF '| CLI | `cli/` | `freshbooks` | `cli/v0.2.0` |' &&
+  [ "$first_pass" = "$second_pass" ]; then
+  pass_msg "docs rewrites all three README Status cells to the newest tag and is idempotent"
+else
+  fail_msg "docs rewrites all three README Status cells to the newest tag and is idempotent" \
+    "exit $status/$status2, idempotent=$([ "$first_pass" = "$second_pass" ] && echo yes || echo no): $out $out2"
+fi
+
+# --- probe: the changelogs `all` writes are correctly shaped --------------
+
+case_n=$((case_n + 1))
+w=$(new_scratch_repo "changelog-shape")
+seed_added_changelog "$w"
+set +e
+RELEASE_EXTRA_ENV=()
+out=$(release_run "$w" all 0.9.0 --yes 2>&1)
+status=$?
+set -e
+# The cut section must read "## [X.Y.Z] - <date>", one blank, then the body
+# it inherited from [Unreleased] (R5).
+cut_body=$(awk '/^## \[0\.9\.0\] - [0-9]{4}-[0-9]{2}-[0-9]{2}$/ { found = 1; next } found && n < 3 { print; n++ }' "$w/freshbooks/CHANGELOG.md")
+want_body=$(printf '\n### Added\n- v1')
+# The root [Unreleased] is never cut, so it must survive N bullet additions
+# with exactly one blank line under its heading (R3). `all` adds three.
+root_blanks=$(awk '/^## \[Unreleased\]/ { found = 1; next } found { if ($0 == "") { n++; next } else { exit } } END { print n + 0 }' "$w/CHANGELOG.md")
+root_bullets=$(grep -c -- "- \`.*\` cut to " "$w/CHANGELOG.md" || true)
+if [ "$status" -eq 0 ] && [ "$cut_body" = "$want_body" ] &&
+  [ "$root_blanks" -eq 1 ] && [ "$root_bullets" -eq 3 ]; then
+  pass_msg "the cut section is heading + one blank + body, and the root [Unreleased] keeps one blank after three bullets"
+else
+  fail_msg "the cut section is heading + one blank + body, and the root [Unreleased] keeps one blank after three bullets" \
+    "exit $status, root blanks=$root_blanks (want 1), root bullets=$root_bullets (want 3), cut body=[$cut_body] want=[$want_body]"
+fi
+
+# --- probe: non-semver versions are refused before anything is pushed -----
+
+w=$(new_scratch_repo "semver-guard")
+for bad_version in 1.0 v1.0.0 ".*"; do
+  case_n=$((case_n + 1))
+  set +e
+  RELEASE_EXTRA_ENV=()
+  out=$(release_run "$w" cut freshbooks "$bad_version" --yes --dry-run 2>&1)
+  status=$?
+  set -e
+  if [ "$status" -eq 1 ] && printf '%s' "$out" | grep -qF "release: FAIL version-guard"; then
+    pass_msg "cut refuses the non-semver version '$bad_version'"
+  else
+    fail_msg "cut refuses the non-semver version '$bad_version'" "exit $status: $out"
+  fi
+done
+
+# --- probe: a stale local tag is never pushed ------------------------------
+
+case_n=$((case_n + 1))
+w=$(new_scratch_repo "stale-local-tag")
+stale_sha=$(git -C "$w" rev-parse HEAD)
+git -C "$w" tag -a freshbooks/v0.9.0 -m "stale" "$stale_sha"
+seed_added_changelog "$w"
+set +e
+RELEASE_EXTRA_ENV=()
+out=$(release_run "$w" cut freshbooks 0.9.0 --yes 2>&1)
+status=$?
+set -e
+origin_tags=$(git -C "$w" ls-remote --tags origin 2>&1)
+if [ "$status" -eq 1 ] &&
+  printf '%s' "$out" | grep -qF "release: FAIL cut-tag" &&
+  printf '%s' "$out" | grep -qF "$stale_sha" &&
+  [ -z "$origin_tags" ]; then
+  pass_msg "cut FAILs cut-tag rather than pushing a local tag that is not at HEAD"
+else
+  fail_msg "cut FAILs cut-tag rather than pushing a local tag that is not at HEAD" \
+    "exit $status, origin tags=[$origin_tags]: $out"
+fi
+
 # ----------------------------------------------------------------------------
 
 if [ "$failures" -ne 0 ]; then
@@ -544,4 +769,4 @@ if [ "$failures" -ne 0 ]; then
   exit 1
 fi
 
-echo "release-selftest: OK"
+echo "release-selftest: OK ($case_n cases)"
