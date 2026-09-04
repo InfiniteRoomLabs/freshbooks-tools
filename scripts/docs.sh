@@ -14,3 +14,8 @@ cd "$repo_root/cli"
 mise exec -- go run -tags docsgen ./cmd/freshbooks docs "$repo_root/docs/cli.md"
 
 echo "docs: regenerated docs/cli.md"
+
+# D5: README.md's Status column is generated from git tags by the release
+# script. Refresh it here too, so `mise run docs` leaves no drift for
+# `scripts/check.sh readme-drift-check` to catch (R9).
+"$repo_root/scripts/release.sh" docs

@@ -66,9 +66,9 @@ Cross-phase items deferred by triage. Items folded by Phase 5 were removed (cobr
 16. **`LedgerAccount.CategoryID`'s non-null shape is unconfirmed** (split out of item 14 on its resolution, 2026-09-03). Every account in the one captured business has `category_id: null`; typed `*int64` on the strength of this codebase's other `*_id` fields, not any positive evidence. Needs an account with a populated `category_id` to confirm or correct.
 17. **Parity-doc line references and redaction findings** (Phase 8 QA Q3/Q5/Q6): `docs/phases/3/tools.md` and `docs/phases/4/commands.md` carry `(file.go:N)` references that no test checks, and 26 of 169 rows had drifted by the end of Phase 8 (12 corrected by hand); add a line-reference assertion to both parity parsers. Also: `Expense.AccountName`/`BankName` are empty in every fixture and asserted nowhere; `redaction-check.sh` term findings name the file but not the line although the extractor has it.
 
-## v0.1.0 tag step (done 2026-09-02)
+## Release flow
 
-Ran as designed: lib changelog cut (`0b63858`) -> `freshbooks/v0.1.0` -> `go.mod` bump + mcp/cli changelog cuts + `--title` on `gh release create` (`90cc8cd`) -> `mcp/v0.1.0` -> `cli/v0.1.0`. Each Release run went guard -> ci -> release green. Still open from the pre-flight: the tag-protection ruleset (backlog item 10). The three "once the tags ship" doc caveats were flipped in the ship commit.
+The v0.1.0 through v0.3.0/0.1.2 releases (all shipped by hand, one `git`/`gh` command at a time) are now automated: `mise run release -- preflight|cut|bump|verify|docs|all` runs the same sequence -- changelog cut, commit, push, CI watch, tag, tag push, Release watch, verification -- with `--dry-run` and resumable steps. See `docs/building.md` "Release flow" for the command reference. The tag-protection ruleset (backlog item 10) is still open; `preflight` only prints the `gh api` call for it, never applies it.
 
 ## Next action: Phase 9 (Docusaurus docs site, unattended)
 

@@ -13,6 +13,7 @@ gh api \
   -f "required_status_checks[contexts][]=lib" \
   -f "required_status_checks[contexts][]=mcp" \
   -f "required_status_checks[contexts][]=cli" \
+  -f "required_status_checks[contexts][]=repo-wide" \
   -F "enforce_admins=false" \
   -F "required_pull_request_reviews[required_approving_review_count]=0" \
   -F "restrictions=null" \

@@ -1,15 +1,23 @@
 #!/usr/bin/env -S usage bash
-#USAGE arg "<subcommand>" help="fmt-check|vet|lint|test|cover|vuln|inventory-check|actionlint|redaction-selftest|build|docs|all"
+#USAGE arg "<subcommand>" help="fmt-check|vet|lint|test|cover|vuln|inventory-check|actionlint|shellcheck|redaction-selftest|release-selftest|readme-drift-check|repo-wide|build|docs|all"
 #USAGE arg "[modules]" var=#true help="Modules to check (default: freshbooks mcp cli)"
 
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+# A filter means "check this one module". The module-independent steps
+# (actionlint, shellcheck, the two selftests, readme-drift-check) then do
+# NOT run: CI invokes `mise run check -- <module>` once per module, and
+# running them in each of the three jobs paid for the same ~30s of work
+# three times (A12). CI gets them exactly once from the `repo-wide` job;
+# a bare `mise run check` locally still runs everything.
 if [ -z "${usage_modules:-}" ]; then
   modules=(freshbooks mcp cli)
+  module_filter=false
 else
   read -ra modules <<<"$usage_modules"
+  module_filter=true
 fi
 
 run_fmt_check() {
@@ -75,11 +83,29 @@ run_actionlint() {
   actionlint "$repo_root"/.github/workflows/*.yml
 }
 
+# scripts/ now carries release automation with push and tag power; two of
+# the four blocking review findings on it (a dead `sha`, a dead `readme`)
+# were things shellcheck flags for free (R15).
+run_shellcheck() {
+  echo "== shellcheck =="
+  # SC1008: the `#!/usr/bin/env -S usage bash` shebang shellcheck does not
+  # know. SC2154: $usage_* variables, set by the `usage` runtime.
+  shellcheck -S warning -e SC1008,SC2154 "$repo_root"/scripts/*.sh
+}
+
 # Repo-wide, like actionlint: the redaction check is a security control, so
 # its own regression test runs once per gate (Phase 8 security A1/A9).
 run_redaction_selftest() {
   echo "== redaction-selftest =="
   "$repo_root/scripts/redaction-selftest.sh"
+}
+
+# scripts/release.sh is release automation with network-mutating power
+# (git push, tag push); its regression test runs once per gate, entirely
+# against scratch repos and fake gh/go (Phase 9 D6).
+run_release_selftest() {
+  echo "== release-selftest =="
+  "$repo_root/scripts/release-selftest.sh"
 }
 
 run_build() {
@@ -98,6 +124,39 @@ run_build() {
 run_docs() {
   echo "== docs =="
   "$repo_root/scripts/docs.sh"
+}
+
+# README.md's Status column (D5) is regenerated from git tags by
+# `scripts/release.sh docs`, a pure, deterministic, local-only rewrite (no
+# network write). It renders into a temp file via RELEASE_README_OUT and
+# diffs, the same way docs_drift_test.go generates into a temp dir: a
+# verification step must never mutate a tracked file. Rewriting README.md
+# in place and reading `git diff` silently reverted an operator's
+# uncommitted Status edit (and reported OK), and left a modified README
+# behind whenever the check genuinely failed (A2/R8).
+run_readme_drift_check() {
+  echo "== readme-drift-check =="
+  local rendered drift status=0
+  rendered=$(mktemp)
+  RELEASE_README_OUT="$rendered" "$repo_root/scripts/release.sh" docs || { rm -f "$rendered"; return 1; }
+  drift=$(diff -u "$repo_root/README.md" "$rendered") || status=$?
+  rm -f "$rendered"
+  if [ "$status" -ne 0 ]; then
+    echo "readme-drift-check: README.md Status column is stale -- run 'mise run release -- docs'" >&2
+    echo "$drift" >&2
+    return 1
+  fi
+}
+
+# The module-independent steps, in gate order. Run once per gate: from a
+# bare `scripts/check.sh all`, or from the `repo-wide` subcommand that
+# .github/workflows/ci.yml calls in its own job.
+run_repo_wide() {
+  run_actionlint
+  run_shellcheck
+  run_redaction_selftest
+  run_release_selftest
+  run_readme_drift_check
 }
 
 run_step() {
@@ -124,7 +183,11 @@ steps=(fmt-check vet lint test cover vuln inventory-check)
 
 case "$usage_subcommand" in
 actionlint) run_actionlint ;;
+shellcheck) run_shellcheck ;;
+repo-wide) run_repo_wide ;;
 redaction-selftest) run_redaction_selftest ;;
+release-selftest) run_release_selftest ;;
+readme-drift-check) run_readme_drift_check ;;
 build) run_build ;;
 docs) run_docs ;;
 all)
@@ -133,9 +196,12 @@ all)
       run_step "$step" "$module"
     done
   done
-  run_actionlint
-  run_redaction_selftest
   run_build
+  if [ "$module_filter" = false ]; then
+    run_repo_wide
+  else
+    echo "== repo-wide steps skipped (module filter: ${modules[*]}) -- run 'mise run repo-wide' =="
+  fi
   ;;
 fmt-check | vet | lint | test | cover | vuln | inventory-check)
   for module in "${modules[@]}"; do
