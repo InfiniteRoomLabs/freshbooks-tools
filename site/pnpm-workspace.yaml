@@ -1,0 +1,18 @@
+# core-js's postinstall (node_modules/core-js/postinstall.js) was read
+# before setting this to true: it only prints a donation banner (checks
+# ADBLOCK/CI/DISABLE_OPENCOLLECTIVE env vars and a /tmp rate-limit file,
+# then console.log) -- no compilation, no native binary, no network call.
+allowBuilds:
+  core-js: true
+# pnpm 11 moved settings like onlyBuiltDependencies out of package.json's
+# "pnpm" field and into this file (see https://pnpm.io/settings). site/ is
+# a single package, not a multi-package workspace -- no `packages:` list
+# needed, this file exists purely to carry that setting.
+#
+# core-js is a transitive dep of @docusaurus/core (via
+# @docusaurus/plugin-content-blog, a babel polyfill target). Its
+# postinstall (node_modules/core-js/postinstall.js) only prints a
+# donation banner -- no compilation, no native binary -- verified by
+# reading the script before allow-listing it.
+onlyBuiltDependencies:
+  - core-js
