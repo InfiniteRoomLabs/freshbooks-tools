@@ -301,3 +301,133 @@ Checked every pointer for a dangling promise; all resolve.
 Finding 1, with a selftest probe covering it. Advisories 2, 4, and 5 are one-line doc edits and can ride the same fix commit; advisory 3 needs no change.
 
 Every fake used for this report has been deleted; the run outputs under `<scratch>/qa-backup/` are outside the repo. The working tree is clean apart from this file, which sits under `docs/phases/*/reports/` and is excluded from the dirty-tree banner.
+
+---
+
+# Re-verification at `af3a0d9`
+
+Re-run of this lane against `af3a0d9` ("fail a resource whose list exits 0 with junk or empty stdout"), which addresses blocking finding 1 and folds advisories 2, 4, and 5. Everything above is the original pass at `1e94f94` and is left unchanged.
+
+**Verdict: PASS.**
+
+Blocking finding 1 is fixed, with a regression probe in the selftest. Advisories 2, 4, and 5 are resolved in `docs/backup.md`. Advisory 3 needed no change and the fix commit says so. No regression in any of reproductions (a) through (h), including the one this fix could plausibly have broken (an empty collection printing `null` must still become `[]` with status `ok`, not `failed`, now that `jq -e` gates it). No new findings.
+
+## R1. Gate and tree
+
+`mise run check` from the repo root: **exit 0**. `git status --porcelain`: **empty**, before and after, and again after `mise run docs` (still a no-op -- neither `docs/cli.md` nor README.md's Status column moved).
+
+The selftest is now 18 probes, up from 16; the two new ones are the regression cover for finding 1:
+
+```
+== backup-selftest ==
+backup-selftest: PASS exit 1 when a resource fails
+backup-selftest: PASS --all collection written
+backup-selftest: PASS empty --all collection (null) written as []
+backup-selftest: PASS three-page collection walked and merged
+backup-selftest: PASS a failed middle page fails the collection
+backup-selftest: PASS page-shaped list without --page keeps page 1 as partial
+backup-selftest: PASS unpaginated array kept
+backup-selftest: PASS failed collection leaves no file
+backup-selftest: PASS exit 0 with junk or empty stdout is a failed resource
+backup-selftest: PASS manifest records all 27 resources
+backup-selftest: PASS stderr captured in backup.log
+backup-selftest: PASS singletons written
+backup-selftest: PASS invoice pdfs: one written, one failed, hostile id skipped
+backup-selftest: PASS hostile invoice id logged
+backup-selftest: PASS manifest records outcomes
+backup-selftest: PASS backup dir is 0700
+backup-selftest: PASS an existing directory at the run's name is refused
+backup-selftest: PASS --no-pdfs skips pdfs
+backup-selftest: all probes passed
+```
+
+Coverage unchanged and over the floor on all three modules: `freshbooks` 91.9%, `mcp` 92.1%, `cli` 91.6%, three `coverage-gate: PASS` lines. Gate tail ends `site-build: OK` / `check.sh: all OK`, no `DIRTY TREE:` banner. `site/build/backup.html` is present (25250 bytes).
+
+## R2. Finding 1 is fixed -- three independent junk-stdout shapes
+
+Fake `fb-junk` (mine, not the selftest's), giving three different ways for a `list` to exit 0 without usable JSON, one of which routes through a code path the selftest does not cover:
+
+- `bills`: advertises `--all`, `bills list --all -o json` prints `not json` and exits 0 -- hits `as_array` at `scripts/freshbooks-account-backup.sh:79`.
+- `estimates`: advertises `--all`, `estimates list --all -o json` prints **nothing** and exits 0 -- hits the same line, where `jq -e` exits 4 for "no output produced".
+- `payments`: advertises `--page`, not `--all`, and `payments list -o json` prints `<html>502 Bad Gateway</html>` and exits 0 -- hits the separate `jq -er type` probe at `:84`, a path the selftest's fake does not exercise.
+
+```
+$ FRESHBOOKS_BIN=<scratch>/qa-backup/bin/fb-junk ./scripts/freshbooks-account-backup.sh --out <scratch>/qa-backup/outj2
+backup: bills: FAILED (see backup.log)
+backup: estimates: FAILED (see backup.log)
+backup: payments: FAILED (see backup.log)
+EXIT=1
+
+bills      file=NONE  manifest={"count":0,"status":"failed"}
+estimates  file=NONE  manifest={"count":0,"status":"failed"}
+payments   file=NONE  manifest={"count":0,"status":"failed"}
+
+manifest valid JSON?      YES
+manifest resource count:  27
+manifest.json.tmp left?   NO      (find <dir> -name '*.tmp' -> 0)
+ok flag:                  false
+```
+
+`backup.log` carries the diagnosis for the two parse failures:
+
+```
+jq: parse error: Invalid numeric literal at line 1, column 4
+backup: bills: FAILED (see backup.log)
+backup: estimates: FAILED (see backup.log)
+jq: parse error: Invalid numeric literal at line 1, column 10
+backup: payments: FAILED (see backup.log)
+```
+
+Expectation on all four counts -- `failed`, no file, exit 1, a valid 27-resource manifest with no temp file -- met on every one. The empty-stdout case logs no jq message (jq -e exits 4 silently), which is acceptable: the `estimates: FAILED` line is still there and the manifest still records it.
+
+Mechanism, confirmed by reading the code rather than inferring it from behaviour:
+
+| Element | Location | Effect |
+|---|---|---|
+| `as_array` runs `jq -e` | `scripts/freshbooks-account-backup.sh:65` | non-zero on unparseable input and on empty input |
+| Both `as_array` callers check it | `:79`, `:86` (`\|\| return 1`) | the collection becomes `failed`, `:135` removes the file |
+| The type probe runs `jq -er` | `:84` (`\|\| return 1`) | covers the non-`--all` path |
+| Page-item extraction checked | `:97` (`\|\| { rm -f "$tmp"; return 1; }`) | extra hardening beyond the finding |
+| Manifest written to a temp name and renamed | `:197-203` | a jq failure can no longer truncate `manifest.json`; on failure the temp is removed and no manifest is left at all |
+| Count tolerates a non-number | `:196` (`tonumber? // 0`) | the original cascade trigger is gone at the source too |
+
+The two defences are independent, which is the right shape: even if some future path produced a non-numeric count again, the manifest would still be written correctly, and even if the manifest program did fail, `manifest.json` would be absent rather than zero-byte. I could find no remaining input that makes the manifest program fail -- resource names are shell literals at `:31-44`, so no tab or newline can reach the `split("\t")`.
+
+The false-failure risk this fix introduces was checked explicitly. `jq -e` exits non-zero when the last output is `false` or `null`, and `as_array`'s program can only emit the input array or `[]`, neither of which is false or null; `jq -er type` can only emit a type name string. So no legitimate response can be misread as a failure. Reproduction (b) below confirms it empirically for the `null` case, which is the one that actually occurs.
+
+## R3. Reproductions (a) through (h) -- no regression
+
+Re-run with my own fakes rebuilt from scratch. Every result is identical to the first pass.
+
+| # | Case | Observed at `af3a0d9` | Matches first pass |
+|---|---|---|---|
+| a | three-page collection, page 2 fails | exit 1, no `bills.json`, `{"count":0,"status":"failed"}` | yes |
+| b | `--all` collection printing `null` | `clients.json` = `[]`, `{"count":0,"status":"ok"}` | yes -- **not** regressed to `failed` by `jq -e` |
+| c | page-shaped list, no `--all` and no `--page`, `pages: 2` | `retainers.json` = `[1]`, `{"count":1,"status":"partial"}`, exit 1 | yes |
+| d | page 1 promises `total: 5`, walk delivers 3 | `{"count":3,"status":"partial"}` | yes |
+| e | invoice ids `../../x` and `12 34` | only `7.pdf` and `8.pdf` under `pdfs/invoices/`, both ids logged "not an integer", `{"skipped":false,"written":2,"failed":2}`, zero files with traversal- or space-bearing names anywhere in the run directory | yes |
+| f | pre-created directory at the run's timestamp | exit 1, 0 files written inside | yes |
+| g | all-green fake | exit 0, `ok: true`, `created_at` + `cli_version` + `invoice_pdfs` present, exactly 27 resources, every one with `count` and `status`, all statuses `ok`, directory mode 700, no `.tmp` residue | yes |
+| h | `--no-pdfs` | exit 0, no `pdfs/` directory, `{"skipped":true,"written":0,"failed":0}` | yes |
+| i | `usage lint` on both scripts; `shellcheck -S warning -e SC1008,SC2154` on both | all exit 0, "No issues found." | yes |
+
+## R4. The flagged doc lines now match behaviour
+
+| Advisory | Line | Now reads | Verdict |
+|---|---|---|---|
+| Q2 | `docs/backup.md:62` | "`--all` collections (one empty, one that prints junk, one that prints nothing), a three-page collection walked by hand, one whose middle page fails, a page-shaped list with no `--page` flag, an unpaginated array, a collection that fails outright, a PDF that fails, a hostile invoice id, and the three singletons" | **resolved** -- matches `scripts/backup-selftest.sh:32-56` case for case: `clients` null (`:36`), `bills` junk (`:37`), `estimates` empty (`:38`), `services` three pages (`:40-42`), `tasks` failing middle page (`:43-45`), `retainers` NoPaging (`:46-47`), `staff` bare array (`:48`), `callbacks` outright failure (`:39`), pdf failure (`:54`), hostile id (`:35`), singletons (`:50-52`). The two-page error is gone and both headline cases are now named |
+| Q4 | `docs/backup.md:26` | "created_at, cli version, ok flag, per-resource count and status (ok, partial, failed; a singleton counts as 1), pdf tallies" | **resolved** -- `created_at` documented (`scripts/freshbooks-account-backup.sh:194`), and the singleton-count-is-always-1 behaviour at `:148` is now stated |
+| Q4 | `docs/backup.md:27` | "one JSON array per collection (24 files in a clean run; a failed one leaves none)" | **resolved** -- reconciled with `:43` and with `scripts/freshbooks-account-backup.sh:135` |
+| Q5 | `docs/backup.md:25` | "every stderr line from the CLI calls, in run order (the version read is the one call whose stderr is dropped)" | **resolved and verified exact** -- the `--help` probe now logs (`scripts/freshbooks-account-backup.sh:75`, `2>>"$log"`); a sweep of every `"$fb"` invocation (`:75`, `:78`, `:83`, `:96`, `:147`, `:173`, `:189`) shows `:189`, the version read, is the only one still on `2>/dev/null`. Exactly one, as the doc says |
+| new | `docs/backup.md:43` | "a command that exits 0 with output that is not JSON counts as failed too" | **confirmed** -- section R2 |
+| Q3 | -- | no change | **correct** -- `af3a0d9`'s message records that the `1e94f94` wording overstated "jq length once" and that no code change follows. `scripts/freshbooks-account-backup.sh:111` and `:124` still both run it; that was only ever a commit-message accuracy note |
+
+`docs/backup.md:34`'s contract, the one finding 1 refuted -- "Every collection file is a flat JSON array either way ... `.[]` always iterates" -- now holds, because a junk-output collection leaves no file at all rather than a zero-byte one.
+
+## R5. Hygiene on the new commit
+
+Clean. `git show af3a0d9` sweep: zero `/home/...` or `/Users/...` paths, zero internal IPs, zero `*.lab.*` / `*.internal.*` domains, no `gitea` host, no `IRL/` vault path. The three hits for the author's three-letter email local part are the substring inside "newest" and inside this report's own quoted grep patterns; the nine-character home-directory username does not appear. `scripts/redaction-check.sh` -> `redaction-check: clean`.
+
+## R6. Result
+
+PASS. Nothing outstanding. Every fake built for this re-verification has been deleted, its run outputs live outside the repo, and the working tree is clean apart from this file. Nothing was committed.
