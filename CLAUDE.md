@@ -27,7 +27,7 @@ Go monorepo for the FreshBooks REST API: `freshbooks/` (client library), `mcp/` 
 - **Inferred vs confirmed:** API facts are CONFIRMED (observed live or in official docs), INFERRED (from examples), or TODO. When reality disagrees with the spec, the API wins -- add a `> **STATE AS OF YYYY-MM-DD**` callout in the affected spec section in the same commit.
 - **Commits:** conventional, imperative, scoped (`feat(freshbooks): ...`, `feat(mcp): ...`, `feat(cli): ...`, `chore(ci): ...`, `docs: ...`). **Stage and commit in separate Bash calls** (agent-ops version guard); never `-a`/`-am`, never `--no-verify`. On `main`, `CHANGELOG.md` must be staged (agent-ops changelog guard -- a Claude hook, not a git hook). Co-author trailer per harness rules.
 - **Changelogs:** Keep a Changelog, `[Unreleased]` on top. Root `CHANGELOG.md` = process/CI/docs; each module has its own for its releases. Release tags `freshbooks/vX.Y.Z`, `mcp/vX.Y.Z`, `cli/vX.Y.Z` must have a matching `## [X.Y.Z]` section.
-- **Public-repo hygiene on every commit:** no vault item names, internal IPs/domains, real FreshBooks account/business IDs, tokens, or personal correspondents. Fixture IDs are synthetic. Run `scripts/redaction-check.sh` before committing.
+- **Public-repo hygiene on every commit:** no vault item names, internal IPs/domains, real FreshBooks account/business IDs, tokens, or personal correspondents. Fixture IDs are synthetic. Run `mise run redaction-check` before committing.
 - **Docs are ASCII-only and never hard-wrapped.** No smart quotes, em dashes, or arrows; use `--` and `->`.
 - **Remotes:** `origin` = `git@github.com:InfiniteRoomLabs/freshbooks-tools.git` (public). A private `gitea` mirror remote may exist in `.git/config`; its hostname is internal and must never appear in tracked files. Check `git remote -v` before pushing a WIP branch.
 
@@ -76,6 +76,7 @@ scripts/branch-protection.sh         # (re)apply required checks on main via gh 
 - **Rate limits are undocumented.** Honor `Retry-After` on 429; default retry is 3 attempts with jittered backoff; tests use `WithClock`.
 - **`gh` needs the org scope** to create the repo and set branch protection; `gh auth status` first.
 - **Changelog guard + version guard are Claude hooks from agent-ops.** If a commit is blocked, read the message and fix the staging -- do not bypass.
+- **The redaction resolver is located via `REDACTION_TERMS_RESOLVER` in gitignored `mise.local.toml`; without it the check no-ops, so a missing var looks like a pass.** Run it as `mise run redaction-check` (`-- --range main..<branch>` for a gate lane): `mise run` applies the `[env]` block, including from a worktree under `.worktrees/`, while a bare `scripts/redaction-check.sh` only sees it in a mise-activated shell. "term list not configured" on this machine means the variable is missing, not that the tree is clean.
 
 ## If you break something
 

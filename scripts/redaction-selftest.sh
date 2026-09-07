@@ -6,8 +6,8 @@
 # --range -- so the two can never disagree again.
 #
 # It is safe without the private term list: the term-scan probes run
-# against a stub resolver (a fake $HOME plus a `uv` shim on PATH) whose
-# terms are nonsense strings, so the control is armed everywhere including
+# against a stub resolver (passed through REDACTION_TERMS_RESOLVER, with a
+# `uv` shim on PATH that prints its terms) whose terms are nonsense strings, so the control is armed everywhere including
 # CI. When the real resolver IS present, two extra probes plant one short
 # and one long term drawn from it; their values are never printed.
 #
@@ -18,22 +18,24 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-resolver="$HOME/projects/infinite-room-labs/agent-ops/scripts/resolve-redaction-terms.py"
+resolver="${REDACTION_TERMS_RESOLVER:-}"
 
 scratch="$(mktemp -d)"
 trap 'rm -rf "$scratch"' EXIT
 
-# Stub environment: a fake HOME carrying a resolver at the path
-# redaction-check.sh looks for, and a `uv` shim that prints the stub term
-# list instead of running it. Both nonsense strings, one below the 8-char
-# short-term threshold (word-boundary path) and one above it (fixed-string
-# substring path).
+# Stub environment: a stub resolver handed to redaction-check.sh through
+# REDACTION_TERMS_RESOLVER, and a `uv` shim that prints the stub term
+# list instead of running it. The fake HOME stays -- see the `usage` note
+# below, and it keeps the operator's global gitconfig out of the throwaway
+# repos. Both nonsense strings, one below the 8-char short-term threshold
+# (word-boundary path) and one above it (fixed-string substring path).
 stub_short="zqxjvb"
 stub_long="zzredactionselftestneedle"
 stub_home="$scratch/home"
 stub_bin="$scratch/bin"
-mkdir -p "$stub_home/projects/infinite-room-labs/agent-ops/scripts" "$stub_bin"
-: >"$stub_home/projects/infinite-room-labs/agent-ops/scripts/resolve-redaction-terms.py"
+stub_resolver="$scratch/resolver/resolve-redaction-terms.py"
+mkdir -p "$stub_home" "$stub_bin" "$scratch/resolver"
+: >"$stub_resolver"
 cat >"$stub_bin/uv" <<EOF
 #!/bin/sh
 printf '%s\n%s\n' "$stub_short" "$stub_long"
@@ -47,11 +49,18 @@ chmod +x "$stub_bin/uv"
 stub_usage="$(mise which usage 2>/dev/null || command -v usage)"
 ln -s "$stub_usage" "$stub_bin/usage"
 
+# stub_env runs a command in the stub environment: the fake HOME, the stub
+# PATH, and the stub resolver. BASH_ENV is dropped because it re-activates
+# mise's shims and re-prepends them to PATH, which would shadow the stub uv.
+stub_env() {
+  env -u BASH_ENV HOME="$stub_home" PATH="$stub_bin:$PATH" \
+    REDACTION_TERMS_RESOLVER="$stub_resolver" "$@"
+}
+
 # Preflight: the stub `uv` must be the binary redaction-check.sh actually
 # resolves, or every stub probe would silently take the "no redaction
-# terms configured" no-op path. BASH_ENV is dropped for exactly this
-# reason -- it re-activates mise's shims and re-prepends them to PATH.
-resolved_uv=$(env -u BASH_ENV HOME="$stub_home" PATH="$stub_bin:$PATH" bash -c 'command -v uv')
+# terms configured" no-op path.
+resolved_uv=$(stub_env bash -c 'command -v uv')
 if [ "$resolved_uv" != "$stub_bin/uv" ]; then
   echo "redaction-selftest: the stub uv shim is shadowed by $resolved_uv" >&2
   exit 1
@@ -113,7 +122,7 @@ probe() {
     fi
     set +e
     if [ "$env_kind" = stub ]; then
-      out=$(cd "$dir" && env -u BASH_ENV HOME="$stub_home" PATH="$stub_bin:$PATH" ./redaction-check.sh "${args[@]}" 2>&1)
+      out=$(cd "$dir" && stub_env ./redaction-check.sh "${args[@]}" 2>&1)
     else
       out=$(cd "$dir" && ./redaction-check.sh "${args[@]}" 2>&1)
     fi
@@ -134,7 +143,7 @@ probe() {
 # Preflight: the script itself must run to completion under the stub
 # environment, so a broken stub can never be mistaken for a passing probe.
 smoke_dir="$(new_repo smoke)"
-if ! smoke_out=$(cd "$smoke_dir" && env -u BASH_ENV HOME="$stub_home" PATH="$stub_bin:$PATH" ./redaction-check.sh 2>&1); then
+if ! smoke_out=$(cd "$smoke_dir" && stub_env ./redaction-check.sh 2>&1); then
   echo "redaction-selftest: the stub environment cannot run redaction-check.sh: $smoke_out" >&2
   exit 1
 fi
@@ -222,7 +231,7 @@ write_fixture() {
 # staged_run <dir> ; echoes the output, sets staged_status
 staged_run() {
   set +e
-  staged_out=$(cd "$1" && env -u BASH_ENV HOME="$stub_home" PATH="$stub_bin:$PATH" ./redaction-check.sh 2>&1)
+  staged_out=$(cd "$1" && stub_env ./redaction-check.sh 2>&1)
   staged_status=$?
   set -e
 }
@@ -279,7 +288,7 @@ fi
 case_n=$((case_n + 1))
 bad_dir="$(new_repo "$case_n")"
 set +e
-bad_out=$(cd "$bad_dir" && env -u BASH_ENV HOME="$stub_home" PATH="$stub_bin:$PATH" ./redaction-check.sh --range no-such-ref..HEAD 2>&1)
+bad_out=$(cd "$bad_dir" && stub_env ./redaction-check.sh --range no-such-ref..HEAD 2>&1)
 bad_status=$?
 set -e
 if [ "$bad_status" -ne 2 ]; then
@@ -290,10 +299,39 @@ else
   pass_msg "an unusable range exits 2"
 fi
 
+# -- the resolver variable itself ------------------------------------------
+# Unset: the documented no-op for outside contributors (exit 0 with the
+# notice, which is also what a misconfigured operator machine looks like --
+# see CLAUDE.md Gotchas). Relative: refused with exit 2, never resolved
+# against the cwd.
+case_n=$((case_n + 1))
+unset_dir="$(new_repo "$case_n")"
+set +e
+unset_out=$(cd "$unset_dir" && stub_env env -u REDACTION_TERMS_RESOLVER ./redaction-check.sh 2>&1)
+unset_status=$?
+set -e
+if [ "$unset_status" -ne 0 ] || [ "$unset_out" != "redaction-check: term list not configured (optional for outside contributors)" ]; then
+  fail_msg "an unset REDACTION_TERMS_RESOLVER no-ops with the notice" "exit $unset_status, output: $unset_out"
+else
+  pass_msg "an unset REDACTION_TERMS_RESOLVER no-ops with the notice"
+fi
+
+case_n=$((case_n + 1))
+rel_dir="$(new_repo "$case_n")"
+set +e
+rel_out=$(cd "$rel_dir" && stub_env env REDACTION_TERMS_RESOLVER=relative/resolver.py ./redaction-check.sh 2>&1)
+rel_status=$?
+set -e
+if [ "$rel_status" -ne 2 ] || [[ "$rel_out" != *"must be an absolute path"* ]]; then
+  fail_msg "a relative REDACTION_TERMS_RESOLVER exits 2" "exit $rel_status, output: $rel_out"
+else
+  pass_msg "a relative REDACTION_TERMS_RESOLVER exits 2"
+fi
+
 # -- the private term list, when this machine has it ----------------------
 short_term=""
 long_term=""
-if [ -f "$resolver" ] && command -v uv >/dev/null 2>&1; then
+if [ "${resolver#/}" != "$resolver" ] && [ -f "$resolver" ] && command -v uv >/dev/null 2>&1; then
   terms_raw=$(cd "$(dirname "$resolver")" && uv run "$(basename "$resolver")")
   while IFS= read -r term; do
     search="${term%%==>*}"
