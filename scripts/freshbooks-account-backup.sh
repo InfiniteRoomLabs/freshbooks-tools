@@ -12,8 +12,9 @@
 #   scripts/freshbooks-account-backup.sh --out ~/backups/freshbooks
 #
 # A resource that fails is logged to backup.log and skipped; the run keeps
-# going and exits 1 at the end so a cron job notices. Output directories
-# are 0700: a backup is the whole business's books.
+# going and exits 1 at the end so a cron job notices. Each run gets a fresh
+# 0700 directory and refuses to reuse one: a backup is the whole business's
+# books, and the operator owns retention (nothing here prunes old runs).
 #USAGE bin "freshbooks-account-backup.sh"
 #USAGE about "Back up everything the freshbooks CLI can read for the current context"
 #USAGE flag "-o --out <dir>" help="Backup root; a UTC-timestamped directory is created inside it" default="./freshbooks-backup"
@@ -34,7 +35,8 @@ collections=(
   retainers service-rates services staff tasks taxes team-members
   time-entries
 )
-# name|command -- the reads that return one document, not a list.
+# name|command -- the reads that return one document, not a list. The
+# command is two words, split on purpose below; the list is a literal.
 singletons=(
   "identity|identity me"
   "gateways|gateways get"
@@ -44,55 +46,100 @@ singletons=(
 stamp="$(date -u +%Y%m%dT%H%M%SZ)"
 dir="$root/$stamp"
 umask 077
-mkdir -p "$dir"
+mkdir -p "$root"
+# No -p: a second run in the same second, or a pre-created directory or
+# symlink at this name, must fail loudly rather than write into it.
+mkdir "$dir"
 log="$dir/backup.log"
 failed=0
-entries=()   # "name<TAB>count<TAB>status"
+entries=()   # "name<TAB>count<TAB>status"; status is ok, partial, or failed
 
 record() { entries+=("$1	$2	$3"); }
 say() { printf 'backup: %s\n' "$*" | tee -a "$log" >&2; }
+# The CLI prints `null` for an empty collection (a nil slice); every file
+# this script writes is a JSON array, so consumers can rely on `.[]`.
+as_array() { jq 'if type == "array" then . else [] end'; }
 
 # Writes a JSON array of every item in a collection to $2. Uses --all where
-# the command offers it; otherwise fetches page 1 and walks the remaining
-# pages by hand (page-shaped output), or takes the array as is (unpaginated).
+# the command offers it; otherwise fetches page 1 and, for page-shaped
+# output, walks --page 2..N by hand. A command that prints pages but has no
+# --page flag (retainers) can only yield page 1: that is recorded as
+# "partial" when more pages exist. Any failed page fails the collection.
+# Returns 0 for ok, 2 for partial, 1 for failed.
 fetch_collection() {
-  local res="$1" out="$2" first pages p
-  if "$fb" "$res" list --help 2>/dev/null | grep -q -- '--all'; then
-    "$fb" "$res" list --all -o json >"$out" 2>>"$log"
-    return
-  fi
+  local res="$1" out="$2" help first pages p page tmp total
+  help="$("$fb" "$res" list --help 2>/dev/null || true)"
+  case "$help" in
+  *--all*)
+    first="$("$fb" "$res" list --all -o json 2>>"$log")" || return 1
+    as_array <<<"$first" >"$out"
+    return 0
+    ;;
+  esac
   first="$("$fb" "$res" list -o json 2>>"$log")" || return 1
   if [ "$(jq -r type <<<"$first")" != object ]; then
-    printf '%s\n' "$first" >"$out"
-    return
+    as_array <<<"$first" >"$out"
+    return 0
   fi
   pages="$(jq -r '.pages // 0' <<<"$first")"
-  {
-    jq '.items // []' <<<"$first"
+  total="$(jq -r '.total // empty' <<<"$first")"
+  tmp="$(mktemp)"
+  jq '.items // []' <<<"$first" >"$tmp"
+  case "$help" in
+  *--page*)
     for ((p = 2; p <= pages; p++)); do
-      "$fb" "$res" list --page "$p" -o json 2>>"$log" | jq '.items // []'
+      page="$("$fb" "$res" list --page "$p" -o json 2>>"$log")" || { rm -f "$tmp"; return 1; }
+      jq '.items // []' <<<"$page" >>"$tmp"
     done
-  } | jq -s 'add // []' >"$out"
+    ;;
+  *)
+    if [ "$pages" -gt 1 ]; then
+      jq -s 'add // []' <"$tmp" >"$out"
+      rm -f "$tmp"
+      say "$res: prints $pages pages but has no --page flag; only page 1 saved"
+      return 2
+    fi
+    ;;
+  esac
+  jq -s 'add // []' <"$tmp" >"$out"
+  rm -f "$tmp"
+  if [ -n "$total" ] && [ "$(jq length "$out")" != "$total" ]; then
+    say "$res: page 1 promised $total items, got $(jq length "$out")"
+    return 2
+  fi
+  return 0
 }
 
 for res in "${collections[@]}"; do
   out="$dir/$res.json"
-  if fetch_collection "$res" "$out"; then
-    record "$res" "$(jq 'length' "$out")" ok
-    say "$res: $(jq 'length' "$out") items"
-  else
+  status=0
+  fetch_collection "$res" "$out" || status=$?
+  case "$status" in
+  0)
+    n="$(jq length "$out")"
+    record "$res" "$n" ok
+    say "$res: $n items"
+    ;;
+  2)
+    n="$(jq length "$out")"
+    record "$res" "$n" partial
+    failed=1
+    say "$res: PARTIAL, $n items saved (see backup.log)"
+    ;;
+  *)
     rm -f "$out"
     record "$res" 0 failed
     failed=1
     say "$res: FAILED (see backup.log)"
-  fi
+    ;;
+  esac
 done
 
 for entry in "${singletons[@]}"; do
   IFS='|' read -r name cmd <<<"$entry"
+  read -r -a argv <<<"$cmd"
   out="$dir/$name.json"
-  # shellcheck disable=SC2086  # $cmd is a two-word command, split on purpose
-  if "$fb" $cmd -o json >"$out" 2>>"$log"; then
+  if "$fb" "${argv[@]}" -o json >"$out" 2>>"$log"; then
     record "$name" 1 ok
     say "$name: ok"
   else
@@ -108,25 +155,42 @@ pdf_failed=0
 if [ "$no_pdfs" != true ] && [ -f "$dir/invoices.json" ]; then
   mkdir -p "$dir/pdfs/invoices"
   while read -r id; do
-    if "$fb" invoices pdf "$id" -o "$dir/pdfs/invoices/$id.pdf" 2>>"$log"; then
+    # Ids come from the API; the file name is built from them, so only a
+    # plain integer is accepted (the CLI would refuse anything else too).
+    case "$id" in
+    '' | *[!0-9]*)
+      pdf_failed=$((pdf_failed + 1))
+      failed=1
+      say "invoice id '$id': skipped, not an integer"
+      continue
+      ;;
+    esac
+    if "$fb" invoices pdf -o "$dir/pdfs/invoices/$id.pdf" -- "$id" 2>>"$log"; then
       pdf_count=$((pdf_count + 1))
     else
       pdf_failed=$((pdf_failed + 1))
       failed=1
       say "invoice $id pdf: FAILED (see backup.log)"
     fi
-  done < <(jq -r '.[].id' "$dir/invoices.json")
+  done < <(jq -r '.[].id' "$dir/invoices.json" 2>>"$log")
   say "invoice pdfs: $pdf_count written, $pdf_failed failed"
 fi
 
-printf '%s\n' "${entries[@]}" | jq -R -s \
+jbool() { if "$@"; then echo true; else echo false; fi; }
+if ! printf '%s\n' "${entries[@]}" | jq -R -s \
   --arg created "$stamp" \
   --arg version "$("$fb" version 2>/dev/null || echo unknown)" \
-  --argjson pdfs "{\"skipped\": $([ "$no_pdfs" = true ] && echo true || echo false), \"written\": $pdf_count, \"failed\": $pdf_failed}" \
-  --argjson ok "$([ "$failed" -eq 0 ] && echo true || echo false)" \
-  '{created_at: $created, cli_version: $version, ok: $ok, invoice_pdfs: $pdfs,
+  --argjson skipped "$(jbool [ "$no_pdfs" = true ])" \
+  --argjson written "$pdf_count" \
+  --argjson pdf_failed "$pdf_failed" \
+  --argjson ok "$(jbool [ "$failed" -eq 0 ])" \
+  '{created_at: $created, cli_version: $version, ok: $ok,
+    invoice_pdfs: {skipped: $skipped, written: $written, failed: $pdf_failed},
     resources: (split("\n") | map(select(length > 0) | split("\t") | {(.[0]): {count: (.[1] | tonumber), status: .[2]}}) | add)}' \
-  >"$dir/manifest.json"
+  >"$dir/manifest.json"; then
+  say "manifest.json: FAILED to write"
+  failed=1
+fi
 
 say "done: $dir (ok=$([ "$failed" -eq 0 ] && echo yes || echo no))"
 exit "$failed"

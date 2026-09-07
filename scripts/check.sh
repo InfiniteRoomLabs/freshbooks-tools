@@ -7,7 +7,7 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # A filter means "check this one module". The module-independent steps
-# (actionlint, shellcheck, the two selftests, readme-drift-check) then do
+# (actionlint, shellcheck, the three selftests, readme-drift-check) then do
 # NOT run: CI invokes `mise run check -- <module>` once per module, and
 # running them in each of the three jobs paid for the same ~30s of work
 # three times (A12). CI gets them exactly once from the `repo-wide` job;
