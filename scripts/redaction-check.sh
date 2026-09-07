@@ -5,9 +5,10 @@
 # scans a branch diff's added lines instead, for a gate lane that cannot
 # run against the index (Phase 7 security A9). Optional for outside
 # contributors: it needs `usage` on PATH (it is this script's interpreter,
-# so `mise install` first), and if the resolver script isn't present (it
-# lives in a sibling private repo) this exits 0 with a notice instead of
-# failing. scripts/redaction-selftest.sh is this script's regression test
+# so `mise install` first), and if the resolver script isn't configured
+# (it lives outside this repo, located via REDACTION_TERMS_RESOLVER -- see
+# below) this exits 0 with a notice instead of failing. Operators run it
+# as `mise run redaction-check`. scripts/redaction-selftest.sh is this script's regression test
 # and runs once per `mise run check`.
 #
 # The digit sweep reports NEW content only. Staged mode reads the whole
@@ -30,10 +31,22 @@ if [ -n "${usage_range:-}" ] && ! git rev-list --count "$usage_range" >/dev/null
   exit 2
 fi
 
-# The resolver lives in a sibling private repo; point REDACTION_TERMS_RESOLVER
-# at it (for Infinite Room Labs operators, in a gitignored mise.local.toml
-# [env] block). This file is public, so the path is never hardcoded here.
+# Point REDACTION_TERMS_RESOLVER at the term-list resolver, which lives
+# outside this repo (Infinite Room Labs operators: a gitignored
+# mise.local.toml [env] block, applied by `mise run redaction-check`). This
+# file is public, so the path is never hardcoded here. A relative value is
+# refused rather than resolved against the caller's cwd: this script runs
+# from scratch repos in the selftest, and a committed mise.toml could
+# otherwise point it at a file inside the tree.
 resolver="${REDACTION_TERMS_RESOLVER:-}"
+
+case "$resolver" in
+"" | /*) ;;
+*)
+  echo "redaction-check: REDACTION_TERMS_RESOLVER must be an absolute path: $resolver" >&2
+  exit 2
+  ;;
+esac
 
 if [ -z "$resolver" ] || [ ! -f "$resolver" ]; then
   echo "redaction-check: term list not configured (optional for outside contributors)"

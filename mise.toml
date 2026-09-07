@@ -61,6 +61,10 @@ run = "scripts/site-sync.sh && mise exec -- pnpm --dir site install --frozen-loc
 description = "Sync docs, install (frozen lockfile), and build the Docusaurus site into site/build/"
 run = "scripts/site-build.sh"
 
+[tasks.redaction-check]
+description = "Grep staged content (or -- --range base..head) against the private redaction term list named by REDACTION_TERMS_RESOLVER; no-ops without it"
+run = "scripts/redaction-check.sh"
+
 [tasks.redaction-selftest]
 description = "Run the redaction-check.sh regression test (both modes, no network)"
 run = "scripts/redaction-selftest.sh"
