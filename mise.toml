@@ -46,7 +46,7 @@ description = "Check README.md's Status column against the newest git tags (read
 run = "scripts/check.sh readme-drift-check"
 
 [tasks.repo-wide]
-description = "The module-independent gate steps: actionlint, shellcheck, redaction-selftest, release-selftest, readme-drift-check, site-build"
+description = "The module-independent gate steps: actionlint, shellcheck, redaction-selftest, release-selftest, backup-selftest, readme-drift-check, site-build"
 run = "scripts/check.sh repo-wide"
 
 [tasks.site-sync]
@@ -69,6 +69,10 @@ run = "scripts/redaction-check.sh"
 description = "Run the redaction-check.sh regression test (both modes, no network)"
 run = "scripts/redaction-selftest.sh"
 
+[tasks.backup-selftest]
+description = "Run the freshbooks-account-backup.sh regression test (fake freshbooks binary, no network)"
+run = "scripts/backup-selftest.sh"
+
 [tasks.release-selftest]
 description = "Run the release.sh regression test (scratch repos, fake gh/go, no network)"
 run = "scripts/release-selftest.sh"
@@ -86,7 +90,7 @@ description = "Regenerate docs/cli.md from the cobra command tree (cobra/doc)"
 run = "scripts/docs.sh"
 
 [tasks.check]
-description = "Full gate: fmt-check, vet, lint, test, cover, inventory-check, build, the repo-wide steps (actionlint, shellcheck, redaction-selftest, release-selftest, readme-drift-check, site-build -- skipped when a module filter is given, since CI runs them once via the repo-wide job), then a dirty-tree banner"
+description = "Full gate: fmt-check, vet, lint, test, cover, inventory-check, build, the repo-wide steps (actionlint, shellcheck, redaction-selftest, release-selftest, backup-selftest, readme-drift-check, site-build -- skipped when a module filter is given, since CI runs them once via the repo-wide job), then a dirty-tree banner"
 run = "scripts/check.sh all"
 
 [tasks.release]

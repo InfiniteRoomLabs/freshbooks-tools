@@ -1,5 +1,5 @@
 #!/usr/bin/env -S usage bash
-#USAGE arg "<subcommand>" help="fmt-check|vet|lint|test|cover|vuln|inventory-check|actionlint|shellcheck|redaction-selftest|release-selftest|readme-drift-check|site-build|repo-wide|build|docs|all"
+#USAGE arg "<subcommand>" help="fmt-check|vet|lint|test|cover|vuln|inventory-check|actionlint|shellcheck|redaction-selftest|release-selftest|backup-selftest|readme-drift-check|site-build|repo-wide|build|docs|all"
 #USAGE arg "[modules]" var=#true help="Modules to check (default: freshbooks mcp cli)"
 
 set -euo pipefail
@@ -7,7 +7,7 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # A filter means "check this one module". The module-independent steps
-# (actionlint, shellcheck, the two selftests, readme-drift-check) then do
+# (actionlint, shellcheck, the three selftests, readme-drift-check) then do
 # NOT run: CI invokes `mise run check -- <module>` once per module, and
 # running them in each of the three jobs paid for the same ~30s of work
 # three times (A12). CI gets them exactly once from the `repo-wide` job;
@@ -108,6 +108,13 @@ run_release_selftest() {
   "$repo_root/scripts/release-selftest.sh"
 }
 
+# scripts/freshbooks-account-backup.sh is the documented CLI scripting example;
+# its regression test runs against a fake freshbooks binary, no network.
+run_backup_selftest() {
+  echo "== backup-selftest =="
+  "$repo_root/scripts/backup-selftest.sh"
+}
+
 run_build() {
   echo "== build =="
   local buildable=()
@@ -165,6 +172,7 @@ run_repo_wide() {
   run_shellcheck
   run_redaction_selftest
   run_release_selftest
+  run_backup_selftest
   run_readme_drift_check
   run_site_build
 }
@@ -197,6 +205,7 @@ shellcheck) run_shellcheck ;;
 repo-wide) run_repo_wide ;;
 redaction-selftest) run_redaction_selftest ;;
 release-selftest) run_release_selftest ;;
+backup-selftest) run_backup_selftest ;;
 readme-drift-check) run_readme_drift_check ;;
 build) run_build ;;
 docs) run_docs ;;

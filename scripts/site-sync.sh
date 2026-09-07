@@ -41,6 +41,7 @@ pages=(
   "library|Library|docs/library.md"
   "mcp|MCP server|docs/mcp.md"
   "cli|CLI reference|docs/cli.md"
+  "backup|Account backup|docs/backup.md"
   "building|Building|docs/building.md"
   "agentic-transformation|Agentic transformation|docs/agentic-transformation.md"
 )

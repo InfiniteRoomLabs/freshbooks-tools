@@ -54,6 +54,7 @@ go get github.com/InfiniteRoomLabs/freshbooks-tools/freshbooks
 - [Library](docs/library.md) -- client, options, errors, pagination
 - [MCP server](docs/mcp.md) -- transports, tool manifest, client setup
 - [CLI](docs/cli.md) -- command reference
+- [Account backup](docs/backup.md) -- a worked example of scripting the CLI: back up everything a token can read
 - [Building](docs/building.md) -- mise, the check gate, branch protection, release flow
 - [Agentic transformation](docs/agentic-transformation.md) -- how this repo is built: the Postman collection, the inventory tool, the review-gate process
 

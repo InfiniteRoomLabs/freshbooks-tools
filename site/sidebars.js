@@ -11,6 +11,7 @@ const sidebars = {
     'library',
     'mcp',
     'cli',
+    'backup',
     'building',
     'agentic-transformation',
   ],
