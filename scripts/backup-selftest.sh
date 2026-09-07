@@ -29,11 +29,13 @@ cat >"$scratch/freshbooks" <<'FAKE'
 args="$*"
 case "$args" in
   version) echo "fake-9.9.9" ;;
-  "invoices list --help" | "clients list --help" | "callbacks list --help") echo "      --all   walk every page" ;;
+  "invoices list --help" | "clients list --help" | "callbacks list --help" | "bills list --help" | "estimates list --help") echo "      --all   walk every page" ;;
   "retainers list --help" | "staff list --help") echo "      --search stringToString" ;;
   *" list --help") echo "      --page int" ;;
   "invoices list --all -o json") echo '[{"id":11,"invoice_number":"A1"},{"id":12,"invoice_number":"A2"},{"id":"../evil"}]' ;;
   "clients list --all -o json") echo 'null' ;;
+  "bills list --all -o json") echo 'not json at all' ;;
+  "estimates list --all -o json") ;;
   "callbacks list --all -o json") echo '{"error":{"message":"boom"}}' >&2; exit 1 ;;
   "services list -o json") echo '{"items":[{"id":1}],"page":1,"pages":3,"per_page":1,"total":3}' ;;
   "services list --page 2 -o json") echo '{"items":[{"id":2}],"page":2,"pages":3,"per_page":1,"total":3}' ;;
@@ -71,6 +73,8 @@ dir="$(find "$scratch/out" -mindepth 1 -maxdepth 1 -type d | head -1)"
 [ "$(jq -c 'map(.id)' "$dir/retainers.json")" = "[1]" ] && [ "$(jq -r '.resources.retainers.status' "$dir/manifest.json")" = partial ] && pass "page-shaped list without --page keeps page 1 as partial" || fail "retainers" "$(cat "$dir/retainers.json" 2>&1); $(jq -c .resources.retainers "$dir/manifest.json")"
 [ "$(jq length "$dir/staff.json")" = 1 ] && pass "unpaginated array kept" || fail "staff.json" "$(cat "$dir/staff.json" 2>&1)"
 [ ! -e "$dir/callbacks.json" ] && pass "failed collection leaves no file" || fail "callbacks.json" "exists"
+[ ! -e "$dir/bills.json" ] && [ ! -e "$dir/estimates.json" ] && [ "$(jq -r '.resources.bills.status, .resources.estimates.status' "$dir/manifest.json" | sort -u)" = failed ] && pass "exit 0 with junk or empty stdout is a failed resource" || fail "junk stdout" "$(find "$dir" -name 'bills*' -o -name 'estimates*'; jq -c '.resources.bills, .resources.estimates' "$dir/manifest.json" 2>&1)"
+[ "$(jq '.resources | length' "$dir/manifest.json")" = 27 ] && [ ! -e "$dir/manifest.json.tmp" ] && pass "manifest records all 27 resources" || fail "manifest" "$(jq '.resources | length' "$dir/manifest.json" 2>&1)"
 grep -q boom "$dir/backup.log" && grep -q "page 2 boom" "$dir/backup.log" && pass "stderr captured in backup.log" || fail "backup.log" "no error text"
 [ -s "$dir/identity.json" ] && [ -s "$dir/gateways.json" ] && [ -s "$dir/systems.json" ] && pass "singletons written" || fail "singletons" "missing"
 [ -s "$dir/pdfs/invoices/11.pdf" ] && [ ! -e "$dir/pdfs/invoices/12.pdf" ] && [ "$(find "$dir/pdfs" -type f | wc -l)" = 1 ] && pass "invoice pdfs: one written, one failed, hostile id skipped" || fail "pdfs" "$(ls -R "$dir/pdfs" 2>&1)"

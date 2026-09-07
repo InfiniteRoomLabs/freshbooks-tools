@@ -23,9 +23,9 @@ The script needs `freshbooks` (logged in: `freshbooks auth status`), `jq`, and `
 
 ```
 <out>/<timestamp>/
-  backup.log            the script's own progress lines plus every stderr line the CLI produced, in run order
-  manifest.json         cli version, ok flag, per-resource count and status (ok, partial, failed), pdf tallies
-  <resource>.json       one JSON array per collection (24 files)
+  backup.log            the script's own progress lines plus every stderr line from the CLI calls, in run order (the version read is the one call whose stderr is dropped)
+  manifest.json         created_at, cli version, ok flag, per-resource count and status (ok, partial, failed; a singleton counts as 1), pdf tallies
+  <resource>.json       one JSON array per collection (24 files in a clean run; a failed one leaves none)
   identity.json         `identity me`: the business memberships the token can see
   gateways.json         `gateways get`: configured payment gateway connections
   systems.json          `systems get`: business-level settings
@@ -40,7 +40,7 @@ One command, `retainers list`, prints pages but registers no `--page` flag. If a
 
 ## Failure handling
 
-A resource that fails is logged to `backup.log`, leaves no file, and is marked `"status": "failed"` in the manifest; a failed page fails its whole collection rather than silently shortening it. The run continues. The exit status is 1 if anything failed or was partial and 0 otherwise, so a cron job or a `systemd` timer can tell; if the manifest itself cannot be written the exit status is still 1.
+A resource that fails is logged to `backup.log`, leaves no file, and is marked `"status": "failed"` in the manifest; a failed page fails its whole collection rather than silently shortening it, and a command that exits 0 with output that is not JSON counts as failed too. The run continues. The exit status is 1 if anything failed or was partial and 0 otherwise, so a cron job or a `systemd` timer can tell; if the manifest itself cannot be written the exit status is still 1.
 
 Each run creates its own timestamped directory and refuses to start if that directory already exists (a second run within the same second, or a name someone pre-created): nothing is ever overwritten.
 
@@ -59,4 +59,4 @@ Each run creates its own timestamped directory and refuses to start if that dire
 
 ## Its test
 
-`scripts/backup-selftest.sh` (`mise run backup-selftest`, also part of `mise run check`) runs the script against a fake `freshbooks` that answers from canned JSON: an `--all` collection, a two-page collection walked by hand, an unpaginated array, a collection that fails, a PDF that fails, and the three singletons. It checks the files, the manifest, the 0700 mode, the exit status, `--no-pdfs`, the empty-collection and hostile-id shapes, and that a pre-existing directory at the run's name is refused. No network.
+`scripts/backup-selftest.sh` (`mise run backup-selftest`, also part of `mise run check`) runs the script against a fake `freshbooks` that answers from canned JSON shaped like the real CLI's: `--all` collections (one empty, one that prints junk, one that prints nothing), a three-page collection walked by hand, one whose middle page fails, a page-shaped list with no `--page` flag, an unpaginated array, a collection that fails outright, a PDF that fails, a hostile invoice id, and the three singletons. It checks the files, the manifest, the 0700 mode, the exit status, `--no-pdfs`, the empty-collection and hostile-id shapes, and that a pre-existing directory at the run's name is refused. No network.

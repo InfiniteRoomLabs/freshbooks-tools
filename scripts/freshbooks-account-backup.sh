@@ -58,7 +58,11 @@ record() { entries+=("$1	$2	$3"); }
 say() { printf 'backup: %s\n' "$*" | tee -a "$log" >&2; }
 # The CLI prints `null` for an empty collection (a nil slice); every file
 # this script writes is a JSON array, so consumers can rely on `.[]`.
-as_array() { jq 'if type == "array" then . else [] end'; }
+# `jq -e` fails on anything that is not JSON and on empty input (no result
+# produced), and every caller checks that: a command that exits 0 with
+# junk or nothing on stdout is a failed resource, not an ok one with an
+# empty file.
+as_array() { jq -e 'if type == "array" then . else [] end'; }
 
 # Writes a JSON array of every item in a collection to $2. Uses --all where
 # the command offers it; otherwise fetches page 1 and, for page-shaped
@@ -67,18 +71,19 @@ as_array() { jq 'if type == "array" then . else [] end'; }
 # "partial" when more pages exist. Any failed page fails the collection.
 # Returns 0 for ok, 2 for partial, 1 for failed.
 fetch_collection() {
-  local res="$1" out="$2" help first pages p page tmp total
-  help="$("$fb" "$res" list --help 2>/dev/null || true)"
+  local res="$1" out="$2" help first kind pages p page tmp total
+  help="$("$fb" "$res" list --help 2>>"$log" || true)"
   case "$help" in
   *--all*)
     first="$("$fb" "$res" list --all -o json 2>>"$log")" || return 1
-    as_array <<<"$first" >"$out"
+    as_array <<<"$first" >"$out" 2>>"$log" || return 1
     return 0
     ;;
   esac
   first="$("$fb" "$res" list -o json 2>>"$log")" || return 1
-  if [ "$(jq -r type <<<"$first")" != object ]; then
-    as_array <<<"$first" >"$out"
+  kind="$(jq -er type <<<"$first" 2>>"$log")" || return 1
+  if [ "$kind" != object ]; then
+    as_array <<<"$first" >"$out" 2>>"$log" || return 1
     return 0
   fi
   pages="$(jq -r '.pages // 0' <<<"$first")"
@@ -89,7 +94,7 @@ fetch_collection() {
   *--page*)
     for ((p = 2; p <= pages; p++)); do
       page="$("$fb" "$res" list --page "$p" -o json 2>>"$log")" || { rm -f "$tmp"; return 1; }
-      jq '.items // []' <<<"$page" >>"$tmp"
+      jq '.items // []' <<<"$page" >>"$tmp" 2>>"$log" || { rm -f "$tmp"; return 1; }
     done
     ;;
   *)
@@ -176,8 +181,10 @@ if [ "$no_pdfs" != true ] && [ -f "$dir/invoices.json" ]; then
   say "invoice pdfs: $pdf_count written, $pdf_failed failed"
 fi
 
+# Written to a temp name and renamed, so a failure here can never leave a
+# truncated manifest behind.
 jbool() { if "$@"; then echo true; else echo false; fi; }
-if ! printf '%s\n' "${entries[@]}" | jq -R -s \
+if printf '%s\n' "${entries[@]}" | jq -R -s \
   --arg created "$stamp" \
   --arg version "$("$fb" version 2>/dev/null || echo unknown)" \
   --argjson skipped "$(jbool [ "$no_pdfs" = true ])" \
@@ -186,8 +193,11 @@ if ! printf '%s\n' "${entries[@]}" | jq -R -s \
   --argjson ok "$(jbool [ "$failed" -eq 0 ])" \
   '{created_at: $created, cli_version: $version, ok: $ok,
     invoice_pdfs: {skipped: $skipped, written: $written, failed: $pdf_failed},
-    resources: (split("\n") | map(select(length > 0) | split("\t") | {(.[0]): {count: (.[1] | tonumber), status: .[2]}}) | add)}' \
-  >"$dir/manifest.json"; then
+    resources: (split("\n") | map(select(length > 0) | split("\t") | {(.[0]): {count: (.[1] | tonumber? // 0), status: .[2]}}) | add)}' \
+  >"$dir/manifest.json.tmp" 2>>"$log"; then
+  mv "$dir/manifest.json.tmp" "$dir/manifest.json"
+else
+  rm -f "$dir/manifest.json.tmp"
   say "manifest.json: FAILED to write"
   failed=1
 fi
