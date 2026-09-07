@@ -8,8 +8,8 @@
 # so `mise install` first), and if the resolver script isn't configured
 # (it lives outside this repo, located via REDACTION_TERMS_RESOLVER -- see
 # below) this exits 0 with a notice instead of failing. Operators run it
-# as `mise run redaction-check`. scripts/redaction-selftest.sh is this script's regression test
-# and runs once per `mise run check`.
+# as `mise run redaction-check`. scripts/redaction-selftest.sh is this
+# script's regression test and runs once per `mise run check`.
 #
 # The digit sweep reports NEW content only. Staged mode reads the whole
 # staged file, so a one-line fixture edit would otherwise re-report every
