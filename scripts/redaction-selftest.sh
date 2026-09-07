@@ -18,13 +18,13 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-resolver="$HOME/projects/infinite-room-labs/agent-ops/scripts/resolve-redaction-terms.py"
+resolver="${REDACTION_TERMS_RESOLVER:-}"
 
 scratch="$(mktemp -d)"
 trap 'rm -rf "$scratch"' EXIT
 
-# Stub environment: a fake HOME carrying a resolver at the path
-# redaction-check.sh looks for, and a `uv` shim that prints the stub term
+# Stub environment: a stub resolver handed to redaction-check.sh through
+# REDACTION_TERMS_RESOLVER, and a `uv` shim that prints the stub term
 # list instead of running it. Both nonsense strings, one below the 8-char
 # short-term threshold (word-boundary path) and one above it (fixed-string
 # substring path).
@@ -32,8 +32,9 @@ stub_short="zqxjvb"
 stub_long="zzredactionselftestneedle"
 stub_home="$scratch/home"
 stub_bin="$scratch/bin"
-mkdir -p "$stub_home/projects/infinite-room-labs/agent-ops/scripts" "$stub_bin"
-: >"$stub_home/projects/infinite-room-labs/agent-ops/scripts/resolve-redaction-terms.py"
+mkdir -p "$stub_home/resolver" "$stub_bin"
+stub_resolver="$stub_home/resolver/resolve-redaction-terms.py"
+: >"$stub_resolver"
 cat >"$stub_bin/uv" <<EOF
 #!/bin/sh
 printf '%s\n%s\n' "$stub_short" "$stub_long"
@@ -51,7 +52,7 @@ ln -s "$stub_usage" "$stub_bin/usage"
 # resolves, or every stub probe would silently take the "no redaction
 # terms configured" no-op path. BASH_ENV is dropped for exactly this
 # reason -- it re-activates mise's shims and re-prepends them to PATH.
-resolved_uv=$(env -u BASH_ENV HOME="$stub_home" PATH="$stub_bin:$PATH" bash -c 'command -v uv')
+resolved_uv=$(env -u BASH_ENV HOME="$stub_home" PATH="$stub_bin:$PATH" REDACTION_TERMS_RESOLVER="$stub_resolver" bash -c 'command -v uv')
 if [ "$resolved_uv" != "$stub_bin/uv" ]; then
   echo "redaction-selftest: the stub uv shim is shadowed by $resolved_uv" >&2
   exit 1
@@ -113,7 +114,7 @@ probe() {
     fi
     set +e
     if [ "$env_kind" = stub ]; then
-      out=$(cd "$dir" && env -u BASH_ENV HOME="$stub_home" PATH="$stub_bin:$PATH" ./redaction-check.sh "${args[@]}" 2>&1)
+      out=$(cd "$dir" && env -u BASH_ENV HOME="$stub_home" PATH="$stub_bin:$PATH" REDACTION_TERMS_RESOLVER="$stub_resolver" ./redaction-check.sh "${args[@]}" 2>&1)
     else
       out=$(cd "$dir" && ./redaction-check.sh "${args[@]}" 2>&1)
     fi
@@ -134,7 +135,7 @@ probe() {
 # Preflight: the script itself must run to completion under the stub
 # environment, so a broken stub can never be mistaken for a passing probe.
 smoke_dir="$(new_repo smoke)"
-if ! smoke_out=$(cd "$smoke_dir" && env -u BASH_ENV HOME="$stub_home" PATH="$stub_bin:$PATH" ./redaction-check.sh 2>&1); then
+if ! smoke_out=$(cd "$smoke_dir" && env -u BASH_ENV HOME="$stub_home" PATH="$stub_bin:$PATH" REDACTION_TERMS_RESOLVER="$stub_resolver" ./redaction-check.sh 2>&1); then
   echo "redaction-selftest: the stub environment cannot run redaction-check.sh: $smoke_out" >&2
   exit 1
 fi
@@ -222,7 +223,7 @@ write_fixture() {
 # staged_run <dir> ; echoes the output, sets staged_status
 staged_run() {
   set +e
-  staged_out=$(cd "$1" && env -u BASH_ENV HOME="$stub_home" PATH="$stub_bin:$PATH" ./redaction-check.sh 2>&1)
+  staged_out=$(cd "$1" && env -u BASH_ENV HOME="$stub_home" PATH="$stub_bin:$PATH" REDACTION_TERMS_RESOLVER="$stub_resolver" ./redaction-check.sh 2>&1)
   staged_status=$?
   set -e
 }
@@ -279,7 +280,7 @@ fi
 case_n=$((case_n + 1))
 bad_dir="$(new_repo "$case_n")"
 set +e
-bad_out=$(cd "$bad_dir" && env -u BASH_ENV HOME="$stub_home" PATH="$stub_bin:$PATH" ./redaction-check.sh --range no-such-ref..HEAD 2>&1)
+bad_out=$(cd "$bad_dir" && env -u BASH_ENV HOME="$stub_home" PATH="$stub_bin:$PATH" REDACTION_TERMS_RESOLVER="$stub_resolver" ./redaction-check.sh --range no-such-ref..HEAD 2>&1)
 bad_status=$?
 set -e
 if [ "$bad_status" -ne 2 ]; then
@@ -293,7 +294,7 @@ fi
 # -- the private term list, when this machine has it ----------------------
 short_term=""
 long_term=""
-if [ -f "$resolver" ] && command -v uv >/dev/null 2>&1; then
+if [ -n "$resolver" ] && [ -f "$resolver" ] && command -v uv >/dev/null 2>&1; then
   terms_raw=$(cd "$(dirname "$resolver")" && uv run "$(basename "$resolver")")
   while IFS= read -r term; do
     search="${term%%==>*}"

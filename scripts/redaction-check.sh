@@ -30,10 +30,13 @@ if [ -n "${usage_range:-}" ] && ! git rev-list --count "$usage_range" >/dev/null
   exit 2
 fi
 
-resolver="$HOME/projects/infinite-room-labs/agent-ops/scripts/resolve-redaction-terms.py"
+# The resolver lives in a sibling private repo; point REDACTION_TERMS_RESOLVER
+# at it (for Infinite Room Labs operators, in a gitignored mise.local.toml
+# [env] block). This file is public, so the path is never hardcoded here.
+resolver="${REDACTION_TERMS_RESOLVER:-}"
 
-if [ ! -f "$resolver" ]; then
-  echo "redaction-check: term list not available (optional for outside contributors)"
+if [ -z "$resolver" ] || [ ! -f "$resolver" ]; then
+  echo "redaction-check: term list not configured (optional for outside contributors)"
   exit 0
 fi
 
